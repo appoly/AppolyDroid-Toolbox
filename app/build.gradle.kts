@@ -2,6 +2,8 @@ plugins {
 	alias(libs.plugins.android.application)
 	alias(libs.plugins.kotlin.android)
 	alias(libs.plugins.kotlin.compose)
+	alias(libs.plugins.kotlinKSP)
+	alias(libs.plugins.kotlinxSerialization)
 }
 
 android {
@@ -16,6 +18,13 @@ android {
 		versionName = libs.versions.toolboxVersion.get()
 
 		testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+		//Room settings
+		ksp {
+			//Room settings
+			arg("room.schemaLocation", "$projectDir/schemas")
+			arg("room.incremental", "true")
+		}
 	}
 
 	buildTypes {
@@ -33,6 +42,11 @@ android {
 	}
 	buildFeatures {
 		compose = true
+	}
+
+	// used by Room, to test migrations
+	sourceSets {
+		getByName("androidTest").assets.srcDirs("$projectDir/schemas")
 	}
 }
 
@@ -52,9 +66,14 @@ dependencies {
 	implementation(project(":BaseRepo-S3Uploader"))
 	implementation(project(":BaseRepo-Paging"))
 	implementation(project(":UiState"))
-	implementation(project(":DateHelperUtil"))
-	implementation(project(":DateHelperUtil-Room"))
-	implementation(project(":DateHelperUtil-Serialization"))
+	implementation(project(":DateHelperUtil-MP"))
+	implementation(project(":DateHelperUtil-MP-Room"))
+	implementation(project(":DateHelperUtil-MP-Serialization"))
+
+	implementation(libs.androidx.room.runtime)
+	ksp(libs.androidx.room.compiler)
+	implementation(libs.androidx.room.ktx)
+	androidTestImplementation(libs.androidx.room.testing)
 
 	//Paging
 	implementation(libs.paging.runtime)

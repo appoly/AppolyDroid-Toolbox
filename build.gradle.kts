@@ -6,6 +6,8 @@ plugins {
 	alias(libs.plugins.kotlinKSP) apply false
 	alias(libs.plugins.kotlin.compose) apply false
 	alias(libs.plugins.kotlinxSerialization) apply false
+	alias(libs.plugins.kotlin.multiplatform) apply false
+	alias(libs.plugins.android.kotlin.multiplatform.library) apply false
 }
 
 tasks.wrapper {
