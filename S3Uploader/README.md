@@ -13,7 +13,7 @@ Standalone module for Amazon S3 file uploading with progress tracking and error 
 ## Installation
 
 ```gradle.kts
-implementation("com.github.appoly.AppolyDroid-Toolbox:S3Uploader:1.0.32")
+implementation("com.github.appoly.AppolyDroid-Toolbox:S3Uploader:1.0.33")
 ```
 
 ## Usage
