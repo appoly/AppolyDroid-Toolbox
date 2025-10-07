@@ -15,12 +15,12 @@ An extension module for BaseRepo that adds Jetpack Paging 3 support for efficien
 
 ```gradle.kts
 // Requires the base BaseRepo module
-implementation("com.github.appoly.AppolyDroid-Toolbox:BaseRepo:1.0.33")
-implementation("com.github.appoly.AppolyDroid-Toolbox:BaseRepo-Paging:1.0.33")
+implementation("com.github.appoly.AppolyDroid-Toolbox:BaseRepo:1.0.34")
+implementation("com.github.appoly.AppolyDroid-Toolbox:BaseRepo-Paging:1.0.34")
 
 // For Compose UI integration
-implementation("com.github.appoly.AppolyDroid-Toolbox:LazyListPagingExtensions:1.0.33") // For LazyColumn
-implementation("com.github.appoly.AppolyDroid-Toolbox:LazyGridPagingExtensions:1.0.33") // For LazyGrid
+implementation("com.github.appoly.AppolyDroid-Toolbox:LazyListPagingExtensions:1.0.34") // For LazyColumn
+implementation("com.github.appoly.AppolyDroid-Toolbox:LazyGridPagingExtensions:1.0.34") // For LazyGrid
 ```
 
 ## API Response Format

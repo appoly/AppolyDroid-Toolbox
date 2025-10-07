@@ -70,6 +70,7 @@ dependencies {
 	implementation(project(":LazyListPagingExtensions"))
 	implementation(project(":LazyGridPagingExtensions"))
 	implementation(project(":S3Uploader"))
+	implementation(project(":ConnectivityMonitor"))
 
 	//Paging
 	implementation(libs.paging.runtime)
