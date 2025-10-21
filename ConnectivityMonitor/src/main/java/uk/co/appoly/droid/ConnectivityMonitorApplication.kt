@@ -69,6 +69,12 @@ open class ConnectivityMonitorApplication : Application() {
             override fun onAvailable(network: Network) {
 				ConnectivityLog.v("Network available: $network")
                 networkValidationMap[network] = false
+				// Request capabilities immediately to get validation state
+				connectivityManager.getNetworkCapabilities(network)?.let { caps ->
+					val validated = caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) &&
+							caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
+					networkValidationMap[network] = validated
+				}
                 recomputeConnectivity()
             }
 
@@ -82,13 +88,28 @@ open class ConnectivityMonitorApplication : Application() {
                 val validated = capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) &&
                         capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
 				ConnectivityLog.v("Capabilities changed: $network validated=$validated")
-                if (networkValidationMap[network] != validated) {
-                    networkValidationMap[network] = validated
-                    recomputeConnectivity()
-                }
-            }
-        }
-    }
+				if (networkValidationMap[network] != validated) {
+					networkValidationMap[network] = validated
+					recomputeConnectivity()
+				}
+			}
+
+			override fun onBlockedStatusChanged(network: Network, blocked: Boolean) {
+				ConnectivityLog.v("Blocked status changed: $network blocked=$blocked")
+				if (blocked) {
+					networkValidationMap[network] = false
+				} else {
+					// Re-check capabilities when unblocked
+					connectivityManager.getNetworkCapabilities(network)?.let { caps ->
+						val validated = caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) &&
+								caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
+						networkValidationMap[network] = validated
+					}
+				}
+				recomputeConnectivity()
+			}
+		}
+	}
 
 	/**
 	 * Set the logger for this class
@@ -111,14 +132,20 @@ open class ConnectivityMonitorApplication : Application() {
 	}
 
 	private fun initConnectivityMonitoring() {
-		connectivityManager.registerDefaultNetworkCallback(networkCallback)
-		// Seed initial state using currently known networks
-		connectivityManager.allNetworks.forEach { n ->
-			val caps = connectivityManager.getNetworkCapabilities(n)
-			val validated = caps?.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) == true &&
-					caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
-			networkValidationMap[n] = validated
+		// Check active network first for immediate state
+		val activeNetwork = connectivityManager.activeNetwork
+		val activeCapabilities = activeNetwork?.let { connectivityManager.getNetworkCapabilities(it) }
+		val isActiveValidated = activeCapabilities?.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) == true &&
+				activeCapabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
+
+		if (activeNetwork != null && isActiveValidated) {
+			networkValidationMap[activeNetwork] = true
 		}
+
+		// Register callback
+		connectivityManager.registerDefaultNetworkCallback(networkCallback)
+
+		// Recompute based on initial state
 		recomputeConnectivity()
 	}
 
