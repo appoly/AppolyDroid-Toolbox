@@ -133,7 +133,7 @@ abstract class GenericBaseRepo(
 	 * @param call Lambda that performs the actual API call and returns an [ApiResponse]
 	 * @return An [APIResult] representing the outcome of the API call
 	 */
-	protected inline fun doAPICallWithBaseResponse(
+	protected inline fun doAPICallWithRootJson(
 		logDescription: String,
 		call: () -> ApiResponse<RootJson>
 	): APIResult<RootJson> {
