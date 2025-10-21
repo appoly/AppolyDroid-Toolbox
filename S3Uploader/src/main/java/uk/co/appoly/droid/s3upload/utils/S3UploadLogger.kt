@@ -6,7 +6,7 @@ import com.duck.flexilogger.LoggerWithLevel
 import com.duck.flexilogger.LoggingLevel
 import uk.co.appoly.droid.s3upload.S3Uploader
 
-val S3UploadLog = LoggerWithLevel(LoggingLevel.V, S3UploadLogger)
+internal val S3UploadLog = LoggerWithLevel(LoggingLevel.V, S3UploadLogger)
 
 internal object S3UploadLogger : FlexiLog() {
 	/**

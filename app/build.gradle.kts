@@ -8,7 +8,9 @@ plugins {
 
 android {
 	namespace = "uk.co.appoly.droid.app"
-	compileSdk = libs.versions.compileSdk.get().toInt()
+	compileSdk {
+		version = release(libs.versions.compileSdk.get().toInt())
+	}
 
 	defaultConfig {
 		applicationId = "uk.co.appoly.droid"

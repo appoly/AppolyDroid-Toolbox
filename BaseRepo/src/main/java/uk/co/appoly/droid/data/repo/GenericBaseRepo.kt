@@ -4,7 +4,6 @@ import com.duck.flexilogger.FlexiLog
 import com.duck.flexilogger.LoggingLevel
 import com.skydoves.sandwich.ApiResponse
 import com.skydoves.sandwich.message
-import com.skydoves.sandwich.retrofit.errorBody
 import com.skydoves.sandwich.retrofit.statusCode
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -16,14 +15,12 @@ import uk.co.appoly.droid.data.remote.BaseRetrofitClient
 import uk.co.appoly.droid.data.remote.BaseService
 import uk.co.appoly.droid.data.remote.ServiceManager
 import uk.co.appoly.droid.data.remote.model.APIResult
-import uk.co.appoly.droid.data.remote.model.response.BaseResponse
-import uk.co.appoly.droid.data.remote.model.response.ErrorBody
-import uk.co.appoly.droid.data.remote.model.response.GenericResponse
+import uk.co.appoly.droid.data.remote.model.response.RootJson
+import uk.co.appoly.droid.data.remote.model.response.RootJsonWithData
 import uk.co.appoly.droid.util.NoConnectivityException
 import uk.co.appoly.droid.util.asNoConnectivityException
 import uk.co.appoly.droid.util.firstNotNullOrBlank
 import uk.co.appoly.droid.util.ifNullOrBlank
-import uk.co.appoly.droid.util.parseBody
 import java.net.ConnectException
 import java.net.SocketException
 import java.net.SocketTimeoutException
@@ -42,7 +39,7 @@ import kotlin.contracts.contract
  * @property logger Logger instance for logging API calls and errors
  */
 @OptIn(ExperimentalContracts::class)
-abstract class AppolyBaseRepo(
+abstract class GenericBaseRepo(
 	val getRetrofitClient: () -> BaseRetrofitClient,
 	logger: FlexiLog = BaseRepoLogger,
 	loggingLevel: LoggingLevel = LoggingLevel.V
@@ -62,7 +59,7 @@ abstract class AppolyBaseRepo(
 		)
 	}
 
-	companion object {
+	companion object Companion {
 		/**
 		 * Response code used for general exceptions that don't have a specific HTTP status code
 		 */
@@ -75,7 +72,7 @@ abstract class AppolyBaseRepo(
 	 * @param T The API interface type to get a service for
 	 * @return A lazy-initialized [BaseService] instance for the requested API type
 	 */
-	protected inline fun <reified T : BaseService.API> AppolyBaseRepo.lazyService(): Lazy<BaseService<T>> =
+	protected inline fun <reified T : BaseService.API> GenericBaseRepo.lazyService(): Lazy<BaseService<T>> =
 		lazy { getServiceManager().getService() }
 
 	/**
@@ -90,7 +87,7 @@ abstract class AppolyBaseRepo(
 	 */
 	protected inline fun <T : Any> doAPICall(
 		logDescription: String,
-		call: () -> ApiResponse<GenericResponse<T>>
+		call: () -> ApiResponse<RootJsonWithData<T>>
 	): APIResult<T> {
 		contract {
 			callsInPlace(call, kotlin.contracts.InvocationKind.EXACTLY_ONCE)
@@ -98,74 +95,39 @@ abstract class AppolyBaseRepo(
 		return when (val response = call()) {
 			is ApiResponse.Success -> {
 				val result = response.data
-				if (result.success && result.data != null) {
-					APIResult.Success(result.data)
+				val resultData = result.data
+				if (result.success && resultData != null) {
+					APIResult.Success(resultData)
 				} else {
-					val message = result.message.ifNullOrBlank { "Unknown error" }
-					BaseRepoLog.e(
-						this,
-						"$logDescription failed! code:${response.statusCode.code}, message:\"$message\""
+					handleFailure(
+						result = result,
+						statusCode = response.statusCode.code,
+						logDescription = logDescription
 					)
-					APIResult.Error(response.statusCode.code, message)
 				}
 			}
 
 			is ApiResponse.Failure.Error -> {
-				val message =
-					firstNotNullOrBlank(
-						{ response.errorBody.parseBody<ErrorBody>(getRetrofitClient())?.message },
-						{ response.message() },
-						fallback = { "Unknown error" }
-					)
-				BaseRepoLog.e(
-					this,
-					"$logDescription failed! code:${response.statusCode.code}, message:\"$message\""
+				handleFailureError(
+					response = response,
+					logDescription = logDescription
 				)
-				APIResult.Error(response.statusCode.code, message)
 			}
 
 			is ApiResponse.Failure.Exception -> {
-				when (response.throwable) {
-					is NoConnectivityException,
-					is UnknownHostException,
-					is ConnectException,
-					is SocketException,
-					is SocketTimeoutException -> {
-						BaseRepoLog.w(
-							this,
-							"$logDescription failed Due to No Connection!",
-							response.throwable
-						)
-						APIResult.Error(
-							RESPONSE_EXCEPTION_CODE,
-							"No Internet Connection",
-							response.throwable.asNoConnectivityException()
-						)
-					}
-
-					else -> {
-						val message = firstNotNullOrBlank(
-							{ response.throwable.message },
-							{ response.message() },
-							fallback = { "Unknown error" }
-						)
-						BaseRepoLog.e(
-							this,
-							"$logDescription failed with exception! message:\"$message\"",
-							response.throwable
-						)
-						APIResult.Error(RESPONSE_EXCEPTION_CODE, message, response.throwable)
-					}
-				}
+				handleFailureException(
+					response = response,
+					logDescription = logDescription
+				)
 			}
 		}
 	}
 
 	/**
-	 * Executes an API call that returns a [BaseResponse] and processes the response into an [APIResult].
+	 * Executes an API call that returns a [RootJson] and processes the response into an [APIResult].
 	 *
-	 * This method is similar to [doAPICall] but handles API calls that return a [BaseResponse]
-	 * instead of a [GenericResponse].
+	 * This method is similar to [doAPICall] but handles API calls that return a [RootJson]
+	 * instead of a [RootJsonWithData].
 	 *
 	 * @param logDescription Description of the API call for logging purposes
 	 * @param call Lambda that performs the actual API call and returns an [ApiResponse]
@@ -173,8 +135,8 @@ abstract class AppolyBaseRepo(
 	 */
 	protected inline fun doAPICallWithBaseResponse(
 		logDescription: String,
-		call: () -> ApiResponse<BaseResponse>
-	): APIResult<BaseResponse> {
+		call: () -> ApiResponse<RootJson>
+	): APIResult<RootJson> {
 		contract {
 			callsInPlace(call, kotlin.contracts.InvocationKind.EXACTLY_ONCE)
 		}
@@ -184,58 +146,26 @@ abstract class AppolyBaseRepo(
 				if (result.success) {
 					APIResult.Success(result)
 				} else {
-					val message = result.message.ifNullOrBlank { "Unknown error" }
-					BaseRepoLog.e(
-						this,
-						"$logDescription failed! code:${response.statusCode.code}, message:\"$message\""
+					handleFailure(
+						result = result,
+						statusCode = response.statusCode.code,
+						logDescription = logDescription
 					)
-					APIResult.Error(response.statusCode.code, message)
 				}
 			}
 
 			is ApiResponse.Failure.Error -> {
-				val message =
-					firstNotNullOrBlank(
-						{ response.errorBody.parseBody<ErrorBody>(getRetrofitClient())?.message },
-						{ response.message() },
-						fallback = { "Unknown error" }
-					)
-				BaseRepoLog.e(
-					this,
-					"$logDescription failed! code:${response.statusCode.code}, message:\"$message\""
+				handleFailureError(
+					response = response,
+					logDescription = logDescription
 				)
-				APIResult.Error(response.statusCode.code, message)
 			}
 
 			is ApiResponse.Failure.Exception -> {
-				when (response.throwable) {
-					is NoConnectivityException,
-					is UnknownHostException,
-					is ConnectException,
-					is SocketException,
-					is SocketTimeoutException -> {
-						BaseRepoLog.w(
-							this,
-							"$logDescription failed Due to No Connection!",
-							response.throwable
-						)
-						APIResult.Error(RESPONSE_EXCEPTION_CODE, "No Internet Connection", response.throwable)
-					}
-
-					else -> {
-						val message = firstNotNullOrBlank(
-							{ response.throwable.message },
-							{ response.message() },
-							fallback = { "Unknown error" }
-						)
-						BaseRepoLog.e(
-							this,
-							"$logDescription failed with exception! message:\"$message\"",
-							response.throwable
-						)
-						APIResult.Error(RESPONSE_EXCEPTION_CODE, message, response.throwable)
-					}
-				}
+				handleFailureException(
+					response = response,
+					logDescription = logDescription
+				)
 			}
 		}
 	}
@@ -274,5 +204,96 @@ abstract class AppolyBaseRepo(
 			apiCall = apiCall,
 			scope = scope
 		)
+	}
+
+	fun handleFailure(
+		result: RootJson,
+		statusCode: Int,
+		logDescription: String
+	): APIResult.Error {
+		val message = result.message.ifNullOrBlank { "Unknown error" }
+		logError(
+			this,
+			"$logDescription failed! code:$statusCode, message:\"$message\""
+		)
+		return APIResult.Error(statusCode, message)
+	}
+
+	fun handleFailureError(response: ApiResponse.Failure.Error, logDescription: String): APIResult.Error {
+		val message = try {
+			firstNotNullOrBlank(
+				{ extractErrorMessage(response) },
+				{ response.message() },
+				fallback = { "Unknown error" }
+			)
+		} catch (e: Exception) {
+			"Unknown error"
+		}
+		logError(
+			this,
+			"$logDescription failed! code:${response.statusCode.code}, message:\"$message\""
+		)
+		return APIResult.Error(response.statusCode.code, message)
+	}
+
+	abstract fun extractErrorMessage(response: ApiResponse.Failure.Error): String?
+
+	fun handleFailureException(response: ApiResponse.Failure.Exception, logDescription: String): APIResult.Error {
+		return when (response.throwable) {
+			is NoConnectivityException,
+			is UnknownHostException,
+			is ConnectException,
+			is SocketException,
+			is SocketTimeoutException -> {
+				logWarning(
+					this,
+					"$logDescription failed Due to No Internet Connection!",
+					response.throwable
+				)
+				APIResult.Error(
+					RESPONSE_EXCEPTION_CODE,
+					"No Internet Connection",
+					response.throwable.asNoConnectivityException()
+				)
+			}
+
+			else -> {
+				val message = firstNotNullOrBlank(
+					{ response.throwable.message },
+					{ response.message() },
+					fallback = { "Unknown error" }
+				)
+				logError(
+					this,
+					"$logDescription failed with exception! message:\"$message\"",
+					response.throwable
+				)
+				APIResult.Error(RESPONSE_EXCEPTION_CODE, message, response.throwable)
+			}
+		}
+	}
+
+	fun logError(
+		caller: Any,
+		msg: String,
+		tr: Throwable? = null
+	) {
+		if (tr != null) {
+			BaseRepoLog.e(caller, msg, tr)
+		} else {
+			BaseRepoLog.e(caller, msg)
+		}
+	}
+
+	fun logWarning(
+		caller: Any,
+		msg: String,
+		tr: Throwable? = null
+	) {
+		if (tr != null) {
+			BaseRepoLog.w(caller, msg, tr)
+		} else {
+			BaseRepoLog.w(caller, msg)
+		}
 	}
 }
