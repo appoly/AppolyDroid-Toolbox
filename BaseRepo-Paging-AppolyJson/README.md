@@ -15,13 +15,13 @@ follow Appoly's paging format.
 
 ```gradle.kts
 // Requires the base modules
-implementation("com.github.appoly.AppolyDroid-Toolbox:BaseRepo:1.0.38_rc03")
-implementation("com.github.appoly.AppolyDroid-Toolbox:BaseRepo-Paging:1.0.38_rc03")
-implementation("com.github.appoly.AppolyDroid-Toolbox:BaseRepo-Paging-AppolyJson:1.0.38_rc03")
+implementation("com.github.appoly.AppolyDroid-Toolbox:BaseRepo:1.0.38")
+implementation("com.github.appoly.AppolyDroid-Toolbox:BaseRepo-Paging:1.0.38")
+implementation("com.github.appoly.AppolyDroid-Toolbox:BaseRepo-Paging-AppolyJson:1.0.38")
 
 // For Compose UI integration
-implementation("com.github.appoly.AppolyDroid-Toolbox:LazyListPagingExtensions:1.0.38_rc03") // For LazyColumn
-implementation("com.github.appoly.AppolyDroid-Toolbox:LazyGridPagingExtensions:1.0.38_rc03") // For LazyGrid
+implementation("com.github.appoly.AppolyDroid-Toolbox:LazyListPagingExtensions:1.0.38") // For LazyColumn
+implementation("com.github.appoly.AppolyDroid-Toolbox:LazyGridPagingExtensions:1.0.38") // For LazyGrid
 ```
 
 ## API Response Format

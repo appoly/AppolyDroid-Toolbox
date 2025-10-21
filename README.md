@@ -52,7 +52,7 @@ In your `libs.versions.toml` file:
 
 ```toml
 [versions]
-appolydroidToolbox = "1.0.38_rc03" # Replace with the latest version
+appolydroidToolbox = "1.0.38" # Replace with the latest version
 
 [libraries]
 appolydroid-toolbox-bom = { group = "com.github.appoly.AppolyDroid-Toolbox", name = "AppolyDroid-Toolbox-bom", version.ref = "appolydroidToolbox" }
@@ -111,7 +111,7 @@ In your module's `build.gradle.kts`:
 ```gradle.kts
 dependencies {
     // Import the BOM
-    implementation(platform("com.github.appoly.AppolyDroid-Toolbox:AppolyDroid-Toolbox-bom:1.0.38_rc03"))
+    implementation(platform("com.github.appoly.AppolyDroid-Toolbox:AppolyDroid-Toolbox-bom:1.0.38"))
 
     // Now you can use AppolyDroid modules without specifying versions
     implementation("com.github.appoly.AppolyDroid-Toolbox:BaseRepo")
@@ -134,20 +134,13 @@ dependencies {
 }
 ```
 
-**Benefits of using the BOM:**
-
-- Ensures all AppolyDroid modules use compatible versions
-- Provides version management for shared 3rd party dependencies
-- Simplifies dependency declarations
-- Reduces version conflicts
-
 ### Individual Module Installation
 
 In your `libs.versions.toml` file:
 
 ```toml
 [versions]
-appolydroidToolbox = "1.0.38_rc03" # Replace with the latest version
+appolydroidToolbox = "1.0.38" # Replace with the latest version
 
 [libraries]
 #AppolyDroid-Toolbox
@@ -192,29 +185,31 @@ dependencies {
     implementation(libs.appolydroid.toolbox.connectivityMonitor)
 }
 ```
+
 ### Without Version Catalog
 
 In your module's `build.gradle.kts`:
 
 ```gradle.kts
 dependencies {
+    val appolydroidToolbox = "1.0.38" // Replace with the latest version
     // Add only the modules you need
-    implementation("com.github.appoly.AppolyDroid-Toolbox:BaseRepo:1.0.37")
-    implementation("com.github.appoly.AppolyDroid-Toolbox:BaseRepo-AppolyJson:1.0.37")
-    implementation("com.github.appoly.AppolyDroid-Toolbox:BaseRepo-S3Uploader:1.0.37")
-    implementation("com.github.appoly.AppolyDroid-Toolbox:BaseRepo-Paging:1.0.37")
-    implementation("com.github.appoly.AppolyDroid-Toolbox:BaseRepo-Paging-AppolyJson:1.0.37")
-    implementation("com.github.appoly.AppolyDroid-Toolbox:DateHelperUtil:1.0.37")
-    implementation("com.github.appoly.AppolyDroid-Toolbox:DateHelperUtil-Room:1.0.37")
-    implementation("com.github.appoly.AppolyDroid-Toolbox:DateHelperUtil-Serialization:1.0.37")
-    implementation("com.github.appoly.AppolyDroid-Toolbox:UiState:1.0.37")
-    implementation("com.github.appoly.AppolyDroid-Toolbox:AppSnackBar:1.0.37")
-    implementation("com.github.appoly.AppolyDroid-Toolbox:AppSnackBar-UiState:1.0.37")
-    implementation("com.github.appoly.AppolyDroid-Toolbox:LazyListPagingExtensions:1.0.37")
-    implementation("com.github.appoly.AppolyDroid-Toolbox:LazyGridPagingExtensions:1.0.37")
-    implementation("com.github.appoly.AppolyDroid-Toolbox:S3Uploader:1.0.37")
-    implementation("com.github.appoly.AppolyDroid-Toolbox:ComposeExtensions:1.0.37")
-    implementation("com.github.appoly.AppolyDroid-Toolbox:ConnectivityMonitor:1.0.37")
+    implementation("com.github.appoly.AppolyDroid-Toolbox:BaseRepo:$appolydroidToolbox")
+    implementation("com.github.appoly.AppolyDroid-Toolbox:BaseRepo-AppolyJson:$appolydroidToolbox")
+    implementation("com.github.appoly.AppolyDroid-Toolbox:BaseRepo-S3Uploader:$appolydroidToolbox")
+    implementation("com.github.appoly.AppolyDroid-Toolbox:BaseRepo-Paging:$appolydroidToolbox")
+    implementation("com.github.appoly.AppolyDroid-Toolbox:BaseRepo-Paging-AppolyJson:$appolydroidToolbox")
+    implementation("com.github.appoly.AppolyDroid-Toolbox:DateHelperUtil:$appolydroidToolbox")
+    implementation("com.github.appoly.AppolyDroid-Toolbox:DateHelperUtil-Room:$appolydroidToolbox")
+    implementation("com.github.appoly.AppolyDroid-Toolbox:DateHelperUtil-Serialization:$appolydroidToolbox")
+    implementation("com.github.appoly.AppolyDroid-Toolbox:UiState:$appolydroidToolbox")
+    implementation("com.github.appoly.AppolyDroid-Toolbox:AppSnackBar:$appolydroidToolbox")
+    implementation("com.github.appoly.AppolyDroid-Toolbox:AppSnackBar-UiState:$appolydroidToolbox")
+    implementation("com.github.appoly.AppolyDroid-Toolbox:LazyListPagingExtensions:$appolydroidToolbox")
+    implementation("com.github.appoly.AppolyDroid-Toolbox:LazyGridPagingExtensions:$appolydroidToolbox")
+    implementation("com.github.appoly.AppolyDroid-Toolbox:S3Uploader:$appolydroidToolbox")
+    implementation("com.github.appoly.AppolyDroid-Toolbox:ComposeExtensions:$appolydroidToolbox")
+    implementation("com.github.appoly.AppolyDroid-Toolbox:ConnectivityMonitor:$appolydroidToolbox")
 }
 ```
 
