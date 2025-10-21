@@ -9,7 +9,7 @@ internal val DateHelperLog = LoggerWithLevel(LoggingLevel.V, DateHelperLogger)
 
 internal object DateHelperLogger : FlexiLog() {
 	/**
-	 * Used to determine if we should Lod to the console or not.
+	 * Used to determine if we should Log to the console or not.
 	 */
 	override fun canLogToConsole(type: LogType): Boolean = true
 
