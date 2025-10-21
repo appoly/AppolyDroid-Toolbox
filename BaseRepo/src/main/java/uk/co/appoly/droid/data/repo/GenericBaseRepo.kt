@@ -212,12 +212,23 @@ abstract class GenericBaseRepo(
 		logDescription: String
 	): APIResult.Error {
 		val message = result.message.ifNullOrBlank { "Unknown error" }
-		logError(
+		BaseRepoLog.e(
 			this,
 			"$logDescription failed! code:$statusCode, message:\"$message\""
 		)
 		return APIResult.Error(statusCode, message)
 	}
+
+	/**
+	 * Extracts a meaningful error message from an error API response.
+	 *
+	 * This method should be implemented by subclasses to parse the error body
+	 * and retrieve a user-friendly error message.
+	 *
+	 * @param response The error API response
+	 * @return A string containing the error message, or null if not available
+	 */
+	abstract fun extractErrorMessage(response: ApiResponse.Failure.Error): String?
 
 	fun handleFailureError(response: ApiResponse.Failure.Error, logDescription: String): APIResult.Error {
 		val message = try {
@@ -229,14 +240,12 @@ abstract class GenericBaseRepo(
 		} catch (e: Exception) {
 			"Unknown error"
 		}
-		logError(
+		BaseRepoLog.e(
 			this,
 			"$logDescription failed! code:${response.statusCode.code}, message:\"$message\""
 		)
 		return APIResult.Error(response.statusCode.code, message)
 	}
-
-	abstract fun extractErrorMessage(response: ApiResponse.Failure.Error): String?
 
 	fun handleFailureException(response: ApiResponse.Failure.Exception, logDescription: String): APIResult.Error {
 		return when (response.throwable) {
@@ -245,7 +254,7 @@ abstract class GenericBaseRepo(
 			is ConnectException,
 			is SocketException,
 			is SocketTimeoutException -> {
-				logWarning(
+				BaseRepoLog.w(
 					this,
 					"$logDescription failed Due to No Internet Connection!",
 					response.throwable
@@ -263,37 +272,13 @@ abstract class GenericBaseRepo(
 					{ response.message() },
 					fallback = { "Unknown error" }
 				)
-				logError(
+				BaseRepoLog.e(
 					this,
 					"$logDescription failed with exception! message:\"$message\"",
 					response.throwable
 				)
 				APIResult.Error(RESPONSE_EXCEPTION_CODE, message, response.throwable)
 			}
-		}
-	}
-
-	fun logError(
-		caller: Any,
-		msg: String,
-		tr: Throwable? = null
-	) {
-		if (tr != null) {
-			BaseRepoLog.e(caller, msg, tr)
-		} else {
-			BaseRepoLog.e(caller, msg)
-		}
-	}
-
-	fun logWarning(
-		caller: Any,
-		msg: String,
-		tr: Throwable? = null
-	) {
-		if (tr != null) {
-			BaseRepoLog.w(caller, msg, tr)
-		} else {
-			BaseRepoLog.w(caller, msg)
 		}
 	}
 }
