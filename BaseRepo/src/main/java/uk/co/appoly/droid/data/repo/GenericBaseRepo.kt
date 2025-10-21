@@ -59,7 +59,7 @@ abstract class GenericBaseRepo(
 		)
 	}
 
-	companion object Companion {
+	companion object {
 		/**
 		 * Response code used for general exceptions that don't have a specific HTTP status code
 		 */
