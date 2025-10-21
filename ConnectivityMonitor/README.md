@@ -9,7 +9,7 @@
 Add the following dependency to your project's `build.gradle` file:
 
 ```gradle.kts
-implementation("com.github.appoly.AppolyDroid-Toolbox:connectivitymonitor:1.0.37")
+implementation("com.github.appoly.AppolyDroid-Toolbox:connectivitymonitor:1.0.38")
 ```
 
 ## Usage

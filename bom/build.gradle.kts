@@ -17,6 +17,10 @@ dependencies {
 		api("com.github.appoly.AppolyDroid-Toolbox:BaseRepo-S3Uploader:${libs.versions.toolboxVersion.get()}")
 		api("com.github.appoly.AppolyDroid-Toolbox:BaseRepo-Paging:${libs.versions.toolboxVersion.get()}")
 
+		// Core Appoly specific modules
+		api("com.github.appoly.AppolyDroid-Toolbox:BaseRepo-AppolyJson:${libs.versions.toolboxVersion.get()}")
+		api("com.github.appoly.AppolyDroid-Toolbox:BaseRepo-Paging-AppolyJson:${libs.versions.toolboxVersion.get()}")
+
 		// UI State modules
 		api("com.github.appoly.AppolyDroid-Toolbox:UiState:${libs.versions.toolboxVersion.get()}")
 		api("com.github.appoly.AppolyDroid-Toolbox:AppSnackBar:${libs.versions.toolboxVersion.get()}")
