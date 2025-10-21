@@ -3,6 +3,7 @@ package uk.co.appoly.droid.data.repo
 import com.skydoves.sandwich.ApiResponse
 import com.skydoves.sandwich.retrofit.statusCode
 import uk.co.appoly.droid.data.remote.model.APIResult
+import uk.co.appoly.droid.data.remote.model.response.GenericNestedPagedResponse
 import uk.co.appoly.droid.data.remote.model.response.PageData
 
 /**
