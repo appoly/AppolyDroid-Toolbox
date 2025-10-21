@@ -2,12 +2,10 @@ package uk.co.appoly.droid
 
 import com.duck.flexilogger.FlexiLog
 import com.duck.flexilogger.LogType
-import com.duck.flexilogger.LoggerWithLevel
-import com.duck.flexilogger.LoggingLevel
 
 internal object Log : FlexiLog() {
 	/**
-	 * Used to determine if we should Lod to the console or not.
+	 * Used to determine if we should Log to the console or not.
 	 */
 	override fun canLogToConsole(type: LogType): Boolean = true
 

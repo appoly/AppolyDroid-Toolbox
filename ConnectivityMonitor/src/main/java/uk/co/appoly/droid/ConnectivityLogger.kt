@@ -9,7 +9,7 @@ internal val ConnectivityLog = LoggerWithLevel(LoggingLevel.V, ConnectivityLogge
 
 internal object ConnectivityLogger : FlexiLog() {
 	/**
-	 * Used to determine if we should Lod to the console or not.
+	 * Used to determine if we should Log to the console or not.
 	 */
 	override fun canLogToConsole(type: LogType): Boolean = true
 

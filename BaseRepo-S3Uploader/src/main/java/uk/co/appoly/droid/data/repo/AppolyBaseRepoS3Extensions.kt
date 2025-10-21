@@ -27,7 +27,7 @@ import java.io.File
  * @param progressFlow Optional MutableStateFlow to track upload progress (0.0f to 1.0f)
  * @return [APIResult.Success] with the S3 file path if successful, or [APIResult.Error] with error details if failed
  */
-suspend inline fun AppolyBaseRepo.uploadFileToS3(
+suspend inline fun GenericBaseRepo.uploadFileToS3(
 	generatePresignedURL: String,
 	file: File,
 	progressFlow: MutableStateFlow<Float>? = null
@@ -72,7 +72,7 @@ suspend inline fun AppolyBaseRepo.uploadFileToS3(
  * @param sendPathApiCall Lambda function that takes the S3 file path and makes an additional API call
  * @return [APIResult] from the secondary API call if the upload was successful, or [APIResult.Error] if the upload failed
  */
-suspend inline fun <T : Any> AppolyBaseRepo.uploadFileToS3(
+suspend inline fun <T : Any> GenericBaseRepo.uploadFileToS3(
 	generatePresignedURL: String,
 	file: File,
 	sendPathApiCall: (String) -> APIResult<T>

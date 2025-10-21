@@ -36,6 +36,6 @@ import kotlinx.serialization.Serializable
  */
 @Serializable
 data class BaseResponse(
-	val success: Boolean,
-	val message: String? = null
-)
+	override val success: Boolean,
+	override val message: String? = null
+) : RootJson

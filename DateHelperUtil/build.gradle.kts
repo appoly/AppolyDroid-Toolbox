@@ -11,7 +11,9 @@ group = "com.github.appoly"
 
 android {
 	namespace = "uk.co.appoly.droid.datehelper"
-	compileSdk = libs.versions.compileSdk.get().toInt()
+	compileSdk {
+		version = release(libs.versions.compileSdk.get().toInt())
+	}
 
 	publishing {
 		singleVariant("release") {

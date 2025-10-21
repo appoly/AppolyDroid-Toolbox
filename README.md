@@ -52,14 +52,16 @@ In your `libs.versions.toml` file:
 
 ```toml
 [versions]
-appolydroidToolbox = "1.0.37" # Replace with the latest version
+appolydroidToolbox = "1.0.38" # Replace with the latest version
 
 [libraries]
 appolydroid-toolbox-bom = { group = "com.github.appoly.AppolyDroid-Toolbox", name = "AppolyDroid-Toolbox-bom", version.ref = "appolydroidToolbox" }
 # AppolyDroid modules (versions managed by BOM)
 appolydroid-toolbox-baseRepo = { group = "com.github.appoly.AppolyDroid-Toolbox", name = "BaseRepo" }
+appolydroid-toolbox-baseRepo-appolyJson = { group = "com.github.appoly.AppolyDroid-Toolbox", name = "BaseRepo-AppolyJson" }
 appolydroid-toolbox-baseRepo-s3 = { group = "com.github.appoly.AppolyDroid-Toolbox", name = "BaseRepo-S3Uploader" }
 appolydroid-toolbox-baseRepo-paging = { group = "com.github.appoly.AppolyDroid-Toolbox", name = "BaseRepo-Paging" }
+appolydroid-toolbox-baseRepo-paging-AppolyJson = { group = "com.github.appoly.AppolyDroid-Toolbox", name = "BaseRepo-Paging-AppolyJson" }
 appolydroid-toolbox-uiState = { group = "com.github.appoly.AppolyDroid-Toolbox", name = "UiState" }
 appolydroid-toolbox-appSnackBar = { group = "com.github.appoly.AppolyDroid-Toolbox", name = "AppSnackBar" }
 appolydroid-toolbox-appSnackBar-uiState = { group = "com.github.appoly.AppolyDroid-Toolbox", name = "AppSnackBar-UiState" }
@@ -83,8 +85,10 @@ dependencies {
 
     // Now you can use AppolyDroid modules without specifying versions
     implementation(libs.appolydroid.toolbox.baseRepo)
+    implementation(libs.appolydroid.toolbox.baseRepo.appolyJson)
     implementation(libs.appolydroid.toolbox.baseRepo.s3)
     implementation(libs.appolydroid.toolbox.baseRepo.paging)
+    implementation(libs.appolydroid.toolbox.baseRepo.pagingAppolyJson)
     implementation(libs.appolydroid.toolbox.uiState)
     implementation(libs.appolydroid.toolbox.appSnackBar)
     implementation(libs.appolydroid.toolbox.appSnackBar.uiState)
@@ -107,12 +111,14 @@ In your module's `build.gradle.kts`:
 ```gradle.kts
 dependencies {
     // Import the BOM
-    implementation(platform("com.github.appoly.AppolyDroid-Toolbox:AppolyDroid-Toolbox-bom:1.0.37"))
+    implementation(platform("com.github.appoly.AppolyDroid-Toolbox:AppolyDroid-Toolbox-bom:1.0.38"))
 
     // Now you can use AppolyDroid modules without specifying versions
     implementation("com.github.appoly.AppolyDroid-Toolbox:BaseRepo")
+    implementation("com.github.appoly.AppolyDroid-Toolbox:BaseRepo-AppolyJson")
     implementation("com.github.appoly.AppolyDroid-Toolbox:BaseRepo-S3Uploader")
     implementation("com.github.appoly.AppolyDroid-Toolbox:BaseRepo-Paging")
+    implementation("com.github.appoly.AppolyDroid-Toolbox:BaseRepo-Paging-AppolyJson")
     implementation("com.github.appoly.AppolyDroid-Toolbox:UiState")
     implementation("com.github.appoly.AppolyDroid-Toolbox:AppSnackBar")
     implementation("com.github.appoly.AppolyDroid-Toolbox:AppSnackBar-UiState")
@@ -128,26 +134,21 @@ dependencies {
 }
 ```
 
-**Benefits of using the BOM:**
-
-- Ensures all AppolyDroid modules use compatible versions
-- Provides version management for shared 3rd party dependencies
-- Simplifies dependency declarations
-- Reduces version conflicts
-
 ### Individual Module Installation
 
 In your `libs.versions.toml` file:
 
 ```toml
 [versions]
-appolydroidToolbox = "1.0.37" # Replace with the latest version
+appolydroidToolbox = "1.0.38" # Replace with the latest version
 
 [libraries]
 #AppolyDroid-Toolbox
 appolydroid-toolbox-baseRepo = { group = "com.github.appoly.AppolyDroid-Toolbox", name = "BaseRepo", version.ref = "appolydroidToolbox" }
+appolydroid-toolbox-baseRepo-appolyJson = { group = "com.github.appoly.AppolyDroid-Toolbox", name = "BaseRepo-AppolyJson", version.ref = "appolydroidToolbox" }
 appolydroid-toolbox-baseRepo-s3 = { group = "com.github.appoly.AppolyDroid-Toolbox", name = "BaseRepo-S3Uploader", version.ref = "appolydroidToolbox" }
 appolydroid-toolbox-baseRepo-paging = { group = "com.github.appoly.AppolyDroid-Toolbox", name = "BaseRepo-Paging", version.ref = "appolydroidToolbox" }
+appolydroid-toolbox-baseRepo-paging-AppolyJson = { group = "com.github.appoly.AppolyDroid-Toolbox", name = "BaseRepo-Paging-AppolyJson", version.ref = "appolydroidToolbox" }
 appolydroid-toolbox-dateHelper = { group = "com.github.appoly.AppolyDroid-Toolbox", name = "DateHelperUtil", version.ref = "appolydroidToolbox" }
 appolydroid-toolbox-dateHelper-room = { group = "com.github.appoly.AppolyDroid-Toolbox", name = "DateHelperUtil-Room", version.ref = "appolydroidToolbox" }
 appolydroid-toolbox-dateHelper-serialization = { group = "com.github.appoly.AppolyDroid-Toolbox", name = "DateHelperUtil-Serialization", version.ref = "appolydroidToolbox" }
@@ -167,8 +168,10 @@ Then in your module's `build.gradle.kts`:
 dependencies {
     // Add only the modules you need
     implementation(libs.appolydroid.toolbox.baseRepo)
+    implementation(libs.appolydroid.toolbox.baseRepo.appolyJson)
     implementation(libs.appolydroid.toolbox.baseRepo.s3)
     implementation(libs.appolydroid.toolbox.baseRepo.paging)
+    implementation(libs.appolydroid.toolbox.baseRepo.pagingAppolyJson)
     implementation(libs.appolydroid.toolbox.dateHelper)
     implementation(libs.appolydroid.toolbox.dateHelper.room)
     implementation(libs.appolydroid.toolbox.dateHelper.serialization)
@@ -182,27 +185,31 @@ dependencies {
     implementation(libs.appolydroid.toolbox.connectivityMonitor)
 }
 ```
+
 ### Without Version Catalog
 
 In your module's `build.gradle.kts`:
 
 ```gradle.kts
 dependencies {
+    val appolydroidToolbox = "1.0.38" // Replace with the latest version
     // Add only the modules you need
-    implementation("com.github.appoly.AppolyDroid-Toolbox:BaseRepo:1.0.32_rc01")
-    implementation("com.github.appoly.AppolyDroid-Toolbox:BaseRepo-S3Uploader:1.0.32_rc01")
-    implementation("com.github.appoly.AppolyDroid-Toolbox:BaseRepo-Paging:1.0.32_rc01")
-    implementation("com.github.appoly.AppolyDroid-Toolbox:DateHelperUtil:1.0.32_rc01")
-    implementation("com.github.appoly.AppolyDroid-Toolbox:DateHelperUtil-Room:1.0.32_rc01")
-    implementation("com.github.appoly.AppolyDroid-Toolbox:DateHelperUtil-Serialization:1.0.32_rc01")
-    implementation("com.github.appoly.AppolyDroid-Toolbox:UiState:1.0.32_rc01")
-    implementation("com.github.appoly.AppolyDroid-Toolbox:AppSnackBar:1.0.32_rc01")
-    implementation("com.github.appoly.AppolyDroid-Toolbox:AppSnackBar-UiState:1.0.32_rc01")
-    implementation("com.github.appoly.AppolyDroid-Toolbox:LazyListPagingExtensions:1.0.32_rc01")
-    implementation("com.github.appoly.AppolyDroid-Toolbox:LazyGridPagingExtensions:1.0.32_rc01")
-    implementation("com.github.appoly.AppolyDroid-Toolbox:S3Uploader:1.0.32_rc01")
-    implementation("com.github.appoly.AppolyDroid-Toolbox:ComposeExtensions:1.0.32_rc01")
-    implementation("com.github.appoly.AppolyDroid-Toolbox:ConnectivityMonitor:1.0.32_rc01")
+    implementation("com.github.appoly.AppolyDroid-Toolbox:BaseRepo:$appolydroidToolbox")
+    implementation("com.github.appoly.AppolyDroid-Toolbox:BaseRepo-AppolyJson:$appolydroidToolbox")
+    implementation("com.github.appoly.AppolyDroid-Toolbox:BaseRepo-S3Uploader:$appolydroidToolbox")
+    implementation("com.github.appoly.AppolyDroid-Toolbox:BaseRepo-Paging:$appolydroidToolbox")
+    implementation("com.github.appoly.AppolyDroid-Toolbox:BaseRepo-Paging-AppolyJson:$appolydroidToolbox")
+    implementation("com.github.appoly.AppolyDroid-Toolbox:DateHelperUtil:$appolydroidToolbox")
+    implementation("com.github.appoly.AppolyDroid-Toolbox:DateHelperUtil-Room:$appolydroidToolbox")
+    implementation("com.github.appoly.AppolyDroid-Toolbox:DateHelperUtil-Serialization:$appolydroidToolbox")
+    implementation("com.github.appoly.AppolyDroid-Toolbox:UiState:$appolydroidToolbox")
+    implementation("com.github.appoly.AppolyDroid-Toolbox:AppSnackBar:$appolydroidToolbox")
+    implementation("com.github.appoly.AppolyDroid-Toolbox:AppSnackBar-UiState:$appolydroidToolbox")
+    implementation("com.github.appoly.AppolyDroid-Toolbox:LazyListPagingExtensions:$appolydroidToolbox")
+    implementation("com.github.appoly.AppolyDroid-Toolbox:LazyGridPagingExtensions:$appolydroidToolbox")
+    implementation("com.github.appoly.AppolyDroid-Toolbox:S3Uploader:$appolydroidToolbox")
+    implementation("com.github.appoly.AppolyDroid-Toolbox:ComposeExtensions:$appolydroidToolbox")
+    implementation("com.github.appoly.AppolyDroid-Toolbox:ConnectivityMonitor:$appolydroidToolbox")
 }
 ```
 
@@ -210,12 +217,22 @@ dependencies {
 ### BaseRepo
 Foundation for repository pattern implementation with API call handling.
 [Learn more](BaseRepo/README.md)
+
+### BaseRepo-AppolyJson
+
+Extension to BaseRepo providing Appoly's JSON response structure support.
+[Learn more](BaseRepo-AppolyJson/README.md)
 ### BaseRepo-S3Uploader
 Extension to BaseRepo adding S3 upload capabilities.
 [Learn more](BaseRepo-S3Uploader/README.md)
 ### BaseRepo-Paging
 Extends BaseRepo with Jetpack Paging capabilities.
 [Learn more](BaseRepo-Paging/README.md)
+
+### BaseRepo-Paging-AppolyJson
+
+Extension to BaseRepo-Paging providing Appoly's nested JSON paging response structure support.
+[Learn more](BaseRepo-Paging-AppolyJson/README.md)
 ### DateHelperUtil
 Utilities for date and time operations.
 [Learn more](DateHelperUtil/README.md)
@@ -275,4 +292,3 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
-
