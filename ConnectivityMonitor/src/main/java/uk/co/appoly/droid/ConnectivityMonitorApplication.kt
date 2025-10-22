@@ -19,10 +19,9 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.transformLatest
-import kotlin.collections.any
-import kotlin.collections.forEach
-import kotlin.collections.set
-import kotlin.isInitialized
+import uk.co.appoly.droid.ConnectivityMonitorApplication.Companion.isConnected
+import uk.co.appoly.droid.ConnectivityMonitorApplication.Companion.isConnectedDebounced
+import uk.co.appoly.droid.ConnectivityMonitorApplication.Companion.onlineDebounceDelayMillis
 
 /**
  * An [Application] subclass that provides lifecycle-aware connectivity monitoring.
@@ -67,7 +66,7 @@ open class ConnectivityMonitorApplication : Application() {
 	private val networkCallback: ConnectivityManager.NetworkCallback by lazy {
         object : ConnectivityManager.NetworkCallback() {
             override fun onAvailable(network: Network) {
-				ConnectivityLog.v("Network available: $network")
+				ConnectivityLog.v(this@ConnectivityMonitorApplication, "Network available: $network")
                 networkValidationMap[network] = false
 				// Request capabilities immediately to get validation state
 				connectivityManager.getNetworkCapabilities(network)?.let { caps ->
@@ -79,7 +78,7 @@ open class ConnectivityMonitorApplication : Application() {
             }
 
             override fun onLost(network: Network) {
-				ConnectivityLog.v("Network lost: $network")
+				ConnectivityLog.v(this@ConnectivityMonitorApplication, "Network lost: $network")
                 networkValidationMap.remove(network)
                 recomputeConnectivity()
             }
@@ -87,7 +86,7 @@ open class ConnectivityMonitorApplication : Application() {
             override fun onCapabilitiesChanged(network: Network, capabilities: NetworkCapabilities) {
                 val validated = capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) &&
                         capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
-				ConnectivityLog.v("Capabilities changed: $network validated=$validated")
+				ConnectivityLog.v(this@ConnectivityMonitorApplication, "Capabilities changed: $network validated=$validated")
 				if (networkValidationMap[network] != validated) {
 					networkValidationMap[network] = validated
 					recomputeConnectivity()
@@ -95,7 +94,7 @@ open class ConnectivityMonitorApplication : Application() {
 			}
 
 			override fun onBlockedStatusChanged(network: Network, blocked: Boolean) {
-				ConnectivityLog.v("Blocked status changed: $network blocked=$blocked")
+				ConnectivityLog.v(this@ConnectivityMonitorApplication, "Blocked status changed: $network blocked=$blocked")
 				if (blocked) {
 					networkValidationMap[network] = false
 				} else {
@@ -126,7 +125,7 @@ open class ConnectivityMonitorApplication : Application() {
 	private fun recomputeConnectivity() {
 		val connectedNow = networkValidationMap.values.any { it }
 		if (_isConnected.value != connectedNow) {
-			ConnectivityLog.v(this, "Connectivity changed -> $connectedNow")
+			ConnectivityLog.v(this@ConnectivityMonitorApplication, "Connectivity changed -> $connectedNow")
 			_isConnected.value = connectedNow
 		}
 	}
