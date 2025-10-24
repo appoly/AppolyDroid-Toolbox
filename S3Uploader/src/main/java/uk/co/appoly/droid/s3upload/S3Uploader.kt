@@ -262,7 +262,7 @@ object S3Uploader {
 			}
 			val response = RetrofitClient.apiService.uploadToS3(
 				uploadUrl = data.presignedUrl,
-				headers = data.headers.asMap,
+				headers = data.headers,
 				body = requestBody
 			)
 			when(response) {

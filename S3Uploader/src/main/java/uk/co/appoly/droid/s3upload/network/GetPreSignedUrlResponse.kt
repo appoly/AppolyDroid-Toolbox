@@ -2,6 +2,7 @@ package uk.co.appoly.droid.s3upload.network
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import uk.co.appoly.droid.s3upload.utils.StringOrListSerialiser
 
 /**
  * Response model for the pre-signed URL generation endpoint.
@@ -49,38 +50,5 @@ data class PreSignedURLData(
 	val filePath: String,
 	@SerialName("presigned_url")
 	val presignedUrl: String,
-	val headers: S3Headers
+	val headers: Map<String, @Serializable(with = StringOrListSerialiser::class) String>
 )
-
-/**
- * Headers required for S3 upload requests.
- *
- * Amazon S3 requires specific headers for authenticated uploads using
- * pre-signed URLs. This class models those required headers.
- *
- * @property host The S3 bucket host name
- * @property xAmzAcl Access control list (ACL) settings for the uploaded file
- * @property contentType Content type (MIME type) of the file being uploaded
- */
-@Serializable
-data class S3Headers(
-	@SerialName("Host")
-	val host: List<String>,
-	@SerialName("x-amz-acl")
-	val xAmzAcl: List<String>,
-	@SerialName("Content-Type")
-	val contentType: String
-) {
-	/**
-	 * Converts the header values to a map suitable for HTTP requests.
-	 *
-	 * Since some headers might have multiple values (stored as lists),
-	 * this property joins them into single strings.
-	 */
-	val asMap: Map<String, String>
-		get() = mapOf(
-			Pair("Host", host.joinToString()),
-			Pair("x-amz-acl", xAmzAcl.joinToString()),
-			Pair("Content-Type", contentType)
-		)
-}
