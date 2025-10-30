@@ -17,7 +17,6 @@ package uk.co.appoly.droid.util.paging
 
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyGridItemScope
 import androidx.compose.foundation.lazy.grid.LazyGridItemSpanScope
@@ -471,18 +470,25 @@ inline fun <T : Any> LazyGridScope.lazyPagingItemsWithStates(
 	val refreshState = lazyPagingItems.loadState.refresh
 	val loading = (listOf(prependState, appendState, refreshState).firstOrNull { it.isLoading() } as LoadState.Loading?) != null
 	if (!loading && refreshState.isError()) {
+		//show the refresh error first
 		errorContent(PagingErrorType.REFRESH, refreshState, statesContentPadding)
+		//then the items if any
+		if (lazyPagingItems.itemCount > 0) {
+			itemsContent(lazyPagingItems)
+		}
 	} else {
 		if (!usingPlaceholders && prependState.isLoading()) {
 			prependLoadingContent(statesContentPadding)
 		} else if (prependState.isError()) {
 			errorContent(PagingErrorType.PREPEND, prependState, statesContentPadding)
 		}
+
 		if (lazyPagingItems.itemCount == 0 && !loading) {
 			emptyContent(statesContentPadding)
 		} else {
 			itemsContent(lazyPagingItems)
 		}
+
 		if (!usingPlaceholders && appendState.isLoading()) {
 			appendLoadingContent(statesContentPadding)
 		} else if (appendState.isError()) {
