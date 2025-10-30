@@ -237,21 +237,29 @@ inline fun <T : Any> LazyListScope.lazyPagingItemsIndexedStates(
 		refreshState
 	).firstOrNull { it.isLoading() } as LoadState.Loading?) != null
 	if (!loading && refreshState.isError()) {
+		//show the refresh error first
 		errorContent(PagingErrorType.REFRESH, refreshState, statesContentPadding)
+		//then the items if any
+		if (lazyPagingItems.itemCount > 0) {
+			itemsContent(lazyPagingItems)
+		}
 	} else {
 		if (!usingPlaceholders && prependState.isLoading()) {
 			prependLoadingContent(statesContentPadding)
 		} else if (prependState.isError()) {
 			errorContent(PagingErrorType.PREPEND, prependState, statesContentPadding)
 		}
+
 		if (refreshLoadingContent != null && refreshState.isLoading()) {
 			refreshLoadingContent(statesContentPadding)
 		}
+
 		if (emptyContent != null && lazyPagingItems.itemCount == 0 && !loading) {
 			emptyContent(statesContentPadding)
 		} else {
 			itemsContent(lazyPagingItems)
 		}
+
 		if (!usingPlaceholders && appendState.isLoading()) {
 			appendLoadingContent(statesContentPadding)
 		} else if (appendState.isError()) {

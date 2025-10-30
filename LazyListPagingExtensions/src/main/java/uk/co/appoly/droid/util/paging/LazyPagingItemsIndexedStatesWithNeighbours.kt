@@ -26,7 +26,7 @@ import androidx.paging.compose.LazyPagingItems
  * @param itemKey The key for the item, this should be unique for each item.
  * @param itemContentType The content type for the item, this should be unique for each item.
  * @param itemPlaceholderContent The content displayed by a single placeholder item.
- * @param item The content displayed by a single item, this provides the previous item, the current item, the next item, the item key and the item content type.
+ * @param itemContent The content displayed by a single item, this provides the previous item, the current item, the next item, the item key and the item content type.
  * @param statesContentPadding The padding to apply around the loading and error states, this defaults to 0.dp.
  *
  * @see LazyListScope.lazyPagingItemsIndexedWithNeighbours
