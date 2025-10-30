@@ -31,6 +31,7 @@ import androidx.paging.compose.LazyPagingItems
  *
  * @see LazyListScope.lazyPagingItems
  */
+@JvmName("lazyPagingItemsStatesWithEmptyText")
 inline fun <T : Any> LazyListScope.lazyPagingItemsStates(
 	lazyPagingItems: LazyPagingItems<T>,
 	usingPlaceholders: Boolean = false,
@@ -100,6 +101,7 @@ inline fun <T : Any> LazyListScope.lazyPagingItemsStates(
  * @param statesContentPadding The padding to apply around the loading and error states, this defaults to 0.dp.
  * @see LazyListScope.lazyPagingItems
  */
+@JvmName("lazyPagingItemsStatesWithEmptyContent")
 inline fun <T : Any> LazyListScope.lazyPagingItemsStates(
 	lazyPagingItems: LazyPagingItems<T>,
 	usingPlaceholders: Boolean = false,
