@@ -198,6 +198,7 @@ inline fun LazyGridScope.emptyStateItem(
  *
  * @see LazyGridScope.lazyPagingItems
  */
+@JvmName("lazyPagingItemsWithStatesWithEmptyContent")
 inline fun <T : Any> LazyGridScope.lazyPagingItemsWithStates(
 	lazyPagingItems: LazyPagingItems<T>,
 	usingPlaceholders: Boolean = false,
@@ -266,6 +267,7 @@ inline fun <T : Any> LazyGridScope.lazyPagingItemsWithStates(
  *
  * @see LazyGridScope.lazyPagingItems
  */
+@JvmName("lazyPagingItemsWithStatesWithEmptyText")
 inline fun <T : Any> LazyGridScope.lazyPagingItemsWithStates(
 	lazyPagingItems: LazyPagingItems<T>,
 	usingPlaceholders: Boolean = false,
@@ -393,6 +395,7 @@ inline fun <T : Any> LazyGridScope.lazyPagingItemsWithStates(
  * @param appendLoadingContent The content displayed when the append or refresh is loading, this defaults to a [loadingStateItem].
  * @param statesContentPadding The content padding for the loading, error and empty states. Defaults to [PaddingValues(0.dp)].
  */
+@JvmName("lazyPagingItemsWithStatesWithEmptyTextAndItemsContent")
 inline fun <T : Any> LazyGridScope.lazyPagingItemsWithStates(
 	lazyPagingItems: LazyPagingItems<T>,
 	usingPlaceholders: Boolean = false,
@@ -451,6 +454,7 @@ inline fun <T : Any> LazyGridScope.lazyPagingItemsWithStates(
  * @param appendLoadingContent The content displayed when the append or refresh is loading, this defaults to a [loadingStateItem].
  * @param statesContentPadding The content padding for the loading, error and empty states. Defaults to [PaddingValues(0.dp)].
  */
+@JvmName("lazyPagingItemsWithStatesWithEmptyContentAndItemsContent")
 inline fun <T : Any> LazyGridScope.lazyPagingItemsWithStates(
 	lazyPagingItems: LazyPagingItems<T>,
 	usingPlaceholders: Boolean = false,

@@ -31,6 +31,7 @@ import androidx.paging.compose.LazyPagingItems
  *
  * @see LazyListScope.lazyPagingItemsWithNeighbours
  */
+@JvmName("lazyPagingItemsStatesWithNeighboursWithEmptyText")
 inline fun <T : Any> LazyListScope.lazyPagingItemsStatesWithNeighbours(
 	lazyPagingItems: LazyPagingItems<T>,
 	usingPlaceholders: Boolean = false,
@@ -103,6 +104,7 @@ inline fun <T : Any> LazyListScope.lazyPagingItemsStatesWithNeighbours(
  *
  * @see LazyListScope.lazyPagingItemsWithNeighbours
  */
+@JvmName("lazyPagingItemsStatesWithNeighboursWithEmptyContent")
 inline fun <T : Any> LazyListScope.lazyPagingItemsStatesWithNeighbours(
 	lazyPagingItems: LazyPagingItems<T>,
 	usingPlaceholders: Boolean = false,
