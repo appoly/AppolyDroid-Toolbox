@@ -11,17 +11,24 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.transformLatest
+import kotlinx.coroutines.launch
 import uk.co.appoly.droid.ConnectivityMonitorApplication.Companion.isConnected
 import uk.co.appoly.droid.ConnectivityMonitorApplication.Companion.isConnectedDebounced
 import uk.co.appoly.droid.ConnectivityMonitorApplication.Companion.onlineDebounceDelayMillis
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
 
 /**
  * An [Application] subclass that provides lifecycle-aware connectivity monitoring.
@@ -56,36 +63,47 @@ open class ConnectivityMonitorApplication : Application() {
 	// Internal raw connectivity (immediate)
 	private val _isConnected = MutableStateFlow(false)
 
+	// Reconnection events
+	private val _connectivityEvents = MutableSharedFlow<ConnectivityRestoredEvent>(
+		replay = 0,
+		extraBufferCapacity = 10
+	)
+
+	// Reconnection tracking
+	private var previouslyConnected = true
+	private var offlineSince: Long? = null
+	private var reconnectionMonitorJob: Job? = null
+
 	private val connectivityManager: ConnectivityManager by lazy {
-        getSystemService(CONNECTIVITY_SERVICE) as ConnectivityManager
-    }
+		getSystemService(CONNECTIVITY_SERVICE) as ConnectivityManager
+	}
 
 	// Track each network's validated internet capability
 	private val networkValidationMap = mutableMapOf<Network, Boolean>()
 
 	private val networkCallback: ConnectivityManager.NetworkCallback by lazy {
-        object : ConnectivityManager.NetworkCallback() {
-            override fun onAvailable(network: Network) {
+		object : ConnectivityManager.NetworkCallback() {
+			override fun onAvailable(network: Network) {
 				ConnectivityLog.v(this@ConnectivityMonitorApplication, "Network available: $network")
-                networkValidationMap[network] = false
+				networkValidationMap[network] = false
 				// Request capabilities immediately to get validation state
 				connectivityManager.getNetworkCapabilities(network)?.let { caps ->
 					val validated = caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) &&
 							caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
 					networkValidationMap[network] = validated
 				}
-                recomputeConnectivity()
-            }
+				recomputeConnectivity()
+			}
 
-            override fun onLost(network: Network) {
+			override fun onLost(network: Network) {
 				ConnectivityLog.v(this@ConnectivityMonitorApplication, "Network lost: $network")
-                networkValidationMap.remove(network)
-                recomputeConnectivity()
-            }
+				networkValidationMap.remove(network)
+				recomputeConnectivity()
+			}
 
-            override fun onCapabilitiesChanged(network: Network, capabilities: NetworkCapabilities) {
-                val validated = capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) &&
-                        capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
+			override fun onCapabilitiesChanged(network: Network, capabilities: NetworkCapabilities) {
+				val validated = capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) &&
+						capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
 				ConnectivityLog.v(this@ConnectivityMonitorApplication, "Capabilities changed: $network validated=$validated")
 				if (networkValidationMap[network] != validated) {
 					networkValidationMap[network] = validated
@@ -146,6 +164,64 @@ open class ConnectivityMonitorApplication : Application() {
 
 		// Recompute based on initial state
 		recomputeConnectivity()
+
+		// Start monitoring for reconnection events
+		startReconnectionMonitoring()
+	}
+
+	private fun startReconnectionMonitoring() {
+		reconnectionMonitorJob = applicationScope.launch {
+			_isConnected.collect { isConnected ->
+				handleConnectivityChange(isConnected)
+			}
+		}
+	}
+
+
+	private fun handleConnectivityChange(isConnected: Boolean) {
+		when {
+			// Device went offline
+			!isConnected && previouslyConnected -> {
+				offlineSince = System.currentTimeMillis()
+				ConnectivityLog.d(this, "Device went offline")
+				onDeviceWentOffline()
+			}
+			// Device came back online
+			isConnected && !previouslyConnected -> {
+				val wasOfflineSince = offlineSince
+				if (wasOfflineSince != null) {
+					val offlineDuration = (System.currentTimeMillis() - wasOfflineSince).milliseconds
+					ConnectivityLog.d(this, "Device reconnected after $offlineDuration offline")
+
+					// Emit reconnection event
+					applicationScope.launch {
+						_connectivityEvents.emit(ConnectivityRestoredEvent(offlineDuration))
+					}
+
+					onDeviceReconnected(offlineDuration)
+				}
+				offlineSince = null
+			}
+		}
+		previouslyConnected = isConnected
+	}
+
+	/**
+	 * Called when device loses internet connectivity.
+	 * Override in subclasses to implement custom offline behavior.
+	 */
+	protected open fun onDeviceWentOffline() {
+		// Override in subclasses for custom behavior
+	}
+
+	/**
+	 * Called when device regains internet connectivity.
+	 * Override in subclasses to implement custom reconnection behavior.
+	 *
+	 * @param offlineDuration How long the device was offline
+	 */
+	protected open fun onDeviceReconnected(offlineDuration: Duration) {
+		// Override in subclasses for custom behavior
 	}
 
 	@CallSuper
@@ -187,24 +263,36 @@ open class ConnectivityMonitorApplication : Application() {
 		 */
 		@OptIn(FlowPreview::class, ExperimentalCoroutinesApi::class)
 		val isConnectedDebounced: StateFlow<Boolean> by lazy {
-            if (!::instance.isInitialized) throw kotlin.IllegalStateException(NOT_INITIALIZED_ERROR)
-            instance._isConnected
-                .transformLatest { value ->
-                    if (value) {
-                        // Delay only transitions to online
-                        delay(onlineDebounceDelayMillis)
-                        emit(true)
-                    } else {
-                        // Emit offline immediately
-                        emit(false)
-                    }
-                }
-                .stateIn(
-                    scope = instance.applicationScope,
-                    started = SharingStarted.Eagerly,
-                    initialValue = instance._isConnected.value
-                )
-        }
+			if (!::instance.isInitialized) throw kotlin.IllegalStateException(NOT_INITIALIZED_ERROR)
+			instance._isConnected
+				.transformLatest { value ->
+					if (value) {
+						// Delay only transitions to online
+						delay(onlineDebounceDelayMillis)
+						emit(true)
+					} else {
+						// Emit offline immediately
+						emit(false)
+					}
+				}
+				.stateIn(
+					scope = instance.applicationScope,
+					started = SharingStarted.Eagerly,
+					initialValue = instance._isConnected.value
+				)
+		}
+
+		/**
+		 * Flow that emits events when device regains internet connectivity.
+		 * Each event contains the duration the device was offline.
+		 *
+		 * @throws IllegalStateException if [ConnectivityMonitorApplication] has not been initialized.
+		 */
+		val connectivityEvents: SharedFlow<ConnectivityRestoredEvent>
+			get() {
+				if (!::instance.isInitialized) throw IllegalStateException(NOT_INITIALIZED_ERROR)
+				return instance._connectivityEvents.asSharedFlow()
+			}
 
 		/**
 		 * The delay in milliseconds before the [isConnectedDebounced] flow emits `true` after
@@ -213,3 +301,11 @@ open class ConnectivityMonitorApplication : Application() {
 		var onlineDebounceDelayMillis: Long = 2000L
 	}
 }
+
+/**
+ * Connectivity event emitted when device regains internet connectivity
+ * @property offlineDuration How long the device was offline
+ */
+data class ConnectivityRestoredEvent(
+	val offlineDuration: Duration
+)
