@@ -55,7 +55,7 @@ data class Event(
     val eventDate: SerializableLocalDate,
 
     // Nullable LocalDateTime
-    val startTime: NullableSerializableDateTime?,
+    val startTime: NullableSerializableDateTime,
 
     // ZonedDateTime (with timezone preservation)
     val createdAt: SerializableZonedDateTime
