@@ -118,14 +118,14 @@ val parsedEvent = jsonFormat.decodeFromString(Event.serializer(), jsonString)
 
 ## Available Serializers
 
-| Serializer | Type | Description |
-|------------|------|-------------|
-| `LocalDateSerializer` | `LocalDate` | Non-nullable date |
-| `NullableLocalDateSerializer` | `LocalDate?` | Nullable date |
-| `DateTimeSerializer` | `LocalDateTime` | Non-nullable date-time |
-| `NullableDateTimeSerializer` | `LocalDateTime?` | Nullable date-time |
-| `ZonedDateTimeSerializer` | `ZonedDateTime` | Non-nullable date-time with timezone |
-| `NullableZonedDateTimeSerializer` | `ZonedDateTime?` | Nullable date-time with timezone |
+| Serializer | TypeAlias | Type | Description |
+|------------|-----------|------|-------------|
+| `LocalDateSerializer` | `SerializableLocalDate` | `LocalDate` | Non-nullable date |
+| `NullableLocalDateSerializer` | `NullableSerializableLocalDate` | `LocalDate?` | Nullable date |
+| `DateTimeSerializer` | `SerializableDateTime` | `LocalDateTime` | Non-nullable date-time |
+| `NullableDateTimeSerializer` | `NullableSerializableDateTime` | `LocalDateTime?` | Nullable date-time |
+| `ZonedDateTimeSerializer` | `SerializableZonedDateTime` | `ZonedDateTime` | Non-nullable date-time with timezone |
+| `NullableZonedDateTimeSerializer` | `NullableSerializableZonedDateTime` | `ZonedDateTime?` | Nullable date-time with timezone |
 
 ## Serialization Format
 
