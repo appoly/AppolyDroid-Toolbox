@@ -15,8 +15,8 @@ Extension module for DateHelperUtil that provides kotlinx.serialization integrat
 
 ```gradle.kts
 // Requires base DateHelperUtil module
-implementation("com.github.appoly.AppolyDroid-Toolbox:DateHelperUtil:1.1.4")
-implementation("com.github.appoly.AppolyDroid-Toolbox:DateHelperUtil-Serialization:1.1.4")
+implementation("com.github.appoly.AppolyDroid-Toolbox:DateHelperUtil:1.1.5")
+implementation("com.github.appoly.AppolyDroid-Toolbox:DateHelperUtil-Serialization:1.1.5")
 
 // Required kotlinx.serialization dependencies
 implementation("org.jetbrains.kotlinx:kotlinx-serialization-core:1.9.0")
@@ -38,7 +38,33 @@ plugins {
 
 ### 2. Use Serializers in Data Classes
 
-Add serializer annotations to date properties:
+Use the provided typealiases to simplify declarations without annotations:
+
+```kotlin
+import kotlinx.serialization.Serializable
+import uk.co.appoly.droid.util.SerializableLocalDate
+import uk.co.appoly.droid.util.NullableSerializableDateTime
+import uk.co.appoly.droid.util.SerializableZonedDateTime
+
+@Serializable
+data class Event(
+    val id: Int,
+    val title: String,
+
+    // Non-nullable LocalDate
+    val eventDate: SerializableLocalDate,
+
+    // Nullable LocalDateTime
+    val startTime: NullableSerializableDateTime,
+
+    // ZonedDateTime (with timezone preservation)
+    val createdAt: SerializableZonedDateTime
+)
+```
+
+> **Note:** These typealiases are equivalent to their underlying types (e.g., `SerializableLocalDate` is just `LocalDate` with built-in serialization). You can assign and use them interchangeably with standard `LocalDate`, `LocalDateTime`, or `ZonedDateTime` values without any conversion.
+
+Alternatively, add serializer annotations to date properties:
 
 ```kotlin
 import kotlinx.serialization.Serializable
@@ -151,4 +177,3 @@ val parsedEvents = json.decodeFromString(ListSerializer(Event.serializer()), jso
 
 - [DateHelperUtil](../DateHelperUtil/README.md) - Base date/time utility module
 - [kotlinx.serialization](https://github.com/Kotlin/kotlinx.serialization) - Kotlin serialization library
-

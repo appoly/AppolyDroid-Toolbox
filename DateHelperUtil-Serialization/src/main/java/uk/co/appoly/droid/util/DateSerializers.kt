@@ -2,6 +2,7 @@ package uk.co.appoly.droid.util
 
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.KSerializer
+import kotlinx.serialization.Serializable
 import kotlinx.serialization.Serializer
 import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
@@ -12,6 +13,33 @@ import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.ZoneOffset
 import java.time.ZonedDateTime
+
+/**
+ * Typealias for a serializable [LocalDate] using [LocalDateSerializer].
+ */
+typealias SerializableLocalDate = @Serializable(with = LocalDateSerializer::class) LocalDate
+/**
+ * Typealias for a nullable serializable [LocalDate] using [NullableLocalDateSerializer].
+ */
+typealias NullableSerializableLocalDate = @Serializable(with = NullableLocalDateSerializer::class) LocalDate?
+
+/**
+ * Typealias for a serializable [LocalDateTime] using [DateTimeSerializer].
+ */
+typealias SerializableDateTime = @Serializable(with = DateTimeSerializer::class) LocalDateTime
+/**
+ * Typealias for a nullable serializable [LocalDateTime] using [NullableDateTimeSerializer].
+ */
+typealias NullableSerializableDateTime = @Serializable(with = NullableDateTimeSerializer::class) LocalDateTime?
+
+/**
+ * Typealias for a serializable [ZonedDateTime] using [ZonedDateTimeSerializer].
+ */
+typealias SerializableZonedDateTime = @Serializable(with = ZonedDateTimeSerializer::class) ZonedDateTime
+/**
+ * Typealias for a nullable serializable [ZonedDateTime] using [NullableZonedDateTimeSerializer].
+ */
+typealias NullableSerializableZonedDateTime = @Serializable(with = NullableZonedDateTimeSerializer::class) ZonedDateTime?
 
 /**
  * Serializer for nullable [LocalDate] instances using kotlinx.serialization.
