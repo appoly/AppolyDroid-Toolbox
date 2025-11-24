@@ -13,7 +13,7 @@ A standardized UI state management library for Android applications, providing c
 ## Installation
 
 ```gradle.kts
-implementation("com.github.appoly.AppolyDroid-Toolbox:UiState:1.1.5")
+implementation("com.github.appoly.AppolyDroid-Toolbox:UiState:1.1.6")
 ```
 
 ## Usage
