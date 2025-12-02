@@ -64,7 +64,7 @@ class S3UploaderDemoViewModel : ViewModel() {
 					else -> {
 						// Successful upload
 						val mockPath = "uploads/${System.currentTimeMillis()}/$fileName"
-						_uploadResult.value = UploadResult.Success(mockPath)
+						_uploadResult.value = UploadResult.SuccessPath(mockPath)
 					}
 				}
 			} catch (e: Exception) {

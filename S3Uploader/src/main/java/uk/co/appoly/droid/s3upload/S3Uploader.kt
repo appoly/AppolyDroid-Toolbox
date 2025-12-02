@@ -253,6 +253,127 @@ object S3Uploader {
 		data: PreSignedURLData,
 		progressFlow: MutableStateFlow<Float>?
 	): UploadResult {
+		val response = performS3Upload(
+			presignedUrl = data.presignedUrl,
+			headers = data.headers,
+			file = file,
+			mediaType = mediaType,
+			progressFlow = progressFlow
+		)
+		return when (response) {
+			is ApiResponse.Success -> {
+				UploadResult.Success(data.filePath)
+			}
+
+			is ApiResponse.Failure.Error -> {
+				UploadResult.Error("Error uploading file", IOException("Response code: ${response.statusCode.code}"))
+			}
+
+			is ApiResponse.Failure.Exception -> {
+				UploadResult.Error("Error uploading file", response.throwable)
+			}
+		}
+	}
+
+	/**
+	 * Asynchronously uploads a file directly to S3 storage using a user-provided pre-signed URL.
+	 *
+	 * This method bypasses the API call to generate a pre-signed URL and uses the provided URL directly.
+	 * This is useful when you already have a pre-signed URL from another source.
+	 *
+	 * @param file The file to upload
+	 * @param presignedUrl The pre-signed S3 URL to upload to
+	 * @param mediaType The media type (MIME type) of the file
+	 * @param headers Optional HTTP headers to include with the upload request (default is empty)
+	 * @param dispatcher Coroutine dispatcher to use for the operation (default is IO)
+	 * @param progressFlow Optional flow to track upload progress (0.0f to 100.0f)
+	 * @return A [Deferred] containing the result of the direct upload operation
+	 */
+	suspend fun uploadFileDirectAsync(
+		file: File,
+		presignedUrl: String,
+		mediaType: MediaType,
+		headers: Map<String, String> = emptyMap(),
+		dispatcher: CoroutineDispatcher = Dispatchers.IO,
+		progressFlow: MutableStateFlow<Float>? = null,
+	): Deferred<DirectUploadResult> = withContext(dispatcher) {
+		async {
+			uploadFileDirect(
+				file = file,
+				presignedUrl = presignedUrl,
+				mediaType = mediaType,
+				headers = headers,
+				progressFlow = progressFlow
+			)
+		}
+	}
+
+	/**
+	 * Uploads a file directly to S3 storage using a user-provided pre-signed URL.
+	 *
+	 * This method bypasses the API call to generate a pre-signed URL and uses the provided URL directly.
+	 * This is useful when you already have a pre-signed URL from another source.
+	 *
+	 * @param file The file to upload
+	 * @param presignedUrl The pre-signed S3 URL to upload to
+	 * @param mediaType The media type (MIME type) of the file
+	 * @param headers Optional HTTP headers to include with the upload request (default is empty)
+	 * @param progressFlow Optional flow to track upload progress (0.0f to 100.0f)
+	 * @return Result of the direct upload operation as [DirectUploadResult.Success] or [DirectUploadResult.Error]
+	 * @throws IllegalStateException If S3Uploader has not been initialized
+	 */
+	suspend fun uploadFileDirect(
+		file: File,
+		presignedUrl: String,
+		mediaType: MediaType,
+		headers: Map<String, String> = emptyMap(),
+		progressFlow: MutableStateFlow<Float>? = null,
+	): DirectUploadResult {
+		if (!isInitDone()) {
+			throw IllegalStateException("S3Uploader is not initialized. Please call S3Uploader.initS3Uploader() before using it.")
+		}
+		val response = performS3Upload(
+			presignedUrl = presignedUrl,
+			headers = headers,
+			file = file,
+			mediaType = mediaType,
+			progressFlow = progressFlow
+		)
+		return when (response) {
+			is ApiResponse.Success -> {
+				DirectUploadResult.Success
+			}
+
+			is ApiResponse.Failure.Error -> {
+				DirectUploadResult.Error("Error uploading file", IOException("Response code: ${response.statusCode.code}"))
+			}
+
+			is ApiResponse.Failure.Exception -> {
+				DirectUploadResult.Error("Error uploading file", response.throwable)
+			}
+		}
+	}
+
+	/**
+	 * Performs the core S3 upload operation using a pre-signed URL.
+	 *
+	 * This is a shared internal method used by both the standard upload flow (with API-generated pre-signed URL)
+	 * and the direct upload flow (with user-provided pre-signed URL).
+	 *
+	 * @param presignedUrl The pre-signed S3 URL to upload to
+	 * @param headers HTTP headers to include with the upload request
+	 * @param file The file to upload
+	 * @param mediaType The media type (MIME type) of the file
+	 * @param progressFlow Optional flow to track upload progress
+	 * @return API response from the S3 upload operation
+	 */
+	private suspend fun performS3Upload(
+		presignedUrl: String,
+		headers: Map<String, String>,
+		file: File,
+		mediaType: MediaType?,
+		progressFlow: MutableStateFlow<Float>?
+	): ApiResponse<Unit> {
 		S3UploadLog.v(this, "Start uploading file:\"${file.name}\", mediaType:\"$mediaType\"")
 		return try {
 			val requestBody = if (progressFlow != null) {
@@ -261,28 +382,28 @@ object S3Uploader {
 				file.asRequestBody(mediaType)
 			}
 			val response = RetrofitClient.apiService.uploadToS3(
-				uploadUrl = data.presignedUrl,
-				headers = data.headers,
+				uploadUrl = presignedUrl,
+				headers = headers,
 				body = requestBody
 			)
 			when(response) {
 				is ApiResponse.Success -> {
 					progressFlow?.value = 100f // Ensure progress hits 100% on success, if provided
 					S3UploadLog.d(this, "file Uploading is successful!")
-					UploadResult.Success(data.filePath)
+					response
 				}
 				is ApiResponse.Failure.Error -> {
 					S3UploadLog.e(this, "Uploading is failed with code: ${response.statusCode.code}, message: ${response.message()}")
-					UploadResult.Error("Error uploading file", IOException("Response code: ${response.statusCode.code}"))
+					response
 				}
 				is ApiResponse.Failure.Exception -> {
 					S3UploadLog.e(this, "Uploading is failed with exception: ", response.throwable)
-					UploadResult.Error("Error uploading file", response.throwable)
+					response
 				}
 			}
 		} catch (e: Exception) {
 			S3UploadLog.e(this, "Error uploading file", e)
-			UploadResult.Error("Error uploading file", e)
+			ApiResponse.Failure.Exception(e)
 		}
 	}
 }

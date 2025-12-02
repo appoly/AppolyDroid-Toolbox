@@ -5,8 +5,12 @@ An extension module that bridges BaseRepo and S3Uploader, enabling seamless file
 ## Features
 
 - Integration bridge between BaseRepo and S3Uploader
-- Automatic conversion between S3Uploader's `UploadResult` and BaseRepo's `APIResult`
+- Support for both upload flows:
+    - Standard upload with API-generated pre-signed URLs
+    - Direct upload with user-provided pre-signed URLs
+- Automatic conversion between S3Uploader's result types and BaseRepo's `APIResult`
 - Support for progress tracking via Flow
+- Custom header support for direct uploads
 - Convenience methods for uploading and associating files with API records
 - Maintains all error handling capabilities of both systems
 
@@ -14,9 +18,9 @@ An extension module that bridges BaseRepo and S3Uploader, enabling seamless file
 
 ```gradle.kts
 // Requires both the base modules
-implementation("com.github.appoly.AppolyDroid-Toolbox:BaseRepo:1.1.6")
-implementation("com.github.appoly.AppolyDroid-Toolbox:S3Uploader:1.1.6")
-implementation("com.github.appoly.AppolyDroid-Toolbox:BaseRepo-S3Uploader:1.1.6")
+implementation("com.github.appoly.AppolyDroid-Toolbox:BaseRepo:1.1.7")
+implementation("com.github.appoly.AppolyDroid-Toolbox:S3Uploader:1.1.7")
+implementation("com.github.appoly.AppolyDroid-Toolbox:BaseRepo-S3Uploader:1.1.7")
 ```
 
 ## How it Works
@@ -128,7 +132,58 @@ fun UploadScreen(viewModel: UploadViewModel) {
 }
 ```
 
-### 4. Upload and Associate with API Record
+### 4. Direct Upload (With User-Provided Pre-signed URL)
+
+If you already have a pre-signed URL from another source and want to bypass the API call to generate one:
+
+```kotlin
+class MediaRepository : AppolyBaseRepo({ YourRetrofitClient }) {
+	/**
+	 * Upload a file directly to S3 using a user-provided pre-signed URL
+	 */
+	suspend fun uploadImageDirect(
+		imageFile: File,
+		presignedUrl: String,
+		progressFlow: MutableStateFlow<Float>? = null
+	): APIResult<Unit> {
+		val mediaType = "image/jpeg".toMediaTypeOrNull()!!
+
+		return uploadFileDirectToS3(
+			presignedUrl = presignedUrl,
+			file = imageFile,
+			mediaType = mediaType,
+			progressFlow = progressFlow
+		)
+	}
+}
+```
+
+#### Direct Upload with Custom Headers
+
+```kotlin
+class MediaRepository : AppolyBaseRepo({ YourRetrofitClient }) {
+	suspend fun uploadWithHeaders(
+		file: File,
+		presignedUrl: String,
+		customHeaders: Map<String, String>
+	): APIResult<Unit> = uploadFileDirectToS3(
+		presignedUrl = presignedUrl,
+		file = file,
+		mediaType = "application/pdf".toMediaTypeOrNull()!!,
+		headers = customHeaders
+	)
+}
+
+// Usage:
+val headers = mapOf(
+	"x-amz-acl" to "public-read",
+	"Cache-Control" to "max-age=31536000"
+)
+
+val result = mediaRepository.uploadWithHeaders(pdfFile, preSignedUrl, headers)
+```
+
+### 5. Upload and Associate with API Record
 
 This approach combines uploading a file and then sending the resulting S3 path to another API endpoint in one operation:
 
@@ -184,10 +239,10 @@ when (val result = userRepository.updateProfilePicture(userId, imageFile)) {
 
 ## Extension Methods
 
-### uploadFileToS3
+### uploadFileToS3 (Standard Upload)
 
 ```kotlin
-// Simple upload
+// Simple upload with API-generated pre-signed URL
 suspend fun AppolyBaseRepo.uploadFileToS3(
     generatePresignedURL: String,
     file: File,
@@ -202,13 +257,35 @@ suspend fun <T : Any> AppolyBaseRepo.uploadFileToS3(
 ): APIResult<T>
 ```
 
+### uploadFileDirectToS3 (Direct Upload)
+
+```kotlin
+// Direct upload with user-provided pre-signed URL
+suspend fun AppolyBaseRepo.uploadFileDirectToS3(
+	presignedUrl: String,
+	file: File,
+	mediaType: MediaType,
+	headers: Map<String, String> = emptyMap(),
+	progressFlow: MutableStateFlow<Float>? = null
+): APIResult<Unit>
+```
+
 ## Under the Hood
+
+### Standard Upload Flow (`uploadFileToS3`)
 
 1. The extension calls S3Uploader to get a pre-signed URL from your backend
 2. S3Uploader uploads the file directly to S3 using the pre-signed URL
-3. On successful upload, S3Uploader returns the file path
+3. On successful upload, S3Uploader returns the S3 file path
 4. The extension converts this to an APIResult
 5. Optionally, it calls another API with the file path
+
+### Direct Upload Flow (`uploadFileDirectToS3`)
+
+1. The extension receives a pre-signed URL directly from the caller
+2. S3Uploader uploads the file to S3 using the provided pre-signed URL and headers
+3. On successful upload, S3Uploader returns success without a file path
+4. The extension converts this to `APIResult<Unit>`
 
 ## Relationship to S3Uploader and BaseRepo
 
