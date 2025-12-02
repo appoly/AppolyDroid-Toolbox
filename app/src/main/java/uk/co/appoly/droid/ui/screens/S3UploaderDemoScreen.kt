@@ -61,10 +61,10 @@ fun S3UploaderDemoScreen(navController: NavController) {
 	) { paddingValues ->
 		Column(
 			modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-                .padding(16.dp)
-                .verticalScroll(rememberScrollState()),
+				.fillMaxSize()
+				.padding(paddingValues)
+				.padding(16.dp)
+				.verticalScroll(rememberScrollState()),
 			verticalArrangement = Arrangement.spacedBy(16.dp)
 		) {
 			Text(
