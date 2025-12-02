@@ -40,7 +40,7 @@ data class GetPreSignedUrlResponse(
 /**
  * Data model containing the pre-signed URL and related information.
  *
- * @property filePath The path/key where the file will be stored in S3
+ * @property filePath The path/key where the file will be stored in S3 bucket (generally a relative path)
  * @property presignedUrl The generated pre-signed URL for the S3 upload
  * @property headers HTTP headers to include with the S3 upload request
  */

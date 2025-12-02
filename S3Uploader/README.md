@@ -5,15 +5,18 @@ Standalone module for Amazon S3 file uploading with progress tracking and error 
 ## Features
 
 - Direct file uploads to Amazon S3 buckets
+- Two upload flows:
+    - Standard flow with API-generated pre-signed URLs
+    - Direct flow with user-provided pre-signed URLs
 - Progress tracking for uploads
-- Pre-signed URL generation support
+- Custom header support for direct uploads
 - Error handling and retry mechanisms
 - Standalone implementation that doesn't depend on BaseRepo
 
 ## Installation
 
 ```gradle.kts
-implementation("com.github.appoly.AppolyDroid-Toolbox:S3Uploader:1.1.6")
+implementation("com.github.appoly.AppolyDroid-Toolbox:S3Uploader:1.1.7")
 ```
 
 ## Usage
@@ -87,6 +90,71 @@ class FileUploadRepository {
             Result.failure(e)
         }
     }
+}
+```
+
+### Direct Upload (With Pre-signed URL)
+
+If you already have a pre-signed URL from another source and want to bypass the API call to generate one, you can use the direct upload methods:
+
+```kotlin
+class FileUploadViewModel : ViewModel() {
+	val uploadProgress = MutableStateFlow(0f)
+
+	suspend fun uploadFileDirect(file: File, presignedUrl: String): Result<Unit> {
+		return try {
+			val mediaType = "image/jpeg".toMediaTypeOrNull()!!
+
+			val uploadResult = S3Uploader.uploadFileDirect(
+				file = file,
+				presignedUrl = presignedUrl,
+				mediaType = mediaType,
+				progressFlow = uploadProgress
+			)
+
+			when (uploadResult) {
+				is DirectUploadResult.Success -> Result.success(Unit)
+				is DirectUploadResult.Error -> Result.failure(
+					uploadResult.throwable ?: Exception(uploadResult.message)
+				)
+			}
+		} catch (e: Exception) {
+			Result.failure(e)
+		}
+	}
+}
+```
+
+#### Direct Upload with Custom Headers
+
+```kotlin
+suspend fun uploadWithHeaders(file: File, presignedUrl: String): DirectUploadResult {
+	val headers = mapOf(
+		"x-amz-acl" to "public-read",
+		"Content-Type" to "image/jpeg"
+	)
+
+	return S3Uploader.uploadFileDirect(
+		file = file,
+		presignedUrl = presignedUrl,
+		mediaType = "image/jpeg".toMediaTypeOrNull()!!,
+		headers = headers
+	)
+}
+```
+
+#### Async Direct Upload
+
+```kotlin
+suspend fun uploadFileAsync(file: File, presignedUrl: String): DirectUploadResult {
+	val deferred = S3Uploader.uploadFileDirectAsync(
+		file = file,
+		presignedUrl = presignedUrl,
+		mediaType = "image/jpeg".toMediaTypeOrNull()!!,
+		dispatcher = Dispatchers.IO
+	)
+
+	return deferred.await()
 }
 ```
 
@@ -253,27 +321,121 @@ class CustomS3UploaderExample {
 
 ### S3Uploader Object
 
+#### Standard Upload (with API-generated Pre-signed URL)
+
 ```kotlin
 object S3Uploader {
-    suspend fun uploadFile(
-        presignedUrl: String,
-        file: File,
-        progressMutableFlow: MutableStateFlow<Float>? = null,
-        contentType: String? = null,
-        chunkSize: Int = DEFAULT_CHUNK_SIZE,
-        bufferSize: Int = DEFAULT_BUFFER_SIZE
-    ): String
+	// Async upload that returns Deferred
+	suspend fun uploadFileAsync(
+		file: File,
+		getPresignedUrlAPI: String,
+		dispatcher: CoroutineDispatcher = Dispatchers.IO,
+		progressFlow: MutableStateFlow<Float>? = null
+	): Deferred<UploadResult>
 
-    companion object {
-        const val DEFAULT_CHUNK_SIZE = 512 * 1024 // 512KB
-        const val DEFAULT_BUFFER_SIZE = 4096 // 4KB
-    }
+	// Suspend function for direct coroutine use
+    suspend fun uploadFile(
+		file: File,
+		getPresignedUrlAPI: String,
+		progressFlow: MutableStateFlow<Float>? = null
+	): UploadResult
 }
 ```
 
+**Returns:** `UploadResult.Success(filePath: String)` or `UploadResult.Error(message: String, throwable: Throwable?)`
+
+#### Direct Upload (with User-provided Pre-signed URL)
+
+```kotlin
+object S3Uploader {
+	// Async direct upload that returns Deferred
+	suspend fun uploadFileDirectAsync(
+		file: File,
+        presignedUrl: String,
+		mediaType: MediaType,
+		headers: Map<String, String> = emptyMap(),
+		dispatcher: CoroutineDispatcher = Dispatchers.IO,
+		progressFlow: MutableStateFlow<Float>? = null
+	): Deferred<DirectUploadResult>
+
+	// Suspend function for direct coroutine use
+	suspend fun uploadFileDirect(
+        file: File,
+		presignedUrl: String,
+		mediaType: MediaType,
+		headers: Map<String, String> = emptyMap(),
+		progressFlow: MutableStateFlow<Float>? = null
+	): DirectUploadResult
+}
+```
+
+**Returns:** `DirectUploadResult.Success` or `DirectUploadResult.Error(message: String, throwable: Throwable?)`
+
+### Result Types
+
+```kotlin
+// Standard upload result (includes S3 file path)
+sealed interface UploadResult {
+	data class Success(val filePath: String) : UploadResult
+	data class Error(val message: String, val throwable: Throwable? = null) : UploadResult
+}
+
+// Direct upload result (no file path returned)
+sealed interface DirectUploadResult {
+	data object Success : DirectUploadResult
+	data class Error(val message: String, val throwable: Throwable? = null) : DirectUploadResult
+}
+```
+
+## Choosing Between Upload Flows
+
+### Standard Upload (`uploadFile`)
+
+**Use when:**
+
+- Your backend generates pre-signed URLs and provides the S3 file path
+- You need to update database records with the S3 file path
+- You want the server to control file naming and organization
+- You need the S3 file path returned after upload
+
+**API Response Format Required:**
+
+```json
+{
+  "success": true,
+  "data": {
+    "file_path": "images/profile/user123.jpg",
+    "presigned_url": "https://bucket.s3.amazonaws.com/...",
+    "headers": {
+      "Host": [
+        "bucket.s3.amazonaws.com"
+      ],
+      "Content-Type": "image/jpeg"
+    }
+  }
+}
+```
+
+### Direct Upload (`uploadFileDirect`)
+
+**Use when:**
+
+- You already have a pre-signed URL from another source
+- You don't need the S3 file path returned
+- You want to bypass the API call to your backend
+- You need to provide custom headers for the S3 upload
+- You're integrating with a third-party service that provides pre-signed URLs
+
+**Example Use Cases:**
+
+- Uploading to a third-party S3 bucket
+- Client-side file path generation
+- Integration with external services (e.g., AWS Amplify, AWS SDK)
+- Reducing backend API calls
+
 ### Progress Tracking
 
-The `progressMutableFlow` parameter accepts a MutableStateFlow that will be updated with values from 0 to 100, representing the upload progress percentage.
+Both upload methods support progress tracking. The `progressFlow` parameter accepts a MutableStateFlow that will be updated with values from 0 to 100, representing the upload progress percentage.
 
 ## Error Handling
 
