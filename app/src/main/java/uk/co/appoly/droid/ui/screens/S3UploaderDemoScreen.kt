@@ -133,7 +133,7 @@ fun S3UploaderDemoScreen(navController: NavController) {
 
 					// Result display
 					when (val result = uploadResult) {
-						is UploadResult.SuccessPath -> {
+						is UploadResult.Success -> {
 							Column {
 								Text("✅ Upload Successful!")
 								Text("File path: ${result.filePath}")
