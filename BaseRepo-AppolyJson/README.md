@@ -14,8 +14,8 @@ Appoly's JSON format.
 
 ```gradle.kts
 // Requires the base BaseRepo module
-implementation("com.github.appoly.AppolyDroid-Toolbox:BaseRepo:1.1.7")
-implementation("com.github.appoly.AppolyDroid-Toolbox:BaseRepo-AppolyJson:1.1.7")
+implementation("com.github.appoly.AppolyDroid-Toolbox:BaseRepo:1.1.8")
+implementation("com.github.appoly.AppolyDroid-Toolbox:BaseRepo-AppolyJson:1.1.8")
 ```
 
 ## API Response Structure
