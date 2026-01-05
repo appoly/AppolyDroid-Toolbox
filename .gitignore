@@ -16,3 +16,5 @@
 local.properties
 /.kotlin
 /.idea/copilot.*
+/build.log.txt
+/AppolyDroid-Toolbox-1.1.8.pom.xml
