@@ -12,7 +12,7 @@ Core utilities and extensions for Jetpack Paging 3 integration, providing the fo
 ## Installation
 
 ```gradle.kts
-implementation("com.github.appoly.AppolyDroid-Toolbox:PagingExtensions:1.1.10")
+implementation("com.github.appoly.AppolyDroid-Toolbox:PagingExtensions:1.1.11")
 ```
 
 ## Usage
