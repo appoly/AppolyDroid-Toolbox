@@ -46,10 +46,18 @@ import java.net.UnknownHostException
  */
 object S3Uploader {
 	private lateinit var tokenProvider: AuthTokenProvider
+	private var customLogger: FlexiLog? = null
+
 	var loggingLevel: LoggingLevel = LoggingLevel.NONE
 		internal set
 
 	fun canLog(type: LogType): Boolean = loggingLevel.canLog(type)
+
+	/**
+	 * Returns the custom logger provided during initialization, or null if using default.
+	 * Used by extension modules (like S3Uploader-Multipart) to share logging configuration.
+	 */
+	fun getCustomLogger(): FlexiLog? = customLogger
 
 	private fun isInitDone(): Boolean {
 		return this::tokenProvider.isInitialized
@@ -78,11 +86,12 @@ object S3Uploader {
 	fun initS3Uploader(
 		tokenProvider: AuthTokenProvider,
 		loggingLevel: LoggingLevel = LoggingLevel.NONE,
-		logger: FlexiLog = S3UploadLogger
+		logger: FlexiLog? = null
 	) {
 		this.tokenProvider = tokenProvider
 		this.loggingLevel = loggingLevel
-		S3UploadLog.updateLogger(logger, loggingLevel)
+		this.customLogger = logger
+		S3UploadLog.updateLogger(logger ?: S3UploadLogger, loggingLevel)
 	}
 
 	/**

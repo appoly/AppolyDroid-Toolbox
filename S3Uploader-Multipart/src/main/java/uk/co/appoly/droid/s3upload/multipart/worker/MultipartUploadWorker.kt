@@ -35,6 +35,9 @@ class MultipartUploadWorker(
 ) : CoroutineWorker(context, params) {
 
     override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
+        // Sync logger config from S3Uploader before any logging
+        MultipartUploadManager.syncLoggerConfig()
+
         val sessionId = inputData.getString(KEY_SESSION_ID)
         val filePath = inputData.getString(KEY_FILE_PATH)
         val isResume = inputData.getBoolean(KEY_IS_RESUME, false)

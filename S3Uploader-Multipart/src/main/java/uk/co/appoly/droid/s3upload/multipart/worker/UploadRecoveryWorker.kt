@@ -23,6 +23,9 @@ class UploadRecoveryWorker(
 ) : CoroutineWorker(context, params) {
 
     override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
+        // Sync logger config from S3Uploader before any logging
+        MultipartUploadManager.syncLoggerConfig()
+
         MultipartUploadLog.d(this@UploadRecoveryWorker, "Running upload recovery check")
 
         try {

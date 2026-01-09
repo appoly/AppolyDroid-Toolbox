@@ -22,6 +22,7 @@ import okhttp3.RequestBody
 import okhttp3.RequestBody.Companion.toRequestBody
 import uk.co.appoly.droid.s3upload.S3Uploader
 import uk.co.appoly.droid.s3upload.multipart.config.MultipartUploadConfig
+import uk.co.appoly.droid.s3upload.multipart.utils.MultipartUploadLogger
 import uk.co.appoly.droid.s3upload.multipart.database.S3UploaderDatabase
 import uk.co.appoly.droid.s3upload.multipart.database.dao.MultipartUploadDao
 import uk.co.appoly.droid.s3upload.multipart.database.entity.PartUploadStatus
@@ -740,6 +741,9 @@ class MultipartUploadManager internal constructor(
         /**
          * Gets the singleton instance of MultipartUploadManager.
          *
+         * This method also syncs the logging configuration from S3Uploader, so you only need
+         * to call [S3Uploader.initS3Uploader] once and both modules will use the same logger.
+         *
          * @param context Application context
          * @param config Upload configuration (only used on first call)
          * @return The manager instance
@@ -751,7 +755,23 @@ class MultipartUploadManager internal constructor(
             return INSTANCE ?: synchronized(this) {
                 INSTANCE ?: MultipartUploadManager(context.applicationContext, config).also {
                     INSTANCE = it
+                    // Sync logger configuration from S3Uploader
+                    syncLoggerConfig()
                 }
+            }
+        }
+
+        /**
+         * Syncs the logging configuration from S3Uploader.
+         * Called automatically when getInstance creates the manager, but can also be called
+         * manually if S3Uploader is initialized after MultipartUploadManager.
+         */
+        fun syncLoggerConfig() {
+            val customLogger = S3Uploader.getCustomLogger()
+            if (customLogger != null) {
+                MultipartUploadLog.updateLogger(customLogger, S3Uploader.loggingLevel)
+            } else {
+                MultipartUploadLog.updateLogger(MultipartUploadLogger, S3Uploader.loggingLevel)
             }
         }
 
