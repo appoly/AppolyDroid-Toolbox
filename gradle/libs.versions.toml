@@ -29,6 +29,7 @@ kotlinxSerialization = "1.9.0"
 paging = "3.3.6"
 roomVersion = "2.8.4"
 navigationCompose = "2.9.6"
+workManager = "2.10.1"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -82,6 +83,9 @@ androidx-room-testing = { group = "androidx.room", name = "room-testing", versio
 
 #Navigation
 androidx-navigation-compose = { group = "androidx.navigation", name = "navigation-compose", version.ref = "navigationCompose" }
+
+#WorkManager
+androidx-work-runtime = { group = "androidx.work", name = "work-runtime-ktx", version.ref = "workManager" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

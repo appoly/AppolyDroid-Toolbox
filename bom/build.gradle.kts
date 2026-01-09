@@ -39,6 +39,8 @@ dependencies {
 
 		// S3 & Utility modules
 		api("com.github.appoly.AppolyDroid-Toolbox:S3Uploader:${libs.versions.toolboxVersion.get()}")
+		api("com.github.appoly.AppolyDroid-Toolbox:S3Uploader-Multipart:${libs.versions.toolboxVersion.get()}")
+		api("com.github.appoly.AppolyDroid-Toolbox:BaseRepo-S3Uploader-Multipart:${libs.versions.toolboxVersion.get()}")
 
 		// Connectivity Monitor
 		api("com.github.appoly.AppolyDroid-Toolbox:ConnectivityMonitor:${libs.versions.toolboxVersion.get()}")

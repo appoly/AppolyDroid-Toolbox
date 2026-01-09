@@ -46,12 +46,24 @@ import java.net.UnknownHostException
  */
 object S3Uploader {
 	private lateinit var tokenProvider: AuthTokenProvider
-	internal var loggingLevel: LoggingLevel = LoggingLevel.NONE
+	var loggingLevel: LoggingLevel = LoggingLevel.NONE
+		internal set
 
-	internal fun canLog(type: LogType): Boolean = loggingLevel.canLog(type)
+	fun canLog(type: LogType): Boolean = loggingLevel.canLog(type)
 
 	private fun isInitDone(): Boolean {
 		return this::tokenProvider.isInitialized
+	}
+
+	/**
+	 * Returns the token provider for use by other modules.
+	 * @throws IllegalStateException if not initialized
+	 */
+	fun getTokenProvider(): AuthTokenProvider {
+		if (!isInitDone()) {
+			throw IllegalStateException("S3Uploader is not initialized. Please call S3Uploader.initS3Uploader() before using it.")
+		}
+		return tokenProvider
 	}
 
 	/**
