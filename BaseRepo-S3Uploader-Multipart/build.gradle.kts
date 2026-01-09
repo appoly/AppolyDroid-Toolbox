@@ -11,7 +11,7 @@ group = "com.github.appoly"
 android {
     namespace = "uk.co.appoly.droid.baserepo.s3.multipart"
     compileSdk {
-        version = release(libs.versions.compileSdk.get().toInt())
+        version = release(BuildConfig.Sdk.COMPILE)
     }
 
     publishing {
@@ -21,7 +21,7 @@ android {
     }
 
     defaultConfig {
-        minSdk = libs.versions.baseRepoMinSdk.get().toInt()
+        minSdk = BuildConfig.MinSdk.BASE_REPO
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         consumerProguardFiles("consumer-rules.pro")
@@ -66,7 +66,7 @@ publishing {
             }
             groupId = "com.github.appoly"
             artifactId = project.name
-            version = libs.versions.toolboxVersion.get()
+            version = BuildConfig.TOOLBOX_VERSION
         }
     }
 }

@@ -9,15 +9,15 @@ plugins {
 android {
 	namespace = "uk.co.appoly.droid.app"
 	compileSdk {
-		version = release(libs.versions.compileSdk.get().toInt())
+		version = release(BuildConfig.Sdk.COMPILE)
 	}
 
 	defaultConfig {
 		applicationId = "uk.co.appoly.droid"
-		minSdk = 26
-		targetSdk = libs.versions.targetSdk.get().toInt()
+		minSdk = BuildConfig.MinSdk.DATE_HELPER // App uses highest minSdk of all modules
+		targetSdk = BuildConfig.Sdk.TARGET
 		versionCode = 1
-		versionName = libs.versions.toolboxVersion.get()
+		versionName = BuildConfig.TOOLBOX_VERSION
 
 		testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 	}

@@ -1,15 +1,4 @@
 [versions]
-compileSdk = "36"
-targetSdk = "36"
-baseRepoMinSdk = "21"
-uiStateMinSdk = "21"
-appSnackBarMinSdk = "21"
-composeExtensionsMinSdk = "21"
-dateHelperMinSdk = "26"
-lazyPagingMinSdk = "21"
-s3UploaderMinSdk = "21"
-connectivityMonitorMinSdk = "24"
-toolboxVersion = "1.1.11"
 agp = "8.13.2"
 kotlin = "2.3.0"
 ksp = "2.3.3"
@@ -29,7 +18,7 @@ kotlinxSerialization = "1.9.0"
 paging = "3.3.6"
 roomVersion = "2.8.4"
 navigationCompose = "2.9.6"
-workManager = "2.10.1"
+workManager = "2.11.0"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }

@@ -12,7 +12,7 @@ group = "com.github.appoly"
 android {
 	namespace = "uk.co.appoly.droid.datehelper.room"
 	compileSdk {
-		version = release(libs.versions.compileSdk.get().toInt())
+		version = release(BuildConfig.Sdk.COMPILE)
 	}
 
 	publishing {
@@ -22,7 +22,7 @@ android {
 	}
 
 	defaultConfig {
-		minSdk = libs.versions.dateHelperMinSdk.get().toInt()
+		minSdk = BuildConfig.MinSdk.DATE_HELPER
 
 		testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 		consumerProguardFiles("consumer-rules.pro")
@@ -71,7 +71,7 @@ publishing {
 			}
 			groupId = "com.github.appoly"
 			artifactId = project.name
-			version = libs.versions.toolboxVersion.get()
+			version = BuildConfig.TOOLBOX_VERSION
 		}
 	}
 }
