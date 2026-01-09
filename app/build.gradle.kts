@@ -14,7 +14,7 @@ android {
 
 	defaultConfig {
 		applicationId = "uk.co.appoly.droid"
-		minSdk = BuildConfig.MinSdk.DATE_HELPER // App uses highest minSdk of all modules
+		minSdk = BuildConfig.MinSdk.max() // App uses highest minSdk of all modules
 		targetSdk = BuildConfig.Sdk.TARGET
 		versionCode = 1
 		versionName = BuildConfig.TOOLBOX_VERSION

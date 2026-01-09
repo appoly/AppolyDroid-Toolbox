@@ -47,5 +47,23 @@ object BuildConfig {
 
         /** ConnectivityMonitor module (requires newer network APIs) */
         const val CONNECTIVITY_MONITOR = 24
+
+		/**
+		 * Returns the highest minSdk version among all modules.
+		 *
+		 * This is used for the overall application minSdk setting.
+		 */
+		fun max(): Int {
+			return listOf(
+				BASE_REPO,
+				UI_STATE,
+				APP_SNACK_BAR,
+				COMPOSE_EXTENSIONS,
+				DATE_HELPER,
+				LAZY_PAGING,
+				S3_UPLOADER,
+				CONNECTIVITY_MONITOR
+			).max()
+		}
     }
 }
