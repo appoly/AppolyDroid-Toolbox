@@ -5,6 +5,7 @@ plugins {
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlinKSP)
     alias(libs.plugins.kotlinxSerialization)
+    alias(libs.plugins.room)
     `maven-publish`
 }
 
@@ -44,6 +45,15 @@ android {
         compilerOptions {
             jvmTarget.set(JvmTarget.JVM_11)
         }
+    }
+
+    room {
+        schemaDirectory("$projectDir/schemas")
+    }
+
+    sourceSets {
+        // Adds exported schema location as test app assets for migration testing
+        getByName("androidTest").assets.srcDir("$projectDir/schemas")
     }
 }
 
