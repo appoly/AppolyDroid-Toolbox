@@ -13,7 +13,7 @@ group = "com.github.appoly"
 android {
 	namespace = "uk.co.appoly.droid.compose.extensions"
 	compileSdk {
-		version = release(libs.versions.compileSdk.get().toInt())
+		version = release(BuildConfig.Sdk.COMPILE)
 	}
 
 	publishing {
@@ -23,7 +23,7 @@ android {
 	}
 
 	defaultConfig {
-		minSdk = libs.versions.composeExtensionsMinSdk.get().toInt()
+		minSdk = BuildConfig.MinSdk.COMPOSE_EXTENSIONS
 
 		testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 		consumerProguardFiles("consumer-rules.pro")
@@ -72,7 +72,7 @@ publishing {
 			}
 			groupId = "com.github.appoly"
 			artifactId = project.name
-			version = libs.versions.toolboxVersion.get()
+			version = BuildConfig.TOOLBOX_VERSION
 		}
 	}
 }

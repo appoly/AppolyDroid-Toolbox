@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(./gradlew:*)",
+      "WebFetch(domain:jitpack.io)",
+      "Bash(verify-jitpack)"
+    ]
+  }
+}
