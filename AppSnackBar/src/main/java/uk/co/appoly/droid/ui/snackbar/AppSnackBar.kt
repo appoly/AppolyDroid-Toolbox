@@ -11,6 +11,7 @@ import androidx.compose.material3.SnackbarVisuals
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.ui.graphics.Color
+import kotlin.ConsistentCopyVisibility
 
 /**
  * A Snackbar that can be used to display messages to the user.
@@ -132,6 +133,7 @@ val LocalAppSnackBarColors = compositionLocalOf<AppSnackBarColors> { AppSnackBar
  * @property withDismissAction Whether to show a dismiss action
  * @property type The type of snackbar to display, determining its color
  */
+@ConsistentCopyVisibility
 data class SnackBarVisualsWithType internal constructor(
 	override val actionLabel: String?,
 	override val duration: SnackbarDuration,

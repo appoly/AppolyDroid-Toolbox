@@ -16,7 +16,7 @@ import java.util.regex.Pattern
 private typealias MatchProcessor = (String, File, String, String, Boolean) -> Triple<String, Boolean, Int>
 
 /**
- * Gradle task to update version numbers in README.md files based on the toolboxVersion and other versions in libs.versions.toml
+ * Gradle task to update version numbers in README.md files based on BuildConfig and libs.versions.toml
  *
  * In this project this task is connected to run with the gradle sync task.
  */
@@ -44,19 +44,21 @@ abstract class UpdateReadmeVersions : DefaultTask() {
             return
         }
 
-        // Extract versions from libs.versions.toml
+        // Extract versions from libs.versions.toml (only for third-party dependencies)
         val tomlContent = tomlFile.readText()
         val versionsMap = mutableMapOf<String, String?>()
 
-        versionsMap["toolbox"] = extractVersion(tomlContent, "toolboxVersion")
-        versionsMap["bom"] = versionsMap["toolbox"] // Use same version as toolbox
+        // Toolbox version comes from BuildConfig
+        versionsMap["toolbox"] = BuildConfig.TOOLBOX_VERSION
+        versionsMap["bom"] = BuildConfig.TOOLBOX_VERSION
+        // Third-party versions from libs.versions.toml
         versionsMap["room"] = extractVersion(tomlContent, "roomVersion")
         versionsMap["kotlinx-serialization"] = extractVersion(tomlContent, "kotlinxSerialization")
         versionsMap["paging"] = extractVersion(tomlContent, "paging")
 
-        // Check if all required versions were found (excluding bom since it uses toolbox version)
-        val requiredVersions = versionsMap.filterKeys { it != "bom" }
-        val missingVersions = requiredVersions.filterValues { it == null }.keys
+        // Check if all required third-party versions were found
+        val thirdPartyVersions = versionsMap.filterKeys { it !in listOf("toolbox", "bom") }
+        val missingVersions = thirdPartyVersions.filterValues { it == null }.keys
         if (missingVersions.isNotEmpty()) {
             missingVersions.forEach { key ->
                 val versionKey = when (key) {
@@ -74,7 +76,7 @@ abstract class UpdateReadmeVersions : DefaultTask() {
         val kotlinxSerializationVersion = versionsMap["kotlinx-serialization"]!!
         val pagingVersion = versionsMap["paging"]!!
 
-        logger.lifecycle("Found versions - toolbox: $toolboxVersion, bom: $bomVersion (same as toolbox), room: $roomVersion, kotlinx-serialization: $kotlinxSerializationVersion, paging: $pagingVersion")
+        logger.lifecycle("Found versions - toolbox: $toolboxVersion (from BuildConfig), bom: $bomVersion, room: $roomVersion, kotlinx-serialization: $kotlinxSerializationVersion, paging: $pagingVersion")
 
         // Find all README.md files in the project
         val readmeFiles = rootDir.walk()
