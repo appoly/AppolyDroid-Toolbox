@@ -2,17 +2,40 @@ package uk.co.appoly.droid.s3upload.multipart.network.model
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
-import uk.co.appoly.droid.s3upload.utils.StringOrListSerialiser
 
 /**
  * Response containing a pre-signed URL for uploading a part.
+ *
+ * Supports both wrapped (with success/message/data envelope) and unwrapped formats.
  */
 @Serializable
 data class PresignPartResponse(
     val success: Boolean = false,
     val message: String? = null,
-    val data: PresignPartData? = null
-)
+    @SerialName("data")
+    private val _data: PresignPartData? = null,
+
+    // Fields for unwrapped response format
+    @SerialName("presigned_url")
+    private val presignedUrl: String? = null,
+    @SerialName("part_number")
+    private val partNumber: Int? = null,
+    @Serializable(with = EmptyArrayAsEmptyMapSerializer::class)
+    private val headers: Map<String, String> = emptyMap()
+) {
+    /**
+     * Returns the data, either from the wrapped [_data] field or synthesized from
+     * root-level fields in an unwrapped response.
+     */
+    val data: PresignPartData?
+        get() = _data ?: if (presignedUrl != null && partNumber != null) {
+            PresignPartData(
+                presignedUrl = presignedUrl,
+                partNumber = partNumber,
+                headers = headers
+            )
+        } else null
+}
 
 @Serializable
 data class PresignPartData(
@@ -22,5 +45,6 @@ data class PresignPartData(
     @SerialName("part_number")
     val partNumber: Int,
 
-    val headers: Map<String, @Serializable(with = StringOrListSerialiser::class) String> = emptyMap()
+    @Serializable(with = EmptyArrayAsEmptyMapSerializer::class)
+    val headers: Map<String, String> = emptyMap()
 )

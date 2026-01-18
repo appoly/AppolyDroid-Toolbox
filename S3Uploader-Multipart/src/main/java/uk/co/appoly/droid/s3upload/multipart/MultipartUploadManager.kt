@@ -9,6 +9,8 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancelChildren
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -109,18 +111,17 @@ class MultipartUploadManager internal constructor(
 
             val sessionId = UUID.randomUUID().toString()
             val fileName = file.name
-            val contentType = getMimeType(file) ?: "application/octet-stream"
+		val contentType = getMimeType(file) ?: "application/octet-stream"
             val fileSize = file.length()
             val totalParts = config.calculatePartCount(fileSize)
 
-            MultipartUploadLog.d(this@MultipartUploadManager, "Starting multipart upload: $fileName, size=$fileSize, parts=$totalParts")
+            MultipartUploadLog.d(this@MultipartUploadManager, "Starting multipart upload: $fileName, size=$fileSize, parts=$totalParts, concurrent=${config.maxConcurrentParts}")
 
             // Initiate multipart upload with backend
             val response = apiService.initiateMultipartUpload(
                 url = apiUrls.initiateUrl,
                 fileName = fileName,
-                contentType = contentType,
-                fileSize = fileSize
+                contentType = contentType
             )
 
             when (response) {
@@ -330,6 +331,7 @@ class MultipartUploadManager internal constructor(
      */
     suspend fun recoverInterruptedUploads(): List<String> = withContext(Dispatchers.IO) {
         val recoverableSessions = dao.getRecoverableSessions()
+        MultipartUploadLog.d(this@MultipartUploadManager, "Found ${recoverableSessions.size} recoverable sessions: ${recoverableSessions.map { "${it.sessionId.take(8)}...(${it.status})" }}")
         val recoveredIds = mutableListOf<String>()
 
         for (session in recoverableSessions) {
@@ -339,6 +341,7 @@ class MultipartUploadManager internal constructor(
             // Verify file still exists
             val file = File(session.localFilePath)
             if (!file.exists()) {
+                MultipartUploadLog.w(this@MultipartUploadManager, "Recovery failed - file no longer exists: ${session.localFilePath}")
                 dao.updateSessionStatusWithError(
                     session.sessionId,
                     UploadSessionStatus.FAILED,
@@ -348,9 +351,19 @@ class MultipartUploadManager internal constructor(
                 continue
             }
 
+            // If session was IN_PROGRESS (interrupted mid-upload), change to PAUSED so it can be resumed
+            if (session.status == UploadSessionStatus.IN_PROGRESS || session.status == UploadSessionStatus.PENDING) {
+                dao.updateSessionStatus(session.sessionId, UploadSessionStatus.PAUSED, System.currentTimeMillis())
+                MultipartUploadLog.d(this@MultipartUploadManager, "Changed session ${session.sessionId.take(8)}... from ${session.status} to PAUSED for recovery")
+            }
+
             // Resume the upload
-            if (resumeUpload(session.sessionId).isSuccess) {
+            MultipartUploadLog.d(this@MultipartUploadManager, "Resuming recovered session: ${session.sessionId}")
+            val result = resumeUpload(session.sessionId)
+            if (result.isSuccess) {
                 recoveredIds.add(session.sessionId)
+            } else {
+                MultipartUploadLog.e(this@MultipartUploadManager, "Failed to resume session: ${result.exceptionOrNull()?.message}")
             }
         }
 
@@ -472,26 +485,66 @@ class MultipartUploadManager internal constructor(
 
     private suspend fun uploadParts(session: UploadSessionEntity, file: File): PartUploadResult {
         val semaphore = Semaphore(config.maxConcurrentParts)
+        val resultHolder = java.util.concurrent.atomic.AtomicReference<PartUploadResult?>(null)
 
         RandomAccessFile(file, "r").use { raf ->
-            while (true) {
-                // Check if we should stop
-                val currentSession = dao.getSession(session.sessionId)
-                if (currentSession?.status == UploadSessionStatus.PAUSED) {
-                    return PartUploadResult.Paused
-                }
+            coroutineScope {
+                while (resultHolder.get() == null) {
+                    // Check if we should stop
+                    val currentSession = dao.getSession(session.sessionId)
+                    if (currentSession?.status == UploadSessionStatus.PAUSED) {
+                        // Signal pause and cancel all running jobs
+                        resultHolder.set(PartUploadResult.Paused)
+                        coroutineContext.cancelChildren()
+                        break
+                    }
 
-                // Get next pending part
-                val part = dao.getNextPendingPart(session.sessionId) ?: break
+                    // Get next pending part
+                    val part = dao.getNextPendingPart(session.sessionId) ?: break
 
-                semaphore.withPermit {
-                    val result = uploadSinglePart(session, part, raf)
-                    if (result is SinglePartResult.Failed && !result.shouldRetry) {
-                        return PartUploadResult.Failed(result.message, result.throwable, result.isRecoverable)
+                    // Mark part as UPLOADING immediately to prevent race condition
+                    // where multiple coroutines grab the same part
+                    dao.updatePartStatus(
+                        partId = part.partId,
+                        status = PartUploadStatus.UPLOADING,
+                        etag = null,
+                        uploadedBytes = 0,
+                        updatedAt = System.currentTimeMillis()
+                    )
+
+                    // Launch part upload in parallel, limited by semaphore
+                    launch {
+                        semaphore.withPermit {
+                            // Check again if we should stop (might have been set while waiting for permit)
+                            if (resultHolder.get() != null) {
+                                // Reset part to pending if we're stopping
+                                dao.updatePartStatus(
+                                    partId = part.partId,
+                                    status = PartUploadStatus.PENDING,
+                                    etag = null,
+                                    uploadedBytes = 0,
+                                    updatedAt = System.currentTimeMillis()
+                                )
+                                return@withPermit
+                            }
+
+                            val result = uploadSinglePart(session, part, raf)
+                            if (result is SinglePartResult.Failed && !result.shouldRetry) {
+                                resultHolder.set(
+                                    PartUploadResult.Failed(result.message, result.throwable, result.isRecoverable)
+                                )
+                                // Cancel sibling coroutines
+                                coroutineContext.cancelChildren()
+                            }
+                        }
                     }
                 }
+                // coroutineScope waits for all children to complete
             }
         }
+
+        // Check if there was a failure or pause
+        resultHolder.get()?.let { return it }
 
         // Verify all parts uploaded
         val uploadedCount = dao.getUploadedPartsCount(session.sessionId)
