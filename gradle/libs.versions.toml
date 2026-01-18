@@ -1,6 +1,6 @@
 [versions]
-agp = "8.13.2"
-kotlin = "2.3.0"
+agp = "9.0.0"
+kotlin = "2.2.10"
 ksp = "2.3.3"
 coreKtx = "1.17.0"
 junit = "4.13.2"
@@ -9,8 +9,8 @@ espressoCore = "3.7.0"
 lifecycleRuntimeKtx = "2.10.0"
 appcompat = "1.7.1"
 activityCompose = "1.12.2"
-composeBom = "2025.12.01"
-flexiLoggerVersion = "1.36.4"
+composeBom = "2026.01.00"
+flexiLoggerVersion = "2.0.0"
 okhttp = "5.3.2"
 retrofit = "3.0.0"
 sandwichVersion = "2.2.0"
@@ -38,10 +38,11 @@ androidx-ui-tooling-preview = { group = "androidx.compose.ui", name = "ui-toolin
 androidx-ui-test-manifest = { group = "androidx.compose.ui", name = "ui-test-manifest" }
 androidx-ui-test-junit4 = { group = "androidx.compose.ui", name = "ui-test-junit4" }
 androidx-material3 = { group = "androidx.compose.material3", name = "material3" }
+compose-material-icons-extended = { group = "androidx.compose.material", name = "material-icons-extended" }
 
-#FlexiLogger
-flexiLogger = { group = "com.github.projectdelta6", name = "FlexiLogger", version.ref = "flexiLoggerVersion" }
-flexiLogger-httpLogger = { group = "com.github.projectdelta6.FlexiLogger", name = "FlexiHttpLogger", version.ref = "flexiLoggerVersion" }
+#FlexiLogger (Maven Central)
+flexiLogger = { group = "io.github.projectdelta6", name = "flexilogger", version.ref = "flexiLoggerVersion" }
+flexiLogger-okhttp = { group = "io.github.projectdelta6", name = "flexilogger-okhttp", version.ref = "flexiLoggerVersion" }
 
 #OkHttp
 okhttp = { module = "com.squareup.okhttp3:okhttp", version.ref = "okhttp" }

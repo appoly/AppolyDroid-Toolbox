@@ -8,6 +8,7 @@ import com.skydoves.sandwich.message
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import uk.co.appoly.droid.Log
 import uk.co.appoly.droid.data.remote.BaseRetrofitClient
 import uk.co.appoly.droid.data.remote.BaseService
 import uk.co.appoly.droid.data.remote.model.APIResult
@@ -86,15 +87,21 @@ import uk.co.appoly.droid.s3upload.multipart.config.MultipartUploadConfig
  */
 class TestBackendRepository(
     private val context: Context,
-    logger: FlexiLog = uk.co.appoly.droid.BaseRepoLogger,
+    logger: FlexiLog = Log,
     loggingLevel: LoggingLevel = LoggingLevel.V
 ) : GenericBaseRepo(
-    getRetrofitClient = { _retrofitClient },
+    getRetrofitClient = { retrofitClient },
     logger = logger,
     loggingLevel = loggingLevel
 ) {
 
     companion object {
+        /**
+         * Internal mutable state for the auth token.
+         * Accessed via the [authToken] StateFlow property.
+         */
+        private val _authToken = MutableStateFlow<String?>(null)
+
         /**
          * Singleton Retrofit client instance.
          *
@@ -102,19 +109,8 @@ class TestBackendRepository(
          * The token provider lambda captures the [_authToken] StateFlow,
          * ensuring that token changes are reflected in subsequent requests.
          */
-        private lateinit var _retrofitClient: BaseRetrofitClient
-
-        /**
-         * Internal mutable state for the auth token.
-         * Accessed via the [authToken] StateFlow property.
-         */
-        private val _authToken = MutableStateFlow<String?>(null)
-    }
-
-    init {
-        // Initialize the Retrofit client if not already done
-        if (!::_retrofitClient.isInitialized) {
-            _retrofitClient = TestBackendRetrofitClient(
+        val retrofitClient: BaseRetrofitClient by lazy {
+            TestBackendRetrofitClient(
                 tokenProvider = { _authToken.value }
             )
         }

@@ -1,14 +1,18 @@
 package uk.co.appoly.droid.network
 
+import com.duck.flexilogger.LoggingLevel
+import com.duck.flexilogger.okhttp.FlexiLogHttpLoggingInterceptorLogger
 import com.skydoves.sandwich.retrofit.adapters.ApiResponseCallAdapterFactory
 import kotlinx.serialization.json.Json
 import okhttp3.Interceptor
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
+import okhttp3.Request
 import okhttp3.Response
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
 import retrofit2.converter.kotlinx.serialization.asConverterFactory
+import uk.co.appoly.droid.Log
 import uk.co.appoly.droid.data.remote.BaseRetrofitClient
 import java.util.concurrent.TimeUnit
 
@@ -18,6 +22,7 @@ import java.util.concurrent.TimeUnit
  * ## Server Information
  * - **Host:** `https://multipart-uploader.on-forge.com`
  * - **Purpose:** Test backend for demonstrating multipart upload functionality
+ * - **Source:** [https://github.com/appoly/s3-uploader](https://github.com/appoly/s3-uploader)
  *
  * ## Features Demonstrated
  * This client demonstrates proper Retrofit client setup following the BaseRepo pattern:
@@ -32,7 +37,10 @@ import java.util.concurrent.TimeUnit
  * 3. **Sandwich Integration:** Includes the [ApiResponseCallAdapterFactory] to wrap all
  *    API responses in [com.skydoves.sandwich.ApiResponse], providing consistent error handling.
  *
- * 4. **Timeout Configuration:** Sets appropriate timeouts for different network operations:
+ * 4. **FlexiLogger Integration:** Uses [FlexiLogHttpLoggingInterceptorLogger] for HTTP
+ *    logging integration with the FlexiLogger library.
+ *
+ * 5. **Timeout Configuration:** Sets appropriate timeouts for different network operations:
  *    - Connect: 30 seconds
  *    - Read: 30 seconds
  *    - Write: 60 seconds (longer for uploads)
@@ -66,7 +74,7 @@ class TestBackendRetrofitClient(
          *
          * This server provides:
          * - `/api/login` - Authentication endpoint
-         * - `/api/s3/multipart/*` - Multipart upload endpoints
+         * - `/api/s3/multipart/x` - Multipart upload endpoints
          */
         const val BASE_URL = "https://multipart-uploader.on-forge.com/"
 
@@ -90,68 +98,133 @@ class TestBackendRetrofitClient(
      *
      * Configuration:
      * - `ignoreUnknownKeys`: Allows the server to add new fields without breaking the client
-     * - `isLenient`: Handles minor JSON formatting issues
+     * - `useAlternativeNames`: Supports alternative field names for deserialization
+     * - `explicitNulls`: Omits null values from serialized output
      * - `encodeDefaults`: Includes properties with default values in serialized output
+     * - `prettyPrint`: Enabled for debug builds to improve readability in logs
      */
     override val json: Json = Json {
         ignoreUnknownKeys = true
-        isLenient = true
+        useAlternativeNames = true
+        explicitNulls = false
         encodeDefaults = true
+        prettyPrint = true // For demo purposes - disable in production
     }
 
     /**
-     * HTTP logging interceptor for debugging network calls.
-     *
-     * Set to [HttpLoggingInterceptor.Level.BODY] for full request/response logging.
-     * In production, this should be [HttpLoggingInterceptor.Level.NONE] or controlled
-     * by a build configuration flag.
+     * Base OkHttpClient instance used as a template for building configured clients.
      */
-    private val loggingInterceptor = HttpLoggingInterceptor().apply {
-        level = HttpLoggingInterceptor.Level.BODY
-    }
+    private val okHttpClient by lazy { OkHttpClient() }
 
     /**
-     * Authentication interceptor that adds Bearer tokens to requests.
+     * Cached Retrofit instance. Created lazily on first use.
+     */
+    private var retrofit: Retrofit? = null
+
+    /**
+     * Authentication interceptor that adds Bearer tokens and standard headers to requests.
      *
      * Uses the [tokenProvider] to get the current token for each request.
      * If no token is available, the Authorization header is not added.
+     *
+     * Also adds standard headers:
+     * - Accept: application/json
+     * - Content-Type: application/json
      */
-    private val authInterceptor = AuthInterceptor(tokenProvider)
+    private val headerInterceptor: Interceptor
+        get() = Interceptor { chain ->
+            chain.proceed(
+                chain.request().newBuilder().apply {
+                    val authToken = tokenProvider()
+                    if (!authToken.isNullOrBlank()) {
+                        addHeader("Authorization", "Bearer $authToken")
+                    }
+                    addStandardHeaders()
+                }.build()
+            )
+        }
 
     /**
-     * OkHttp client configured with authentication, logging, and appropriate timeouts.
+     * Adds standard HTTP headers to the request.
+     *
+     * @return The builder for method chaining
+     */
+    private fun Request.Builder.addStandardHeaders(): Request.Builder =
+        addHeader("Accept", "application/json")
+            .addHeader("Content-Type", "application/json")
+
+    /**
+     * Gets or creates the Retrofit instance.
+     *
+     * Uses double-checked locking to ensure thread-safe lazy initialization.
+     *
+     * @return The configured Retrofit instance
+     */
+    private fun getRetrofitClient(): Retrofit {
+        return retrofit ?: synchronized(this) {
+            retrofit ?: buildRetrofitClient().also { retrofit = it }
+        }
+    }
+
+    /**
+     * Builds the Retrofit instance with all required configuration.
+     *
+     * Uses:
+     * - Kotlinx Serialization converter for JSON handling
+     * - Sandwich's [ApiResponseCallAdapterFactory] for response wrapping
+     * - Custom OkHttpClient with interceptors
+     *
+     * @return The configured Retrofit instance
+     */
+    private fun buildRetrofitClient(): Retrofit {
+        return Retrofit.Builder()
+            .baseUrl(BASE_URL)
+            .addConverterFactory(
+                json.asConverterFactory("application/json; charset=UTF-8".toMediaType())
+            )
+            .client(buildOkHttpClient())
+            .addCallAdapterFactory(ApiResponseCallAdapterFactory.create())
+            .build()
+    }
+
+    /**
+     * Builds the OkHttpClient with authentication, logging, and appropriate timeouts.
      *
      * ## Interceptor Order
      * Interceptors are executed in order:
-     * 1. [authInterceptor] - Adds Authorization header
-     * 2. [loggingInterceptor] - Logs the complete request/response (including auth header)
+     * 1. [headerInterceptor] - Adds Authorization header and standard headers
+     * 2. [HttpLoggingInterceptor] - Logs the complete request/response (including auth header)
      *
      * ## Timeouts
      * - **Connect:** 30 seconds - Time to establish a connection
      * - **Read:** 30 seconds - Time to receive response data
      * - **Write:** 60 seconds - Time to send request data (longer for uploads)
-     */
-    private val okHttpClient: OkHttpClient = OkHttpClient.Builder()
-        .addInterceptor(authInterceptor)
-        .addInterceptor(loggingInterceptor)
-        .connectTimeout(30, TimeUnit.SECONDS)
-        .readTimeout(30, TimeUnit.SECONDS)
-        .writeTimeout(60, TimeUnit.SECONDS)
-        .build()
-
-    /**
-     * Retrofit instance configured for the test backend.
      *
-     * Uses:
-     * - Kotlinx Serialization converter for JSON handling
-     * - Sandwich's [ApiResponseCallAdapterFactory] for response wrapping
+     * @return The configured OkHttpClient instance
      */
-    private val retrofit: Retrofit = Retrofit.Builder()
-        .baseUrl(BASE_URL)
-        .client(okHttpClient)
-        .addConverterFactory(json.asConverterFactory("application/json".toMediaType()))
-        .addCallAdapterFactory(ApiResponseCallAdapterFactory.create())
-        .build()
+    private fun buildOkHttpClient(): OkHttpClient {
+        return okHttpClient.newBuilder().apply {
+            // Add auth and standard headers
+            addInterceptor(headerInterceptor)
+
+            // Add logging interceptor using FlexiLogger
+            addInterceptor(
+                HttpLoggingInterceptor(
+                    FlexiLogHttpLoggingInterceptorLogger.with(
+                        logger = Log,
+                        loggingLevel = LoggingLevel.V
+                    )
+                ).apply {
+                    level = HttpLoggingInterceptor.Level.BODY
+                }
+            )
+
+            // Configure timeouts
+            connectTimeout(30, TimeUnit.SECONDS)
+            readTimeout(30, TimeUnit.SECONDS)
+            writeTimeout(60, TimeUnit.SECONDS)
+        }.build()
+    }
 
     /**
      * Creates a service instance for the specified API interface.
@@ -163,59 +236,6 @@ class TestBackendRetrofitClient(
      * @return A new instance of the requested API interface
      */
     override fun <T> createService(serviceClass: Class<T>): T {
-        return retrofit.create(serviceClass)
-    }
-}
-
-/**
- * OkHttp Interceptor that adds Bearer token authentication to requests.
- *
- * ## How It Works
- * For each request, this interceptor:
- * 1. Calls the [tokenProvider] to get the current token
- * 2. If a token is available, adds an `Authorization: Bearer {token}` header
- * 3. If no token is available, the request proceeds without authentication
- *
- * ## Dynamic Token Updates
- * Because the token is retrieved via a lambda on each request, the token can be
- * updated (e.g., after login) without needing to recreate the Retrofit client.
- *
- * ## Usage
- * ```kotlin
- * val interceptor = AuthInterceptor { authState.currentToken }
- * val client = OkHttpClient.Builder()
- *     .addInterceptor(interceptor)
- *     .build()
- * ```
- *
- * @property tokenProvider Lambda that returns the current Bearer token, or null if not authenticated
- */
-class AuthInterceptor(
-    private val tokenProvider: () -> String?
-) : Interceptor {
-
-    /**
-     * Intercepts the request and adds the Authorization header if a token is available.
-     *
-     * @param chain The interceptor chain
-     * @return The response from the next interceptor or the network
-     */
-    override fun intercept(chain: Interceptor.Chain): Response {
-        val originalRequest = chain.request()
-
-        // Get the current token
-        val token = tokenProvider()
-
-        // If no token, proceed with the original request
-        if (token.isNullOrBlank()) {
-            return chain.proceed(originalRequest)
-        }
-
-        // Add Authorization header with Bearer token
-        val authenticatedRequest = originalRequest.newBuilder()
-            .header("Authorization", "Bearer $token")
-            .build()
-
-        return chain.proceed(authenticatedRequest)
+        return getRetrofitClient().create(serviceClass)
     }
 }

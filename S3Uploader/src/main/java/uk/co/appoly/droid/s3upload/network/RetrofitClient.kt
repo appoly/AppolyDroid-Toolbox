@@ -1,7 +1,7 @@
 package uk.co.appoly.droid.s3upload.network
 
 import com.duck.flexilogger.LoggingLevel
-import com.duck.flexilogger.flexihttplogger.FlexiLogHttpLoggingInterceptorLogger
+import com.duck.flexilogger.okhttp.FlexiLogHttpLoggingInterceptorLogger
 import com.skydoves.sandwich.retrofit.adapters.ApiResponseCallAdapterFactory
 import kotlinx.serialization.json.Json
 import okhttp3.MediaType.Companion.toMediaType

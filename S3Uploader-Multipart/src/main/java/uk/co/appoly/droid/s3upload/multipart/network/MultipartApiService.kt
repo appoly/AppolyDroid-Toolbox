@@ -34,20 +34,17 @@ internal class MultipartApiService(
      *
      * @param url API endpoint URL
      * @param fileName Name of the file to upload
-     * @param contentType MIME type of the file
-     * @param fileSize Size of the file in bytes
+     * @param contentType MIME type of the file (optional, defaults to application/octet-stream on server)
      * @return API response containing upload ID and file path
      */
     suspend fun initiateMultipartUpload(
         url: String,
         fileName: String,
-        contentType: String,
-        fileSize: Long
+        contentType: String? = null
     ): ApiResponse<InitiateMultipartResponse> {
         val body = InitiateMultipartRequest(
             fileName = fileName,
-            contentType = contentType,
-            fileSize = fileSize
+            contentType = contentType
         )
 
         return try {

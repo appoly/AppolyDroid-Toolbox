@@ -1,7 +1,7 @@
 package uk.co.appoly.droid.s3upload.multipart.network
 
 import com.duck.flexilogger.LoggingLevel
-import com.duck.flexilogger.flexihttplogger.FlexiLogHttpLoggingInterceptorLogger
+import com.duck.flexilogger.okhttp.FlexiLogHttpLoggingInterceptorLogger
 import com.skydoves.sandwich.retrofit.adapters.ApiResponseCallAdapterFactory
 import kotlinx.serialization.json.Json
 import okhttp3.MediaType.Companion.toMediaType
@@ -31,6 +31,7 @@ internal object MultipartRetrofitClient {
         useAlternativeNames = true
         explicitNulls = false
         encodeDefaults = true
+		prettyPrint = S3Uploader.loggingLevel == LoggingLevel.V
     }
 
     private fun getRetrofitClient(): Retrofit {
@@ -57,8 +58,8 @@ internal object MultipartRetrofitClient {
                                             FlexiLogHttpLoggingInterceptorLogger.with(MultipartUploadLog, "S3Multipart:http")
                                         ).apply {
                                             level = when (S3Uploader.loggingLevel) {
-                                                LoggingLevel.V,
-                                                LoggingLevel.D -> HttpLoggingInterceptor.Level.HEADERS // Don't log body for multipart
+                                                LoggingLevel.V -> HttpLoggingInterceptor.Level.BODY // Full logging for verbose
+                                                LoggingLevel.D -> HttpLoggingInterceptor.Level.HEADERS
                                                 LoggingLevel.I -> HttpLoggingInterceptor.Level.BASIC
                                                 LoggingLevel.W,
                                                 LoggingLevel.E,
@@ -81,7 +82,24 @@ internal object MultipartRetrofitClient {
         return getRetrofitClient().create(tClass)
     }
 
-    val multipartApis: MultipartApis by lazy {
-        createService(MultipartApis::class.java)
+    private var _multipartApis: MultipartApis? = null
+
+    val multipartApis: MultipartApis
+        get() {
+            if (_multipartApis == null) {
+                _multipartApis = createService(MultipartApis::class.java)
+            }
+            return _multipartApis!!
+        }
+
+    /**
+     * Resets the Retrofit client, forcing it to be recreated on next use.
+     * Useful for applying new configuration (like logging level changes).
+     */
+    fun reset() {
+        synchronized(this) {
+            retrofit = null
+            _multipartApis = null
+        }
     }
 }

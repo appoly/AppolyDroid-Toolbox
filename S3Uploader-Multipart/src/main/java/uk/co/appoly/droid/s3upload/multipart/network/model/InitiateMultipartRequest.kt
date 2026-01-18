@@ -12,8 +12,5 @@ data class InitiateMultipartRequest(
     val fileName: String,
 
     @SerialName("content_type")
-    val contentType: String,
-
-    @SerialName("file_size")
-    val fileSize: Long
+    val contentType: String? = null
 )

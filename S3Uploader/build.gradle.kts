@@ -69,7 +69,7 @@ dependencies {
 
     // FlexiLogger
     api(libs.flexiLogger)
-    api(libs.flexiLogger.httpLogger)
+    api(libs.flexiLogger.okhttp)
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

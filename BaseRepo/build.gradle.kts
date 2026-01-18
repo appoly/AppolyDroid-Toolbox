@@ -59,7 +59,7 @@ dependencies {
 
 	//FlexiLog
 	api(libs.flexiLogger)
-	api(libs.flexiLogger.httpLogger)
+	api(libs.flexiLogger.okhttp)
 
 	//kotlinx serialization
 	api(libs.kotlinx.serialization)
