@@ -21,16 +21,427 @@ implementation("com.github.appoly.AppolyDroid-Toolbox:S3Uploader-Multipart:1.2.0
 
 This module depends on `S3Uploader` and includes it transitively.
 
-## Backend Requirements
+## Backend API Specification
 
-Your backend must implement the following S3 Multipart Upload API endpoints:
+Your backend must implement four endpoints that proxy requests to AWS S3's Multipart Upload API. This section provides the complete specification for external developers to implement these endpoints.
 
-### Required Endpoints
+### Overview
 
-1. **Initiate Upload** - `POST /api/s3/multipart/initiate`
-2. **Get Pre-signed URL for Part** - `POST /api/s3/multipart/presign-part`
-3. **Complete Upload** - `POST /api/s3/multipart/complete`
-4. **Abort Upload** - `POST /api/s3/multipart/abort`
+| Endpoint         | Purpose                                                               |
+|------------------|-----------------------------------------------------------------------|
+| **Initiate**     | Creates a new multipart upload session with S3                        |
+| **Presign Part** | Generates a pre-signed URL for uploading a single part directly to S3 |
+| **Complete**     | Finalizes the upload by combining all parts into the final file       |
+| **Abort**        | Cancels an in-progress upload and cleans up uploaded parts            |
+
+### Authentication
+
+All endpoints require authentication. The mobile app sends a Bearer token in the `Authorization` header:
+
+```
+Authorization: Bearer <token>
+```
+
+Your backend should validate this token using your existing authentication system (e.g., Laravel Sanctum, JWT, etc.).
+
+### Response Format
+
+The library supports **two response formats**. Choose whichever fits your API conventions:
+
+**Option A: Unwrapped (Direct Response)**
+```json
+{
+  "upload_id": "abc123",
+  "file_path": "uploads/file.jpg"
+}
+```
+
+**Option B: Wrapped (Envelope Response)**
+```json
+{
+  "success": true,
+  "message": "Upload initiated",
+  "data": {
+    "upload_id": "abc123",
+    "file_path": "uploads/file.jpg"
+  }
+}
+```
+
+Both formats are automatically handled by the library.
+
+---
+
+### 1. Initiate Multipart Upload
+
+Creates a new multipart upload session with S3.
+
+**Endpoint:** `POST /api/s3/multipart/initiate` (URL is configurable)
+
+**Request Headers:**
+```
+Content-Type: application/json
+Authorization: Bearer <token>
+```
+
+**Request Body:**
+
+| Field          | Type   | Required | Description                                                             |
+|----------------|--------|----------|-------------------------------------------------------------------------|
+| `file_name`    | string | ✅ Yes    | Original filename (e.g., `"video.mp4"`)                                 |
+| `content_type` | string | ❌ No     | MIME type (e.g., `"video/mp4"`). Defaults to `application/octet-stream` |
+
+**Example Request:**
+```json
+{
+  "file_name": "my-video.mp4",
+  "content_type": "video/mp4"
+}
+```
+
+**Response Body:**
+
+| Field       | Type   | Required | Description                                               |
+|-------------|--------|----------|-----------------------------------------------------------|
+| `upload_id` | string | ✅ Yes    | The S3 multipart upload ID (from `createMultipartUpload`) |
+| `file_path` | string | ✅ Yes    | The S3 object key where the file will be stored           |
+| `key`       | string | ❌ No     | Alias for file_path (some S3 SDKs use this)               |
+| `bucket`    | string | ❌ No     | The S3 bucket name (informational)                        |
+
+**Example Response (Unwrapped):**
+```json
+{
+  "upload_id": "VXBsb2FkIElEIGZvciBlbHZpbmcncyBteS1tb3ZpZS5tMnRzIHVwbG9hZA",
+  "file_path": "uploads/multipart/a1b2c3d4e5-my-video.mp4"
+}
+```
+
+**Example Response (Wrapped):**
+```json
+{
+  "success": true,
+  "message": "Multipart upload initiated",
+  "data": {
+    "upload_id": "VXBsb2FkIElEIGZvciBlbHZpbmcncyBteS1tb3ZpZS5tMnRzIHVwbG9hZA",
+    "file_path": "uploads/multipart/a1b2c3d4e5-my-video.mp4"
+  }
+}
+```
+
+**Backend Implementation Notes:**
+- Call AWS S3 `createMultipartUpload` with the bucket, key, and content type
+- Generate a unique key (path) for the file - typically including a random prefix to avoid collisions
+- Return the `UploadId` from S3's response as `upload_id`
+
+---
+
+### 2. Get Pre-signed URL for Part
+
+Generates a pre-signed URL that allows the mobile app to upload a single part directly to S3.
+
+**Endpoint:** `POST /api/s3/multipart/presign-part` (URL is configurable)
+
+**Request Headers:**
+```
+Content-Type: application/json
+Authorization: Bearer <token>
+```
+
+**Request Body:**
+
+| Field         | Type    | Required | Description                                                                              |
+|---------------|---------|----------|------------------------------------------------------------------------------------------|
+| `upload_id`   | string  | ✅ Yes    | The upload ID from the initiate response                                                 |
+| `file_path`   | string  | ✅ Yes    | The file path/key from the initiate response                                             |
+| `part_number` | integer | ✅ Yes    | Part number (1 to 10,000). Parts are uploaded in parallel, not necessarily in order.     |
+
+**Example Request:**
+```json
+{
+  "upload_id": "VXBsb2FkIElEIGZvciBlbHZpbmcncyBteS1tb3ZpZS5tMnRzIHVwbG9hZA",
+  "file_path": "uploads/multipart/a1b2c3d4e5-my-video.mp4",
+  "part_number": 1
+}
+```
+
+**Response Body:**
+
+| Field           | Type    | Required | Description                                                                                         |
+|-----------------|---------|----------|-----------------------------------------------------------------------------------------------------|
+| `presigned_url` | string  | ✅ Yes    | The pre-signed URL for uploading this part via HTTP PUT                                             |
+| `part_number`   | integer | ✅ Yes    | Echo of the requested part number                                                                   |
+| `headers`       | object  | ❌ No     | Additional headers the client should include when uploading to S3. Can be empty `{}` or omitted.    |
+
+**Example Response (Unwrapped):**
+```json
+{
+  "presigned_url": "https://my-bucket.s3.amazonaws.com/uploads/multipart/a1b2c3d4e5-my-video.mp4?uploadId=VXBsb2Fk...&partNumber=1&X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=...",
+  "part_number": 1,
+  "headers": {}
+}
+```
+
+**Example Response (Wrapped):**
+```json
+{
+  "success": true,
+  "message": "Pre-signed URL generated",
+  "data": {
+    "presigned_url": "https://my-bucket.s3.amazonaws.com/uploads/multipart/...",
+    "part_number": 1,
+    "headers": {}
+  }
+}
+```
+
+**Backend Implementation Notes:**
+- Call AWS S3 `createPresignedRequest` for the `uploadPart` command
+- Set an appropriate expiry time (recommended: 60 minutes)
+- The `headers` field can be used if your S3 configuration requires additional headers (e.g., custom encryption headers)
+
+**Important - ETag Handling:**
+When the mobile app uploads a part to the pre-signed URL, S3 returns an `ETag` header in its response. The app captures this automatically and will send it back in the Complete request. Your backend does not need to track ETags.
+
+---
+
+### 3. Complete Multipart Upload
+
+Finalizes the upload by instructing S3 to combine all uploaded parts into the final file.
+
+**Endpoint:** `POST /api/s3/multipart/complete` (URL is configurable)
+
+**Request Headers:**
+```
+Content-Type: application/json
+Authorization: Bearer <token>
+```
+
+**Request Body:**
+
+| Field       | Type   | Required | Description                                       |
+|-------------|--------|----------|---------------------------------------------------|
+| `upload_id` | string | ✅ Yes    | The upload ID from the initiate response          |
+| `file_path` | string | ✅ Yes    | The file path/key from the initiate response      |
+| `parts`     | array  | ✅ Yes    | Array of completed parts with their ETags         |
+
+**Parts Array Item:**
+
+| Field         | Type    | Required | Description                                         |
+|---------------|---------|----------|-----------------------------------------------------|
+| `part_number` | integer | ✅ Yes    | The part number (1-indexed)                         |
+| `etag`        | string  | ✅ Yes    | The ETag returned by S3 when the part was uploaded  |
+
+**Example Request:**
+```json
+{
+  "upload_id": "VXBsb2FkIElEIGZvciBlbHZpbmcncyBteS1tb3ZpZS5tMnRzIHVwbG9hZA",
+  "file_path": "uploads/multipart/a1b2c3d4e5-my-video.mp4",
+  "parts": [
+    { "part_number": 1, "etag": "\"a54357aff0632cce46d942af68356b38\"" },
+    { "part_number": 2, "etag": "\"0c78aef83f66abc1fa1e8477f296d394\"" },
+    { "part_number": 3, "etag": "\"acbd18db4cc2f85cedef654fccc4a4d8\"" }
+  ]
+}
+```
+
+**Response Body:**
+
+| Field       | Type   | Required | Description                           |
+|-------------|--------|----------|---------------------------------------|
+| `file_path` | string | ✅ Yes    | The final S3 object key               |
+| `location`  | string | ❌ No     | The full URL to the completed file    |
+| `etag`      | string | ❌ No     | The ETag of the completed file        |
+
+**Example Response (Unwrapped):**
+```json
+{
+  "file_path": "uploads/multipart/a1b2c3d4e5-my-video.mp4",
+  "location": "https://my-bucket.s3.amazonaws.com/uploads/multipart/a1b2c3d4e5-my-video.mp4",
+  "etag": "\"17fbc0a106abbb6f381aac6e331f2a19-3\""
+}
+```
+
+**Example Response (Wrapped):**
+```json
+{
+  "success": true,
+  "message": "Multipart upload completed",
+  "data": {
+    "file_path": "uploads/multipart/a1b2c3d4e5-my-video.mp4",
+    "location": "https://my-bucket.s3.amazonaws.com/uploads/multipart/a1b2c3d4e5-my-video.mp4"
+  }
+}
+```
+
+**Backend Implementation Notes:**
+- Call AWS S3 `completeMultipartUpload` with the parts array
+- **Important:** Sort parts by `part_number` before sending to S3 (the library sends them in order, but sorting server-side is safer)
+- Format each part as `{ PartNumber: int, ETag: string }` for the AWS SDK
+
+---
+
+### 4. Abort Multipart Upload
+
+Cancels an in-progress upload and instructs S3 to delete any uploaded parts.
+
+**Endpoint:** `POST /api/s3/multipart/abort` (URL is configurable)
+
+**Request Headers:**
+```
+Content-Type: application/json
+Authorization: Bearer <token>
+```
+
+**Request Body:**
+
+| Field       | Type   | Required | Description                                       |
+|-------------|--------|----------|---------------------------------------------------|
+| `upload_id` | string | ✅ Yes    | The upload ID from the initiate response          |
+| `file_path` | string | ✅ Yes    | The file path/key from the initiate response      |
+
+**Example Request:**
+```json
+{
+  "upload_id": "VXBsb2FkIElEIGZvciBlbHZpbmcncyBteS1tb3ZpZS5tMnRzIHVwbG9hZA",
+  "file_path": "uploads/multipart/a1b2c3d4e5-my-video.mp4"
+}
+```
+
+**Response Body:**
+
+| Field     | Type    | Required | Description                           |
+|-----------|---------|----------|---------------------------------------|
+| `success` | boolean | ❌ No     | Whether the abort was successful      |
+| `message` | string  | ❌ No     | Status message                        |
+
+**Example Response:**
+```json
+{
+  "success": true,
+  "message": "Multipart upload aborted"
+}
+```
+
+**Backend Implementation Notes:**
+- Call AWS S3 `abortMultipartUpload`
+- This cleans up any parts already uploaded to S3
+- It's safe to call even if no parts have been uploaded yet
+
+---
+
+### Error Responses
+
+When an error occurs, return an appropriate HTTP status code with an error response:
+
+**Example Error Response:**
+```json
+{
+  "success": false,
+  "message": "Upload ID not found or expired"
+}
+```
+
+**Recommended HTTP Status Codes:**
+
+| Code  | When to Use                                   |
+|-------|-----------------------------------------------|
+| `200` | Success                                       |
+| `400` | Bad request (missing/invalid parameters)      |
+| `401` | Unauthorized (invalid or missing token)       |
+| `404` | Upload ID not found or expired                |
+| `500` | Server error (S3 communication failed, etc.)  |
+
+---
+
+### AWS S3 Configuration
+
+Your S3 bucket needs appropriate CORS configuration to allow direct uploads from mobile apps:
+
+```json
+{
+  "CORSRules": [
+    {
+      "AllowedHeaders": ["*"],
+      "AllowedMethods": ["PUT"],
+      "AllowedOrigins": ["*"],
+      "ExposeHeaders": ["ETag"],
+      "MaxAgeSeconds": 3600
+    }
+  ]
+}
+```
+
+**Important:** The `ExposeHeaders: ["ETag"]` is critical - without it, the mobile app cannot read the ETag header from S3's response, and the complete request will fail.
+
+---
+
+### Upload Flow Diagram
+
+```
+┌─────────────────┐                    ┌─────────────────┐                    ┌─────────────────┐
+│   Mobile App    │                    │  Your Backend   │                    │    AWS S3       │
+└────────┬────────┘                    └────────┬────────┘                    └────────┬────────┘
+         │                                      │                                      │
+         │  1. POST /initiate                   │                                      │
+         │  {file_name, content_type}           │                                      │
+         │─────────────────────────────────────>│                                      │
+         │                                      │  createMultipartUpload               │
+         │                                      │─────────────────────────────────────>│
+         │                                      │<─────────────────────────────────────│
+         │                                      │  {UploadId}                          │
+         │<─────────────────────────────────────│                                      │
+         │  {upload_id, file_path}              │                                      │
+         │                                      │                                      │
+         │  2. POST /presign-part               │                                      │
+         │  {upload_id, file_path, part_number} │                                      │
+         │─────────────────────────────────────>│                                      │
+         │                                      │  createPresignedRequest              │
+         │                                      │─────────────────────────────────────>│
+         │                                      │<─────────────────────────────────────│
+         │<─────────────────────────────────────│                                      │
+         │  {presigned_url}                     │                                      │
+         │                                      │                                      │
+         │  3. PUT presigned_url (binary data)  │                                      │
+         │─────────────────────────────────────────────────────────────────────────────>│
+         │<─────────────────────────────────────────────────────────────────────────────│
+         │  Response with ETag header           │                                      │
+         │                                      │                                      │
+         │     ... repeat 2-3 for each part ... │                                      │
+         │                                      │                                      │
+         │  4. POST /complete                   │                                      │
+         │  {upload_id, file_path, parts[]}     │                                      │
+         │─────────────────────────────────────>│                                      │
+         │                                      │  completeMultipartUpload             │
+         │                                      │─────────────────────────────────────>│
+         │                                      │<─────────────────────────────────────│
+         │<─────────────────────────────────────│                                      │
+         │  {file_path, location}               │                                      │
+         │                                      │                                      │
+```
+
+---
+
+### Quick Reference: Field Names
+
+The library uses `snake_case` for all JSON field names:
+
+| Field           | Used In                                   |
+|-----------------|-------------------------------------------|
+| `file_name`     | Initiate request                          |
+| `content_type`  | Initiate request                          |
+| `upload_id`     | All endpoints                             |
+| `file_path`     | All endpoints                             |
+| `part_number`   | Presign request, Complete request parts   |
+| `presigned_url` | Presign response                          |
+| `headers`       | Presign response                          |
+| `parts`         | Complete request                          |
+| `etag`          | Complete request parts, Complete response |
+| `location`      | Complete response                         |
+| `success`       | All responses (optional)                  |
+| `message`       | All responses (optional)                  |
+| `data`          | Wrapped responses (optional)              |
+
+---
 
 See the [Backend Implementation Guide](#backend-implementation) section for Laravel PHP sample code.
 
