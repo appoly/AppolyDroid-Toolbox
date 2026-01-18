@@ -16,7 +16,7 @@ Advanced S3 upload module with pause, resume, and recovery support using AWS S3 
 ## Installation
 
 ```gradle.kts
-implementation("com.github.appoly.AppolyDroid-Toolbox:S3Uploader-Multipart:1.2.0-beta03")
+implementation("com.github.appoly.AppolyDroid-Toolbox:S3Uploader-Multipart:1.2.0-beta04")
 ```
 
 This module depends on `S3Uploader` and includes it transitively.

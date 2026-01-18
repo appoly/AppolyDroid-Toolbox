@@ -15,9 +15,9 @@ Extension module that bridges BaseRepo and S3Uploader-Multipart, enabling pausab
 
 ```gradle.kts
 // Requires the base modules
-implementation("com.github.appoly.AppolyDroid-Toolbox:BaseRepo:1.2.0-beta03")
-implementation("com.github.appoly.AppolyDroid-Toolbox:S3Uploader-Multipart:1.2.0-beta03")
-implementation("com.github.appoly.AppolyDroid-Toolbox:BaseRepo-S3Uploader-Multipart:1.2.0-beta03")
+implementation("com.github.appoly.AppolyDroid-Toolbox:BaseRepo:1.2.0-beta04")
+implementation("com.github.appoly.AppolyDroid-Toolbox:S3Uploader-Multipart:1.2.0-beta04")
+implementation("com.github.appoly.AppolyDroid-Toolbox:BaseRepo-S3Uploader-Multipart:1.2.0-beta04")
 ```
 
 ## Usage
