@@ -18,3 +18,4 @@ local.properties
 /.idea/copilot.*
 /build.log.txt
 /AppolyDroid-Toolbox-1.1.8.pom.xml
+.claude/settings.local.json
