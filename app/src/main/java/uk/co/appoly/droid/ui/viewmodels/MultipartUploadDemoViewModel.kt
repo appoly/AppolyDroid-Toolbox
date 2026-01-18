@@ -150,6 +150,18 @@ class MultipartUploadDemoViewModel(application: Application) : AndroidViewModel(
     val authToken: StateFlow<String?> = repository.authToken
 
     /**
+     * Email input for login.
+     */
+    private val _email = MutableStateFlow("")
+    val email: StateFlow<String> = _email.asStateFlow()
+
+    /**
+     * Password input for login.
+     */
+    private val _password = MutableStateFlow("")
+    val password: StateFlow<String> = _password.asStateFlow()
+
+    /**
      * Whether a login request is currently in progress.
      *
      * Used to:
@@ -249,6 +261,20 @@ class MultipartUploadDemoViewModel(application: Application) : AndroidViewModel(
     // ==================== Authentication Operations ====================
 
     /**
+     * Updates the email input field.
+     */
+    fun setEmail(value: String) {
+        _email.value = value
+    }
+
+    /**
+     * Updates the password input field.
+     */
+    fun setPassword(value: String) {
+        _password.value = value
+    }
+
+    /**
      * Authenticates with the test backend server.
      *
      * Uses the [TestBackendRepository] to perform login via the BaseRepo pattern.
@@ -259,17 +285,22 @@ class MultipartUploadDemoViewModel(application: Application) : AndroidViewModel(
      *
      * On failure:
      * - Error message is set in [loginError]
-     *
-     * @param email User's email (defaults to test credentials)
-     * @param password User's password (defaults to test credentials)
      */
-    fun login(email: String = "bradley@appoly.co.uk", password: String = "secret123") {
+    fun login() {
+        val emailValue = _email.value.trim()
+        val passwordValue = _password.value
+
+        if (emailValue.isBlank() || passwordValue.isBlank()) {
+            _loginError.value = "Email and password are required"
+            return
+        }
+
         viewModelScope.launch {
             _isLoggingIn.value = true
             _loginError.value = null
-            addLog("Logging in with email: $email")
+            addLog("Logging in with email: $emailValue")
 
-            when (val result = repository.login(email, password)) {
+            when (val result = repository.login(emailValue, passwordValue)) {
                 is APIResult.Success -> {
                     val token = result.data.token
                     addLog("Login successful! Token: ${token?.take(20)}...")

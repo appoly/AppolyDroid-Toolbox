@@ -41,6 +41,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -54,6 +55,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -103,10 +105,6 @@ import uk.co.appoly.droid.ui.viewmodels.MultipartUploadDemoViewModel
  * This demo connects to a test server at `https://multipart-uploader.on-forge.com`.
  * See the server source at: [https://github.com/appoly/s3-uploader](https://github.com/appoly/s3-uploader)
  *
- * ## Test Credentials
- * - Email: `bradley@appoly.co.uk`
- * - Password: `secret123`
- *
  * ## State Management
  * All UI state is managed by [MultipartUploadDemoViewModel] and observed via [StateFlow]:
  * - Authentication state (token, loading, errors)
@@ -129,6 +127,8 @@ fun MultipartUploadDemoScreen(
 ) {
     // Collect all state from ViewModel
     val authToken by viewModel.authToken.collectAsState()
+    val email by viewModel.email.collectAsState()
+    val password by viewModel.password.collectAsState()
     val isLoggingIn by viewModel.isLoggingIn.collectAsState()
     val loginError by viewModel.loginError.collectAsState()
 
@@ -180,8 +180,12 @@ fun MultipartUploadDemoScreen(
             // Authentication Section - Always visible
             AuthSection(
                 authToken = authToken,
+                email = email,
+                password = password,
                 isLoggingIn = isLoggingIn,
                 loginError = loginError,
+                onEmailChange = { viewModel.setEmail(it) },
+                onPasswordChange = { viewModel.setPassword(it) },
                 onLogin = { viewModel.login() }
             )
 
@@ -248,19 +252,27 @@ fun MultipartUploadDemoScreen(
  * Authentication section displaying login state and controls.
  *
  * Shows either:
- * - Login button with test server info (when not authenticated)
+ * - Email/password input fields with login button (when not authenticated)
  * - Success indicator with token preview (when authenticated)
  *
  * @param authToken Current auth token (null if not logged in)
+ * @param email Current email input value
+ * @param password Current password input value
  * @param isLoggingIn Whether login is in progress
  * @param loginError Error message from failed login attempt
+ * @param onEmailChange Callback when email input changes
+ * @param onPasswordChange Callback when password input changes
  * @param onLogin Callback when login button is clicked
  */
 @Composable
 private fun AuthSection(
     authToken: String?,
+    email: String,
+    password: String,
     isLoggingIn: Boolean,
     loginError: String?,
+    onEmailChange: (String) -> Unit,
+    onPasswordChange: (String) -> Unit,
     onLogin: () -> Unit
 ) {
     Card(
@@ -303,17 +315,32 @@ private fun AuthSection(
             } else {
                 // Unauthenticated state
                 Text(
-                    text = "Test server: multipart-uploader.on-forge.com",
+                    text = "Server: multipart-uploader.on-forge.com",
                     style = MaterialTheme.typography.bodySmall
                 )
-                Text(
-                    text = "User: bradley@appoly.co.uk",
-                    style = MaterialTheme.typography.bodySmall
+
+                OutlinedTextField(
+                    value = email,
+                    onValueChange = onEmailChange,
+                    label = { Text("Email") },
+                    singleLine = true,
+                    enabled = !isLoggingIn,
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                OutlinedTextField(
+                    value = password,
+                    onValueChange = onPasswordChange,
+                    label = { Text("Password") },
+                    singleLine = true,
+                    enabled = !isLoggingIn,
+                    visualTransformation = PasswordVisualTransformation(),
+                    modifier = Modifier.fillMaxWidth()
                 )
 
                 Button(
                     onClick = onLogin,
-                    enabled = !isLoggingIn,
+                    enabled = !isLoggingIn && email.isNotBlank() && password.isNotBlank(),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     if (isLoggingIn) {
