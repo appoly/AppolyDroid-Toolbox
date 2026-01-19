@@ -14,6 +14,7 @@ import uk.co.appoly.droid.data.remote.model.APIResult
 import uk.co.appoly.droid.s3upload.multipart.database.entity.UploadSessionStatus
 import uk.co.appoly.droid.s3upload.multipart.network.model.MultipartApiUrls
 import uk.co.appoly.droid.s3upload.multipart.result.MultipartUploadProgress
+import uk.co.appoly.droid.s3upload.multipart.result.MultipartUploadResult
 import java.io.File
 import java.io.FileOutputStream
 
@@ -418,14 +419,24 @@ class MultipartUploadDemoViewModel(application: Application) : AndroidViewModel(
             addLog("Using API URLs: $apiUrls")
 
             repository.uploadManager?.let { manager ->
-                val result = manager.startUpload(file, apiUrls)
-                result.onSuccess { sessionId ->
-                    _currentSessionId.value = sessionId
-                    addLog("Upload started with session: $sessionId")
-                    observeCurrentUpload(sessionId)
-                }.onFailure { error ->
-                    _uploadError.value = error.message
-                    addLog("Upload failed to start: ${error.message}")
+                when (val result = manager.startUpload(file, apiUrls)) {
+                    is MultipartUploadResult.Success -> {
+                        _currentSessionId.value = result.sessionId
+                        addLog("Upload completed with session: ${result.sessionId}")
+                        observeCurrentUpload(result.sessionId)
+                    }
+                    is MultipartUploadResult.Paused -> {
+                        _currentSessionId.value = result.sessionId
+                        addLog("Upload paused at ${result.uploadedParts}/${result.totalParts} parts")
+                        observeCurrentUpload(result.sessionId)
+                    }
+                    is MultipartUploadResult.Error -> {
+                        _uploadError.value = result.message
+                        addLog("Upload failed: ${result.message}")
+                    }
+                    is MultipartUploadResult.Cancelled -> {
+                        addLog("Upload cancelled: ${result.sessionId}")
+                    }
                 }
             } ?: run {
                 _uploadError.value = "Upload manager not initialized. Please login first."

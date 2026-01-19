@@ -677,6 +677,11 @@ private fun StatusChip(status: UploadSessionStatus) {
             Color(0xFFF9A825),
             "Paused"
         )
+        UploadSessionStatus.PAUSED_CONSTRAINT_VIOLATION -> Triple(
+            Color(0xFFFFF8E1),
+            Color(0xFFFF8F00),
+            "Paused (Constraint)"
+        )
         UploadSessionStatus.COMPLETING -> Triple(
             Color(0xFFE8F5E9),
             Color(0xFF2E7D32),

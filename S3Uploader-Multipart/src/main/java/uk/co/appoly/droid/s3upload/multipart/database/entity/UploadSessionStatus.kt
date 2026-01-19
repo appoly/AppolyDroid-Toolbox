@@ -10,8 +10,19 @@ enum class UploadSessionStatus {
 	/** Currently uploading parts */
 	IN_PROGRESS,
 
-	/** User paused the upload */
+	/** User paused the upload manually */
 	PAUSED,
+
+	/**
+	 * Upload paused due to constraint violation (e.g., WiFi switched to cellular
+	 * when WiFi-only was required, battery too low, etc.).
+	 *
+	 * Different from [PAUSED] to distinguish user-initiated pauses from
+	 * system-initiated pauses. When [autoResumeWhenSatisfied][uk.co.appoly.droid.s3upload.multipart.config.UploadConstraints.autoResumeWhenSatisfied]
+	 * is enabled, uploads in this state will automatically resume when
+	 * constraints are satisfied again.
+	 */
+	PAUSED_CONSTRAINT_VIOLATION,
 
 	/** All parts uploaded, completing multipart upload with S3 */
 	COMPLETING,

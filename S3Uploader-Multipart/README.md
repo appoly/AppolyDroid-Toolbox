@@ -16,7 +16,7 @@ Advanced S3 upload module with pause, resume, and recovery support using AWS S3 
 ## Installation
 
 ```gradle.kts
-implementation("com.github.appoly.AppolyDroid-Toolbox:S3Uploader-Multipart:1.2.0-beta04")
+implementation("com.github.appoly.AppolyDroid-Toolbox:S3Uploader-Multipart:1.2.0-beta05")
 ```
 
 This module depends on `S3Uploader` and includes it transitively.
@@ -629,7 +629,260 @@ val config = MultipartUploadConfig(
 val uploadManager = MultipartUploadManager.getInstance(context, config)
 ```
 
-### 7. Progress Tracking with Compose
+### 7. Worker Extensibility
+
+The upload worker can be customized in two ways: **Provider Interfaces** (recommended) or **Custom Worker Subclass** (advanced).
+
+#### Option A: Provider Interfaces (Recommended)
+
+For most use cases, use the provider interfaces via `MultipartUploadConfig`:
+
+```kotlin
+val config = MultipartUploadConfig(
+    // Custom notification appearance
+    notificationProvider = DefaultUploadNotificationProvider(
+        channelId = "my_app_uploads",
+        channelName = "File Uploads",
+        smallIconResId = R.drawable.ic_upload,
+        titleProvider = { progress ->
+            progress?.fileName?.let { "Uploading: $it" } ?: "Preparing upload..."
+        },
+        contentTextProvider = { progress ->
+            progress?.let { "${it.overallProgress.toInt()}% complete" } ?: "Starting..."
+        }
+    ),
+    // Lifecycle hooks for pre/post upload logic
+    lifecycleCallbacks = object : UploadLifecycleCallbacks {
+        override suspend fun onBeforeUpload(
+            filePath: String
+        ): BeforeUploadResult {
+            // Validate or register upload with your backend before S3 interaction
+            return try {
+                backendApi.validateUpload(filePath)
+                BeforeUploadResult.Continue
+            } catch (e: Exception) {
+                BeforeUploadResult.Abort("Validation failed: ${e.message}")
+            }
+        }
+
+        override suspend fun onUploadComplete(
+            sessionId: String,
+            result: MultipartUploadResult
+        ) {
+            when (result) {
+                is MultipartUploadResult.Success -> {
+                    // Confirm with backend, cleanup temp files
+                    backendApi.confirmUpload(sessionId, result.location)
+                    File(result.filePath).delete()
+                }
+                is MultipartUploadResult.Error -> {
+                    analytics.trackUploadError(result.message)
+                }
+                else -> {}
+            }
+        }
+
+        override suspend fun onUploadPaused(
+            sessionId: String,
+            reason: String,
+            isConstraintViolation: Boolean
+        ) {
+            // Log pause events, show user notification, etc.
+        }
+
+        override suspend fun onUploadResumed(sessionId: String) {
+            // Track resume events
+        }
+    }
+)
+
+val uploadManager = MultipartUploadManager.getInstance(context, config)
+```
+
+**Available Lifecycle Callbacks:**
+
+| Callback | When Called | Use Cases |
+|----------|-------------|-----------|
+| `onBeforeUpload` | Before any S3 interaction | Pre-upload validation, abort if needed |
+| `onUploadComplete` | After upload finishes (success/error/cancel) | Backend confirmation, file cleanup, analytics |
+| `onUploadPaused` | When upload pauses (user or constraint) | User notification, analytics |
+| `onUploadResumed` | When upload resumes | UI updates, analytics |
+| `onProgressUpdate` | After each part completes | Custom progress tracking (called frequently) |
+
+#### Option B: Custom Worker Subclass (Advanced)
+
+For full control over the worker, subclass `MultipartUploadWorker` and register via `WorkerFactory`.
+
+**Step 1: Create your custom worker**
+
+Subclasses can override both notification methods and lifecycle hooks directly:
+
+```kotlin
+class MyUploadWorker(
+    appContext: Context,
+    params: WorkerParameters
+) : MultipartUploadWorker(appContext, params) {
+
+    // Override notification methods
+    override fun createForegroundInfo(
+        sessionId: String,
+        progress: MultipartUploadProgress?
+    ): ForegroundInfo {
+        createNotificationChannel()
+
+        val notification = NotificationCompat.Builder(context, "my_upload_channel")
+            .setContentTitle("My App - Uploading")
+            .setContentText(progress?.let { "${it.overallProgress.toInt()}%" } ?: "Starting...")
+            .setSmallIcon(R.drawable.ic_my_upload)
+            .setProgress(100, progress?.overallProgress?.toInt() ?: 0, progress == null)
+            .setOngoing(true)
+            .build()
+
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            ForegroundInfo(
+                sessionId.hashCode(),
+                notification,
+                ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC
+            )
+        } else {
+            ForegroundInfo(sessionId.hashCode(), notification)
+        }
+    }
+
+    override fun createNotificationChannel() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val channel = NotificationChannel(
+                "my_upload_channel",
+                "My App Uploads",
+                NotificationManager.IMPORTANCE_LOW
+            )
+            val manager = context.getSystemService(NotificationManager::class.java)
+            manager?.createNotificationChannel(channel)
+        }
+    }
+
+    // Override lifecycle hooks directly (alternative to UploadLifecycleCallbacks)
+    override suspend fun onBeforeUpload(
+        filePath: String
+    ): BeforeUploadResult {
+        // Validate or register upload with backend before S3 interaction
+        return try {
+            backendApi.validateUpload(filePath)
+            BeforeUploadResult.Continue
+        } catch (e: Exception) {
+            BeforeUploadResult.Abort("Validation failed: ${e.message}")
+        }
+    }
+
+    override suspend fun onUploadComplete(
+        sessionId: String,
+        result: MultipartUploadResult
+    ) {
+        when (result) {
+            is MultipartUploadResult.Success -> {
+                // Confirm with backend, cleanup temp files
+                backendApi.confirmUpload(sessionId, result.location)
+                File(result.filePath).delete()
+            }
+            is MultipartUploadResult.Error -> {
+                analytics.trackUploadError(result.message)
+            }
+            else -> {}
+        }
+    }
+
+    override suspend fun onUploadPaused(
+        sessionId: String,
+        reason: String,
+        isConstraintViolation: Boolean
+    ) {
+        // Log pause events
+        analytics.trackUploadPaused(sessionId, reason, isConstraintViolation)
+    }
+}
+```
+
+**Available lifecycle hooks in custom workers:**
+
+| Method | When Called | Can Abort |
+|--------|-------------|-----------|
+| `onBeforeUpload()` | Before upload starts | Yes |
+| `onUploadResumed()` | When paused upload resumes | No |
+| `onUploadComplete()` | After upload finishes | No |
+| `onUploadPaused()` | When upload pauses | No |
+| `onProgressUpdate()` | Periodically with progress | No |
+
+> **Note:** The `doWork()` method is `final` to ensure core upload logic isn't accidentally broken.
+> Use the lifecycle hooks above instead of overriding `doWork()`.
+
+**Step 2: Create a WorkerFactory**
+
+```kotlin
+class MyWorkerFactory : WorkerFactory() {
+    override fun createWorker(
+        appContext: Context,
+        workerClassName: String,
+        workerParameters: WorkerParameters
+    ): ListenableWorker? {
+        return when (workerClassName) {
+            // Intercept requests for MultipartUploadWorker
+            MultipartUploadWorker::class.java.name -> {
+                MyUploadWorker(appContext, workerParameters)
+            }
+            // Let default factory handle other workers
+            else -> null
+        }
+    }
+}
+```
+
+**Step 3: Register the factory with WorkManager**
+
+Disable default WorkManager initialization in `AndroidManifest.xml`:
+
+```xml
+<provider
+    android:name="androidx.startup.InitializationProvider"
+    android:authorities="${applicationId}.androidx-startup"
+    tools:node="merge">
+    <meta-data
+        android:name="androidx.work.WorkManagerInitializer"
+        android:value="androidx.startup"
+        tools:node="remove" />
+</provider>
+```
+
+Initialize WorkManager manually in your `Application` class:
+
+```kotlin
+class MyApplication : Application() {
+    override fun onCreate() {
+        super.onCreate()
+
+        // Initialize WorkManager with custom factory
+        val config = Configuration.Builder()
+            .setWorkerFactory(MyWorkerFactory())
+            .build()
+        WorkManager.initialize(this, config)
+
+        // Initialize S3Uploader as usual
+        S3Uploader.initS3Uploader(
+            tokenProvider = { authManager.getToken() }
+        )
+    }
+}
+```
+
+**Using with S3UploadWorkManager:**
+
+Once your factory is registered, `S3UploadWorkManager` works normally. WorkManager intercepts requests for `MultipartUploadWorker` and your factory returns your custom worker instead:
+
+```kotlin
+// This will use MyUploadWorker via your factory
+S3UploadWorkManager.scheduleUpload(context, file, apiUrls)
+```
+
+### 8. Progress Tracking with Compose
 
 ```kotlin
 @Composable
@@ -754,8 +1007,41 @@ data class MultipartUploadConfig(
     val chunkSize: Long = 5 * 1024 * 1024L,  // 5MB (AWS minimum)
     val maxConcurrentParts: Int = 3,
     val maxRetries: Int = 3,
-    val retryDelayMs: Long = 1000L
+    val retryDelayMs: Long = 1000L,
+    val useExponentialBackoff: Boolean = true,
+    val defaultConstraints: UploadConstraints = UploadConstraints.DEFAULT,
+    val notificationProvider: UploadNotificationProvider? = null,
+    val lifecycleCallbacks: UploadLifecycleCallbacks? = null
 )
+```
+
+### UploadNotificationProvider
+
+```kotlin
+interface UploadNotificationProvider {
+    fun createNotificationChannel(context: Context)
+    fun createNotification(context: Context, sessionId: String, progress: MultipartUploadProgress?): Notification
+    fun getNotificationId(sessionId: String): Int
+    fun getForegroundServiceType(): Int
+    fun createForegroundInfo(context: Context, sessionId: String, progress: MultipartUploadProgress?): ForegroundInfo
+}
+```
+
+### UploadLifecycleCallbacks
+
+```kotlin
+interface UploadLifecycleCallbacks {
+    suspend fun onBeforeUpload(filePath: String): BeforeUploadResult
+    suspend fun onUploadComplete(sessionId: String, result: MultipartUploadResult)
+    suspend fun onUploadPaused(sessionId: String, reason: String, isConstraintViolation: Boolean)
+    suspend fun onUploadResumed(sessionId: String)
+    suspend fun onProgressUpdate(sessionId: String, progress: MultipartUploadProgress)
+}
+
+sealed class BeforeUploadResult {
+    data object Continue : BeforeUploadResult()
+    data class Abort(val reason: String) : BeforeUploadResult()
+}
 ```
 
 ## Upload States

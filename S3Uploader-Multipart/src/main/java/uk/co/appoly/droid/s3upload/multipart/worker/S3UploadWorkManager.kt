@@ -12,6 +12,11 @@ import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkInfo
 import androidx.work.WorkManager
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
+import uk.co.appoly.droid.s3upload.multipart.MultipartUploadManager
+import uk.co.appoly.droid.s3upload.multipart.config.UploadConstraints
+import uk.co.appoly.droid.s3upload.multipart.config.UploadNetworkType
 import uk.co.appoly.droid.s3upload.multipart.network.model.MultipartApiUrls
 import java.io.File
 import java.util.UUID
@@ -33,35 +38,42 @@ object S3UploadWorkManager {
 	private const val RECOVERY_WORK_NAME = "multipart_upload_recovery"
 	private const val MIN_BACKOFF_MILLIS = 10_000L // 10 seconds
 
+	private val json = Json {
+		ignoreUnknownKeys = true
+		encodeDefaults = true
+	}
+
 	/**
-	 * Schedules a new multipart upload.
+	 * Schedules a new multipart upload with full constraint support.
 	 *
 	 * @param context Application context
 	 * @param file The file to upload
 	 * @param apiUrls API endpoints for multipart operations
-	 * @param requiresNetwork Whether to require network connectivity (default true)
-	 * @param requiresCharging Whether to require device charging (default false)
+	 * @param constraints Upload constraints. If null, uses default constraints from
+	 *                    [MultipartUploadManager.config]. Pass [UploadConstraints.DEFAULT]
+	 *                    for any-network uploads or [UploadConstraints.wifiOnly] for WiFi-only.
 	 * @return Unique work name that can be used to track the upload
 	 */
 	fun scheduleUpload(
 		context: Context,
 		file: File,
 		apiUrls: MultipartApiUrls,
-		requiresNetwork: Boolean = true,
-		requiresCharging: Boolean = false
+		constraints: UploadConstraints? = null
 	): String {
 		val workName = "${UPLOAD_WORK_PREFIX}${UUID.randomUUID()}"
 
-		val constraints = Constraints.Builder().apply {
-			if (requiresNetwork) {
-				setRequiredNetworkType(NetworkType.CONNECTED)
-			}
-			setRequiresCharging(requiresCharging)
-		}.build()
+		// Resolve constraints: use provided, or fall back to config default
+		val resolvedConstraints = constraints
+			?: MultipartUploadManager.getInstance(context).config.defaultConstraints
+
+		val workConstraints = resolvedConstraints.toWorkManagerConstraints()
+
+		// Serialize constraints for storage in the session
+		val constraintsJson = json.encodeToString(resolvedConstraints)
 
 		val workRequest = OneTimeWorkRequestBuilder<MultipartUploadWorker>()
-			.setInputData(MultipartUploadWorker.createInputData(file, apiUrls))
-			.setConstraints(constraints)
+			.setInputData(MultipartUploadWorker.createInputData(file, apiUrls, constraintsJson))
+			.setConstraints(workConstraints)
 			.setBackoffCriteria(
 				BackoffPolicy.EXPONENTIAL,
 				MIN_BACKOFF_MILLIS,
@@ -81,25 +93,68 @@ object S3UploadWorkManager {
 	}
 
 	/**
-	 * Schedules resumption of an existing upload.
+	 * Schedules a new multipart upload.
+	 *
+	 * @param context Application context
+	 * @param file The file to upload
+	 * @param apiUrls API endpoints for multipart operations
+	 * @param requiresNetwork Whether to require network connectivity (default true)
+	 * @param requiresCharging Whether to require device charging (default false)
+	 * @return Unique work name that can be used to track the upload
+	 *
+	 * @deprecated Use [scheduleUpload] with [UploadConstraints] for full constraint support
+	 *             including WiFi-only, battery, and storage constraints.
+	 */
+	@Deprecated(
+		message = "Use scheduleUpload with UploadConstraints parameter",
+		replaceWith = ReplaceWith(
+			"scheduleUpload(context, file, apiUrls, UploadConstraints(networkType = if (requiresNetwork) UploadNetworkType.CONNECTED else UploadNetworkType.NOT_REQUIRED, requiresCharging = requiresCharging))",
+			"uk.co.appoly.droid.s3upload.multipart.config.UploadConstraints",
+			"uk.co.appoly.droid.s3upload.multipart.config.UploadNetworkType"
+		)
+	)
+	fun scheduleUpload(
+		context: Context,
+		file: File,
+		apiUrls: MultipartApiUrls,
+		requiresNetwork: Boolean = true,
+		requiresCharging: Boolean = false
+	): String {
+		val constraints = UploadConstraints(
+			networkType = if (requiresNetwork) UploadNetworkType.CONNECTED else UploadNetworkType.NOT_REQUIRED,
+			requiresCharging = requiresCharging
+		)
+		return scheduleUpload(context, file, apiUrls, constraints)
+	}
+
+	/**
+	 * Schedules resumption of an existing upload with full constraint support.
 	 *
 	 * @param context Application context
 	 * @param sessionId The session ID to resume
+	 * @param constraints Upload constraints. If null, uses default constraints from
+	 *                    [MultipartUploadManager.config].
+	 * @param initialDelayMs Optional delay before starting the resume (useful for auto-resume
+	 *                       after constraint violations to avoid rapid pause/resume cycles)
 	 * @return Unique work name
 	 */
 	fun scheduleResume(
 		context: Context,
-		sessionId: String
+		sessionId: String,
+		constraints: UploadConstraints? = null,
+		initialDelayMs: Long = 0
 	): String {
 		val workName = "${UPLOAD_WORK_PREFIX}resume_$sessionId"
 
-		val constraints = Constraints.Builder()
-			.setRequiredNetworkType(NetworkType.CONNECTED)
-			.build()
+		// Resolve constraints: use provided, or fall back to config default
+		val resolvedConstraints = constraints
+			?: MultipartUploadManager.getInstance(context).config.defaultConstraints
 
-		val workRequest = OneTimeWorkRequestBuilder<MultipartUploadWorker>()
+		val workConstraints = resolvedConstraints.toWorkManagerConstraints()
+
+		val workRequestBuilder = OneTimeWorkRequestBuilder<MultipartUploadWorker>()
 			.setInputData(MultipartUploadWorker.createResumeInputData(sessionId))
-			.setConstraints(constraints)
+			.setConstraints(workConstraints)
 			.setBackoffCriteria(
 				BackoffPolicy.EXPONENTIAL,
 				MIN_BACKOFF_MILLIS,
@@ -107,7 +162,12 @@ object S3UploadWorkManager {
 			)
 			.addTag(TAG_MULTIPART_UPLOAD)
 			.addTag("session_$sessionId")
-			.build()
+
+		if (initialDelayMs > 0) {
+			workRequestBuilder.setInitialDelay(initialDelayMs, TimeUnit.MILLISECONDS)
+		}
+
+		val workRequest = workRequestBuilder.build()
 
 		WorkManager.getInstance(context)
 			.enqueueUniqueWork(
@@ -242,4 +302,31 @@ object S3UploadWorkManager {
 	// Tags for work identification
 	const val TAG_MULTIPART_UPLOAD = "multipart_upload"
 	const val TAG_RECOVERY = "multipart_recovery"
+
+	// ==================== Constraint Conversion ====================
+
+	/**
+	 * Converts [UploadConstraints] to WorkManager [Constraints].
+	 */
+	private fun UploadConstraints.toWorkManagerConstraints(): Constraints {
+		return Constraints.Builder()
+			.setRequiredNetworkType(networkType.toWorkManagerNetworkType())
+			.setRequiresCharging(requiresCharging)
+			.setRequiresBatteryNotLow(requiresBatteryNotLow)
+			.setRequiresStorageNotLow(requiresStorageNotLow)
+			.build()
+	}
+
+	/**
+	 * Converts [UploadNetworkType] to WorkManager [NetworkType].
+	 */
+	private fun UploadNetworkType.toWorkManagerNetworkType(): NetworkType {
+		return when (this) {
+			UploadNetworkType.NOT_REQUIRED -> NetworkType.NOT_REQUIRED
+			UploadNetworkType.CONNECTED -> NetworkType.CONNECTED
+			UploadNetworkType.UNMETERED -> NetworkType.UNMETERED
+			UploadNetworkType.NOT_ROAMING -> NetworkType.NOT_ROAMING
+			UploadNetworkType.METERED -> NetworkType.METERED
+		}
+	}
 }

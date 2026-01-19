@@ -58,10 +58,40 @@ interface MultipartUploadDao {
 	@Query(
 		"""
         SELECT * FROM multipart_upload_sessions
-        WHERE status IN ('PENDING', 'IN_PROGRESS', 'PAUSED')
+        WHERE status IN ('PENDING', 'IN_PROGRESS', 'PAUSED', 'PAUSED_CONSTRAINT_VIOLATION')
     """
 	)
 	suspend fun getRecoverableSessions(): List<UploadSessionEntity>
+
+	/**
+	 * Gets all active sessions (not completed, aborted, or failed).
+	 * Used for updating constraints across all active uploads.
+	 */
+	@Query(
+		"""
+        SELECT * FROM multipart_upload_sessions
+        WHERE status IN ('PENDING', 'IN_PROGRESS', 'PAUSED', 'PAUSED_CONSTRAINT_VIOLATION')
+    """
+	)
+	suspend fun getActiveSessions(): List<UploadSessionEntity>
+
+	/**
+	 * Gets all sessions that were paused due to constraint violations.
+	 * These are candidates for auto-resume when constraints are satisfied.
+	 */
+	@Query(
+		"""
+        SELECT * FROM multipart_upload_sessions
+        WHERE status = 'PAUSED_CONSTRAINT_VIOLATION'
+    """
+	)
+	suspend fun getConstraintViolatedSessions(): List<UploadSessionEntity>
+
+	/**
+	 * Gets sessions by specific status.
+	 */
+	@Query("SELECT * FROM multipart_upload_sessions WHERE status = :status")
+	suspend fun getSessionsByStatus(status: UploadSessionStatus): List<UploadSessionEntity>
 
 	@Query("UPDATE multipart_upload_sessions SET status = :status, updated_at = :updatedAt WHERE session_id = :sessionId")
 	suspend fun updateSessionStatus(sessionId: String, status: UploadSessionStatus, updatedAt: Long)
@@ -78,6 +108,63 @@ interface MultipartUploadDao {
 		status: UploadSessionStatus,
 		errorMessage: String?,
 		updatedAt: Long
+	)
+
+	/**
+	 * Updates session constraints.
+	 * Used when dynamically changing constraints for active uploads.
+	 */
+	@Query(
+		"""
+        UPDATE multipart_upload_sessions
+        SET constraints_json = :constraintsJson, updated_at = :updatedAt
+        WHERE session_id = :sessionId
+    """
+	)
+	suspend fun updateSessionConstraints(
+		sessionId: String,
+		constraintsJson: String,
+		updatedAt: Long = System.currentTimeMillis()
+	)
+
+	/**
+	 * Updates session status to PAUSED_CONSTRAINT_VIOLATION with reason details.
+	 */
+	@Query(
+		"""
+        UPDATE multipart_upload_sessions
+        SET status = 'PAUSED_CONSTRAINT_VIOLATION',
+            pause_reason = :pauseReason,
+            constraint_violated_at = :violatedAt,
+            stop_reason_code = :stopReasonCode,
+            updated_at = :updatedAt
+        WHERE session_id = :sessionId
+    """
+	)
+	suspend fun updateSessionForConstraintViolation(
+		sessionId: String,
+		pauseReason: String,
+		stopReasonCode: Int,
+		violatedAt: Long = System.currentTimeMillis(),
+		updatedAt: Long = System.currentTimeMillis()
+	)
+
+	/**
+	 * Clears constraint violation data when resuming.
+	 */
+	@Query(
+		"""
+        UPDATE multipart_upload_sessions
+        SET pause_reason = NULL,
+            constraint_violated_at = NULL,
+            stop_reason_code = NULL,
+            updated_at = :updatedAt
+        WHERE session_id = :sessionId
+    """
+	)
+	suspend fun clearConstraintViolation(
+		sessionId: String,
+		updatedAt: Long = System.currentTimeMillis()
 	)
 
 	@Query(

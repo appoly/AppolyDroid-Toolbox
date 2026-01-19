@@ -1,6 +1,7 @@
 package uk.co.appoly.droid.s3upload.multipart.database
 
 import android.content.Context
+import androidx.room.AutoMigration
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
@@ -15,14 +16,22 @@ import uk.co.appoly.droid.s3upload.multipart.database.entity.UploadSessionEntity
  *
  * This database enables pause/resume/recovery functionality by persisting
  * upload session and part information.
+ *
+ * ## Migration History
+ * - **Version 1**: Initial schema
+ * - **Version 2**: Added constraint support columns (constraints_json, pause_reason,
+ *                  constraint_violated_at, stop_reason_code)
  */
 @Database(
 	entities = [
 		UploadSessionEntity::class,
 		UploadPartEntity::class
 	],
-	version = 1,
-	exportSchema = true
+	version = 2,
+	exportSchema = true,
+	autoMigrations = [
+		AutoMigration(from = 1, to = 2)
+	]
 )
 @TypeConverters(UploadStatusConverters::class)
 abstract class S3UploaderDatabase : RoomDatabase() {

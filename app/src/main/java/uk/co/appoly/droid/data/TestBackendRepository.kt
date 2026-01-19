@@ -20,6 +20,11 @@ import uk.co.appoly.droid.network.TestBackendRetrofitClient
 import uk.co.appoly.droid.s3upload.S3Uploader
 import uk.co.appoly.droid.s3upload.multipart.MultipartUploadManager
 import uk.co.appoly.droid.s3upload.multipart.config.MultipartUploadConfig
+import uk.co.appoly.droid.s3upload.multipart.interfaces.BeforeUploadResult
+import uk.co.appoly.droid.s3upload.multipart.interfaces.DefaultUploadNotificationProvider
+import uk.co.appoly.droid.s3upload.multipart.interfaces.UploadLifecycleCallbacks
+import uk.co.appoly.droid.s3upload.multipart.result.MultipartUploadProgress
+import uk.co.appoly.droid.s3upload.multipart.result.MultipartUploadResult
 
 /**
  * Repository demonstrating the BaseRepo pattern for the test multipart upload backend.
@@ -321,6 +326,12 @@ class TestBackendRepository(
      * Number of retry attempts for failed part uploads.
      * Uses exponential backoff between retries.
      * Handles temporary network issues gracefully.
+     *
+     * ### Notification Provider
+     * Custom notification provider with app-specific channel and text.
+     *
+     * ### Lifecycle Callbacks
+     * Demonstrates the lifecycle callback system for pre/post upload hooks.
      */
     private fun initializeUploadManager() {
         _uploadManager = MultipartUploadManager.getInstance(
@@ -328,9 +339,101 @@ class TestBackendRepository(
             config = MultipartUploadConfig(
                 chunkSize = 5 * 1024 * 1024, // 5MB - minimum for S3
                 maxConcurrentParts = 3,       // Concurrent upload threads
-                maxRetries = 3                // Retry attempts per part
+                maxRetries = 3,               // Retry attempts per part
+                // Custom notification provider with app branding
+                notificationProvider = DefaultUploadNotificationProvider(
+                    channelId = "demo_uploads",
+                    channelName = "Demo Uploads",
+                    channelDescription = "File upload progress notifications",
+                    titleProvider = { progress ->
+                        progress?.fileName?.let { "Uploading: $it" } ?: "Preparing upload..."
+                    },
+                    contentTextProvider = { progress ->
+                        progress?.let {
+                            "${it.overallProgress.toInt()}% complete (${it.uploadedParts}/${it.totalParts} parts)"
+                        } ?: "Starting upload..."
+                    }
+                ),
+                // Lifecycle callbacks for demonstrating the hook system
+                lifecycleCallbacks = createLifecycleCallbacks()
             )
         )
+    }
+
+    /**
+     * Creates lifecycle callbacks that log upload events.
+     *
+     * This demonstrates how apps can hook into the upload lifecycle for:
+     * - Pre-upload validation/registration
+     * - Post-upload confirmation/cleanup
+     * - Progress tracking
+     * - Pause/resume event handling
+     */
+    private fun createLifecycleCallbacks(): UploadLifecycleCallbacks {
+        return object : UploadLifecycleCallbacks {
+            override suspend fun onBeforeUpload(
+                filePath: String
+            ): BeforeUploadResult {
+                Log.d("UploadLifecycle", "onBeforeUpload: file=$filePath")
+                // In a real app, you might:
+                // - Validate the file before upload
+                // - Check user permissions/quotas
+                // - Register the upload intent with your backend
+                return BeforeUploadResult.Continue
+            }
+
+            override suspend fun onUploadComplete(
+                sessionId: String,
+                result: MultipartUploadResult
+            ) {
+                when (result) {
+                    is MultipartUploadResult.Success -> {
+                        Log.d("UploadLifecycle", "onUploadComplete: SUCCESS - sessionId=$sessionId, location=${result.location}")
+                        // In a real app, you might:
+                        // - Confirm upload with backend
+                        // - Update local database
+                        // - Delete temp file: File(result.filePath).delete()
+                    }
+                    is MultipartUploadResult.Error -> {
+                        Log.d("UploadLifecycle", "onUploadComplete: ERROR - sessionId=$sessionId, message=${result.message}")
+                    }
+                    is MultipartUploadResult.Paused -> {
+                        Log.d("UploadLifecycle", "onUploadComplete: PAUSED - sessionId=$sessionId, ${result.uploadedParts}/${result.totalParts} parts")
+                    }
+                    is MultipartUploadResult.Cancelled -> {
+                        Log.d("UploadLifecycle", "onUploadComplete: CANCELLED - sessionId=$sessionId")
+                    }
+                }
+            }
+
+            override suspend fun onUploadPaused(
+                sessionId: String,
+                reason: String,
+                isConstraintViolation: Boolean
+            ) {
+                Log.d("UploadLifecycle", "onUploadPaused: sessionId=$sessionId, reason=$reason, isConstraintViolation=$isConstraintViolation")
+                // In a real app, you might:
+                // - Notify user about the pause
+                // - Log analytics
+                // - Schedule notifications for when to retry
+            }
+
+            override suspend fun onUploadResumed(sessionId: String) {
+                Log.d("UploadLifecycle", "onUploadResumed: sessionId=$sessionId")
+                // In a real app, you might:
+                // - Update UI state
+                // - Log analytics
+            }
+
+            override suspend fun onProgressUpdate(
+                sessionId: String,
+                progress: MultipartUploadProgress
+            ) {
+                // Note: This is called frequently, so we only log at debug level
+                // In a real app, you might update a local progress store
+                // Log.v("UploadLifecycle", "onProgressUpdate: sessionId=$sessionId, ${progress.overallProgress}%")
+            }
+        }
     }
 
     // ==================== Multipart API URLs ====================

@@ -1,5 +1,8 @@
 package uk.co.appoly.droid.s3upload.multipart.config
 
+import uk.co.appoly.droid.s3upload.multipart.interfaces.UploadLifecycleCallbacks
+import uk.co.appoly.droid.s3upload.multipart.interfaces.UploadNotificationProvider
+
 /**
  * Configuration for multipart uploads.
  *
@@ -11,8 +14,12 @@ package uk.co.appoly.droid.s3upload.multipart.config
  * @property retryDelayMs Initial delay between retries in milliseconds. Default is 1000ms (1 second).
  * @property useExponentialBackoff Whether to use exponential backoff for retries. Default is true.
  *                                 When true, delay doubles with each retry (1s, 2s, 4s, etc.)
- * @property autoResumeOnNetworkRestore Whether to automatically resume paused uploads when network is restored.
- *                                       Default is true.
+ * @property defaultConstraints Default constraints for all uploads. Per-upload overrides take precedence
+ *                               when scheduling via [uk.co.appoly.droid.s3upload.multipart.worker.S3UploadWorkManager].
+ * @property notificationProvider Custom notification provider for upload notifications. If null, uses
+ *                                default system notifications. See [UploadNotificationProvider] for details.
+ * @property lifecycleCallbacks Callbacks for upload lifecycle events (before/after upload, pause/resume).
+ *                              See [UploadLifecycleCallbacks] for available hooks.
  */
 data class MultipartUploadConfig(
 	val chunkSize: Long = DEFAULT_CHUNK_SIZE,
@@ -20,8 +27,23 @@ data class MultipartUploadConfig(
 	val maxRetries: Int = DEFAULT_MAX_RETRIES,
 	val retryDelayMs: Long = DEFAULT_RETRY_DELAY_MS,
 	val useExponentialBackoff: Boolean = true,
-	val autoResumeOnNetworkRestore: Boolean = true
+	val defaultConstraints: UploadConstraints = UploadConstraints.DEFAULT,
+	val notificationProvider: UploadNotificationProvider? = null,
+	val lifecycleCallbacks: UploadLifecycleCallbacks? = null
 ) {
+	/**
+	 * Whether to automatically resume paused uploads when network is restored.
+	 *
+	 * @deprecated Use [defaultConstraints].[UploadConstraints.autoResumeWhenSatisfied] instead.
+	 *             This property delegates to the default constraints.
+	 */
+	@Deprecated(
+		message = "Use defaultConstraints.autoResumeWhenSatisfied instead",
+		replaceWith = ReplaceWith("defaultConstraints.autoResumeWhenSatisfied")
+	)
+	val autoResumeOnNetworkRestore: Boolean
+		get() = defaultConstraints.autoResumeWhenSatisfied
+
 	init {
 		require(chunkSize >= MIN_CHUNK_SIZE) {
 			"Chunk size must be at least ${MIN_CHUNK_SIZE / (1024 * 1024)}MB per S3 requirements"
@@ -99,6 +121,22 @@ data class MultipartUploadConfig(
 			maxConcurrentParts = 1,
 			maxRetries = 5,
 			retryDelayMs = 2000L
+		)
+
+		/**
+		 * Creates a configuration for WiFi-only uploads.
+		 * Uploads will pause when switching to cellular and resume when WiFi is available.
+		 */
+		fun wifiOnly(): MultipartUploadConfig = MultipartUploadConfig(
+			defaultConstraints = UploadConstraints.wifiOnly()
+		)
+
+		/**
+		 * Creates a configuration for power-saving scenarios.
+		 * Uploads only proceed on WiFi when charging with sufficient battery.
+		 */
+		fun powerSaving(): MultipartUploadConfig = MultipartUploadConfig(
+			defaultConstraints = UploadConstraints.powerSaving()
 		)
 	}
 }

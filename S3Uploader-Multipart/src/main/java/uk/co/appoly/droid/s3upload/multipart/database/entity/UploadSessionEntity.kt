@@ -94,5 +94,34 @@ data class UploadSessionEntity(
 
 	/** Maximum number of retries allowed */
 	@ColumnInfo(name = "max_retries")
-	val maxRetries: Int = 3
+	val maxRetries: Int = 3,
+
+	/**
+	 * JSON-serialized [uk.co.appoly.droid.s3upload.multipart.config.UploadConstraints].
+	 * Used to persist constraints for auto-resume functionality.
+	 * Default value "{}" represents default constraints.
+	 */
+	@ColumnInfo(name = "constraints_json", defaultValue = "{}")
+	val constraintsJson: String = "{}",
+
+	/**
+	 * Human-readable reason for the last pause (e.g., "Network constraint violated").
+	 * Primarily used for debugging and user display.
+	 */
+	@ColumnInfo(name = "pause_reason", defaultValue = "NULL")
+	val pauseReason: String? = null,
+
+	/**
+	 * Timestamp when a constraint violation caused the upload to pause.
+	 * Used for tracking and potential auto-resume timing.
+	 */
+	@ColumnInfo(name = "constraint_violated_at", defaultValue = "NULL")
+	val constraintViolatedAt: Long? = null,
+
+	/**
+	 * WorkManager stop reason code when paused due to constraint violation.
+	 * Maps to [androidx.work.ListenableWorker] STOP_REASON_* constants.
+	 */
+	@ColumnInfo(name = "stop_reason_code", defaultValue = "NULL")
+	val stopReasonCode: Int? = null
 )
