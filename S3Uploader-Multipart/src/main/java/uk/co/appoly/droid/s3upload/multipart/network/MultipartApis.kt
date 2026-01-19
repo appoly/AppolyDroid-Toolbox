@@ -22,76 +22,76 @@ import uk.co.appoly.droid.s3upload.multipart.network.model.PresignPartResponse
  */
 internal interface MultipartApis {
 
-    // ==================== With Authorization ====================
+	// ==================== With Authorization ====================
 
-    @POST
-    suspend fun initiateMultipartUpload(
-        @Header("Authorization") authorization: String,
-        @Header("Accept") accept: String,
-        @Url url: String,
-        @Body body: InitiateMultipartRequest
-    ): ApiResponse<InitiateMultipartResponse>
+	@POST
+	suspend fun initiateMultipartUpload(
+		@Header("Authorization") authorization: String,
+		@Header("Accept") accept: String,
+		@Url url: String,
+		@Body body: InitiateMultipartRequest
+	): ApiResponse<InitiateMultipartResponse>
 
-    @POST
-    suspend fun getPresignedUrlForPart(
-        @Header("Authorization") authorization: String,
-        @Header("Accept") accept: String,
-        @Url url: String,
-        @Body body: PresignPartRequest
-    ): ApiResponse<PresignPartResponse>
+	@POST
+	suspend fun getPresignedUrlForPart(
+		@Header("Authorization") authorization: String,
+		@Header("Accept") accept: String,
+		@Url url: String,
+		@Body body: PresignPartRequest
+	): ApiResponse<PresignPartResponse>
 
-    @POST
-    suspend fun completeMultipartUpload(
-        @Header("Authorization") authorization: String,
-        @Header("Accept") accept: String,
-        @Url url: String,
-        @Body body: CompleteMultipartRequest
-    ): ApiResponse<CompleteMultipartResponse>
+	@POST
+	suspend fun completeMultipartUpload(
+		@Header("Authorization") authorization: String,
+		@Header("Accept") accept: String,
+		@Url url: String,
+		@Body body: CompleteMultipartRequest
+	): ApiResponse<CompleteMultipartResponse>
 
-    @POST
-    suspend fun abortMultipartUpload(
-        @Header("Authorization") authorization: String,
-        @Header("Accept") accept: String,
-        @Url url: String,
-        @Body body: AbortMultipartRequest
-    ): ApiResponse<AbortMultipartResponse>
+	@POST
+	suspend fun abortMultipartUpload(
+		@Header("Authorization") authorization: String,
+		@Header("Accept") accept: String,
+		@Url url: String,
+		@Body body: AbortMultipartRequest
+	): ApiResponse<AbortMultipartResponse>
 
-    // ==================== Without Authorization ====================
+	// ==================== Without Authorization ====================
 
-    @POST
-    suspend fun initiateMultipartUpload(
-        @Header("Accept") accept: String,
-        @Url url: String,
-        @Body body: InitiateMultipartRequest
-    ): ApiResponse<InitiateMultipartResponse>
+	@POST
+	suspend fun initiateMultipartUpload(
+		@Header("Accept") accept: String,
+		@Url url: String,
+		@Body body: InitiateMultipartRequest
+	): ApiResponse<InitiateMultipartResponse>
 
-    @POST
-    suspend fun getPresignedUrlForPart(
-        @Header("Accept") accept: String,
-        @Url url: String,
-        @Body body: PresignPartRequest
-    ): ApiResponse<PresignPartResponse>
+	@POST
+	suspend fun getPresignedUrlForPart(
+		@Header("Accept") accept: String,
+		@Url url: String,
+		@Body body: PresignPartRequest
+	): ApiResponse<PresignPartResponse>
 
-    @POST
-    suspend fun completeMultipartUpload(
-        @Header("Accept") accept: String,
-        @Url url: String,
-        @Body body: CompleteMultipartRequest
-    ): ApiResponse<CompleteMultipartResponse>
+	@POST
+	suspend fun completeMultipartUpload(
+		@Header("Accept") accept: String,
+		@Url url: String,
+		@Body body: CompleteMultipartRequest
+	): ApiResponse<CompleteMultipartResponse>
 
-    @POST
-    suspend fun abortMultipartUpload(
-        @Header("Accept") accept: String,
-        @Url url: String,
-        @Body body: AbortMultipartRequest
-    ): ApiResponse<AbortMultipartResponse>
+	@POST
+	suspend fun abortMultipartUpload(
+		@Header("Accept") accept: String,
+		@Url url: String,
+		@Body body: AbortMultipartRequest
+	): ApiResponse<AbortMultipartResponse>
 
-    // ==================== Direct S3 Upload ====================
+	// ==================== Direct S3 Upload ====================
 
-    @PUT
-    suspend fun uploadPartToS3(
-        @Url url: String,
-        @HeaderMap headers: Map<String, String>,
-        @Body body: RequestBody
-    ): ApiResponse<Unit>
+	@PUT
+	suspend fun uploadPartToS3(
+		@Url url: String,
+		@HeaderMap headers: Map<String, String>,
+		@Body body: RequestBody
+	): ApiResponse<Unit>
 }

@@ -8,12 +8,12 @@ import androidx.room.Relation
  * Used for Room @Transaction queries.
  */
 data class SessionWithParts(
-    @Embedded
-    val session: UploadSessionEntity,
+	@Embedded
+	val session: UploadSessionEntity,
 
-    @Relation(
-        parentColumn = "session_id",
-        entityColumn = "session_id"
-    )
-    val parts: List<UploadPartEntity>
+	@Relation(
+		parentColumn = "session_id",
+		entityColumn = "session_id"
+	)
+	val parts: List<UploadPartEntity>
 )

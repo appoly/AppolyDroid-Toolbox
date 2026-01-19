@@ -15,90 +15,90 @@ package uk.co.appoly.droid.s3upload.multipart.config
  *                                       Default is true.
  */
 data class MultipartUploadConfig(
-    val chunkSize: Long = DEFAULT_CHUNK_SIZE,
-    val maxConcurrentParts: Int = DEFAULT_MAX_CONCURRENT_PARTS,
-    val maxRetries: Int = DEFAULT_MAX_RETRIES,
-    val retryDelayMs: Long = DEFAULT_RETRY_DELAY_MS,
-    val useExponentialBackoff: Boolean = true,
-    val autoResumeOnNetworkRestore: Boolean = true
+	val chunkSize: Long = DEFAULT_CHUNK_SIZE,
+	val maxConcurrentParts: Int = DEFAULT_MAX_CONCURRENT_PARTS,
+	val maxRetries: Int = DEFAULT_MAX_RETRIES,
+	val retryDelayMs: Long = DEFAULT_RETRY_DELAY_MS,
+	val useExponentialBackoff: Boolean = true,
+	val autoResumeOnNetworkRestore: Boolean = true
 ) {
-    init {
-        require(chunkSize >= MIN_CHUNK_SIZE) {
-            "Chunk size must be at least ${MIN_CHUNK_SIZE / (1024 * 1024)}MB per S3 requirements"
-        }
-        require(maxConcurrentParts in 1..MAX_CONCURRENT_PARTS_LIMIT) {
-            "Concurrent parts must be between 1 and $MAX_CONCURRENT_PARTS_LIMIT"
-        }
-        require(maxRetries >= 0) {
-            "Max retries must be non-negative"
-        }
-        require(retryDelayMs >= 0) {
-            "Retry delay must be non-negative"
-        }
-    }
+	init {
+		require(chunkSize >= MIN_CHUNK_SIZE) {
+			"Chunk size must be at least ${MIN_CHUNK_SIZE / (1024 * 1024)}MB per S3 requirements"
+		}
+		require(maxConcurrentParts in 1..MAX_CONCURRENT_PARTS_LIMIT) {
+			"Concurrent parts must be between 1 and $MAX_CONCURRENT_PARTS_LIMIT"
+		}
+		require(maxRetries >= 0) {
+			"Max retries must be non-negative"
+		}
+		require(retryDelayMs >= 0) {
+			"Retry delay must be non-negative"
+		}
+	}
 
-    /**
-     * Calculates the number of parts needed for a file of the given size.
-     */
-    fun calculatePartCount(fileSize: Long): Int {
-        return ((fileSize + chunkSize - 1) / chunkSize).toInt()
-    }
+	/**
+	 * Calculates the number of parts needed for a file of the given size.
+	 */
+	fun calculatePartCount(fileSize: Long): Int {
+		return ((fileSize + chunkSize - 1) / chunkSize).toInt()
+	}
 
-    /**
-     * Calculates the retry delay for a given attempt number.
-     *
-     * @param attemptNumber The current attempt (0-based)
-     * @return The delay in milliseconds before the next retry
-     */
-    fun getRetryDelay(attemptNumber: Int): Long {
-        return if (useExponentialBackoff) {
-            retryDelayMs * (1L shl attemptNumber.coerceAtMost(10))
-        } else {
-            retryDelayMs
-        }
-    }
+	/**
+	 * Calculates the retry delay for a given attempt number.
+	 *
+	 * @param attemptNumber The current attempt (0-based)
+	 * @return The delay in milliseconds before the next retry
+	 */
+	fun getRetryDelay(attemptNumber: Int): Long {
+		return if (useExponentialBackoff) {
+			retryDelayMs * (1L shl attemptNumber.coerceAtMost(10))
+		} else {
+			retryDelayMs
+		}
+	}
 
-    companion object {
-        /** Minimum chunk size: 5MB (S3 requirement) */
-        const val MIN_CHUNK_SIZE: Long = 5L * 1024L * 1024L
+	companion object {
+		/** Minimum chunk size: 5MB (S3 requirement) */
+		const val MIN_CHUNK_SIZE: Long = 5L * 1024L * 1024L
 
-        /** Default chunk size: 5MB */
-        const val DEFAULT_CHUNK_SIZE: Long = MIN_CHUNK_SIZE
+		/** Default chunk size: 5MB */
+		const val DEFAULT_CHUNK_SIZE: Long = MIN_CHUNK_SIZE
 
-        /** Default maximum concurrent part uploads */
-        const val DEFAULT_MAX_CONCURRENT_PARTS: Int = 3
+		/** Default maximum concurrent part uploads */
+		const val DEFAULT_MAX_CONCURRENT_PARTS: Int = 3
 
-        /** Maximum allowed concurrent part uploads */
-        const val MAX_CONCURRENT_PARTS_LIMIT: Int = 10
+		/** Maximum allowed concurrent part uploads */
+		const val MAX_CONCURRENT_PARTS_LIMIT: Int = 10
 
-        /** Default maximum retry attempts */
-        const val DEFAULT_MAX_RETRIES: Int = 3
+		/** Default maximum retry attempts */
+		const val DEFAULT_MAX_RETRIES: Int = 3
 
-        /** Default retry delay: 1 second */
-        const val DEFAULT_RETRY_DELAY_MS: Long = 1000L
+		/** Default retry delay: 1 second */
+		const val DEFAULT_RETRY_DELAY_MS: Long = 1000L
 
-        /** Default configuration */
-        val DEFAULT = MultipartUploadConfig()
+		/** Default configuration */
+		val DEFAULT = MultipartUploadConfig()
 
-        /**
-         * Creates a configuration optimized for large files.
-         * Uses larger chunks to reduce API calls.
-         */
-        fun forLargeFiles(): MultipartUploadConfig = MultipartUploadConfig(
-            chunkSize = 10L * 1024L * 1024L, // 10MB chunks
-            maxConcurrentParts = 5,
-            maxRetries = 5
-        )
+		/**
+		 * Creates a configuration optimized for large files.
+		 * Uses larger chunks to reduce API calls.
+		 */
+		fun forLargeFiles(): MultipartUploadConfig = MultipartUploadConfig(
+			chunkSize = 10L * 1024L * 1024L, // 10MB chunks
+			maxConcurrentParts = 5,
+			maxRetries = 5
+		)
 
-        /**
-         * Creates a configuration optimized for slow/unreliable networks.
-         * Uses smaller chunks and more retries.
-         */
-        fun forUnreliableNetwork(): MultipartUploadConfig = MultipartUploadConfig(
-            chunkSize = MIN_CHUNK_SIZE,
-            maxConcurrentParts = 1,
-            maxRetries = 5,
-            retryDelayMs = 2000L
-        )
-    }
+		/**
+		 * Creates a configuration optimized for slow/unreliable networks.
+		 * Uses smaller chunks and more retries.
+		 */
+		fun forUnreliableNetwork(): MultipartUploadConfig = MultipartUploadConfig(
+			chunkSize = MIN_CHUNK_SIZE,
+			maxConcurrentParts = 1,
+			maxRetries = 5,
+			retryDelayMs = 2000L
+		)
+	}
 }

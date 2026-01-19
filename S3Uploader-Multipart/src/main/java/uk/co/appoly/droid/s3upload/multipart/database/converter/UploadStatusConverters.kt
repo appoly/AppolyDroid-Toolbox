@@ -9,17 +9,17 @@ import uk.co.appoly.droid.s3upload.multipart.database.entity.UploadSessionStatus
  */
 class UploadStatusConverters {
 
-    @TypeConverter
-    fun fromUploadSessionStatus(status: UploadSessionStatus): String = status.name
+	@TypeConverter
+	fun fromUploadSessionStatus(status: UploadSessionStatus): String = status.name
 
-    @TypeConverter
-    fun toUploadSessionStatus(value: String): UploadSessionStatus =
-        UploadSessionStatus.valueOf(value)
+	@TypeConverter
+	fun toUploadSessionStatus(value: String): UploadSessionStatus =
+		UploadSessionStatus.valueOf(value)
 
-    @TypeConverter
-    fun fromPartUploadStatus(status: PartUploadStatus): String = status.name
+	@TypeConverter
+	fun fromPartUploadStatus(status: PartUploadStatus): String = status.name
 
-    @TypeConverter
-    fun toPartUploadStatus(value: String): PartUploadStatus =
-        PartUploadStatus.valueOf(value)
+	@TypeConverter
+	fun toPartUploadStatus(value: String): PartUploadStatus =
+		PartUploadStatus.valueOf(value)
 }

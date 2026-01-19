@@ -22,84 +22,84 @@ import java.util.concurrent.TimeUnit
  * individual part uploads may take longer for large chunks.
  */
 internal object MultipartRetrofitClient {
-    private var retrofit: Retrofit? = null
+	private var retrofit: Retrofit? = null
 
-    private val okHttpClient by lazy { OkHttpClient() }
+	private val okHttpClient by lazy { OkHttpClient() }
 
-    val json = Json {
-        ignoreUnknownKeys = true
-        useAlternativeNames = true
-        explicitNulls = false
-        encodeDefaults = true
+	val json = Json {
+		ignoreUnknownKeys = true
+		useAlternativeNames = true
+		explicitNulls = false
+		encodeDefaults = true
 		prettyPrint = S3Uploader.loggingLevel == LoggingLevel.V
-    }
+	}
 
-    private fun getRetrofitClient(): Retrofit {
-        if (retrofit == null) {
-            synchronized(this) {
-                if (retrofit == null) {
-                    retrofit = Retrofit.Builder()
-                        .baseUrl("https://not_used.com")
-                        .addConverterFactory(
-                            json.asConverterFactory(
-                                "application/json; charset=UTF-8".toMediaType()
-                            )
-                        )
-                        .client(
-                            okHttpClient.newBuilder().apply {
-                                // Longer timeouts for multipart uploads
-                                connectTimeout(30, TimeUnit.SECONDS)
-                                writeTimeout(120, TimeUnit.SECONDS) // 2 minutes for large chunks
-                                readTimeout(60, TimeUnit.SECONDS)
+	private fun getRetrofitClient(): Retrofit {
+		if (retrofit == null) {
+			synchronized(this) {
+				if (retrofit == null) {
+					retrofit = Retrofit.Builder()
+						.baseUrl("https://not_used.com")
+						.addConverterFactory(
+							json.asConverterFactory(
+								"application/json; charset=UTF-8".toMediaType()
+							)
+						)
+						.client(
+							okHttpClient.newBuilder().apply {
+								// Longer timeouts for multipart uploads
+								connectTimeout(30, TimeUnit.SECONDS)
+								writeTimeout(120, TimeUnit.SECONDS) // 2 minutes for large chunks
+								readTimeout(60, TimeUnit.SECONDS)
 
-                                if (S3Uploader.loggingLevel.level >= LoggingLevel.D.level) {
-                                    addInterceptor(
-                                        HttpLoggingInterceptor(
-                                            FlexiLogHttpLoggingInterceptorLogger.with(MultipartUploadLog, "S3Multipart:http")
-                                        ).apply {
-                                            level = when (S3Uploader.loggingLevel) {
-                                                LoggingLevel.V -> HttpLoggingInterceptor.Level.BODY // Full logging for verbose
-                                                LoggingLevel.D -> HttpLoggingInterceptor.Level.HEADERS
-                                                LoggingLevel.I -> HttpLoggingInterceptor.Level.BASIC
-                                                LoggingLevel.W,
-                                                LoggingLevel.E,
-                                                LoggingLevel.NONE -> HttpLoggingInterceptor.Level.NONE
-                                            }
-                                        }
-                                    )
-                                }
-                            }.build()
-                        )
-                        .addCallAdapterFactory(ApiResponseCallAdapterFactory.create())
-                        .build()
-                }
-            }
-        }
-        return retrofit!!
-    }
+								if (S3Uploader.loggingLevel.level >= LoggingLevel.D.level) {
+									addInterceptor(
+										HttpLoggingInterceptor(
+											FlexiLogHttpLoggingInterceptorLogger.with(MultipartUploadLog, "S3Multipart:http")
+										).apply {
+											level = when (S3Uploader.loggingLevel) {
+												LoggingLevel.V -> HttpLoggingInterceptor.Level.BODY // Full logging for verbose
+												LoggingLevel.D -> HttpLoggingInterceptor.Level.HEADERS
+												LoggingLevel.I -> HttpLoggingInterceptor.Level.BASIC
+												LoggingLevel.W,
+												LoggingLevel.E,
+												LoggingLevel.NONE -> HttpLoggingInterceptor.Level.NONE
+											}
+										}
+									)
+								}
+							}.build()
+						)
+						.addCallAdapterFactory(ApiResponseCallAdapterFactory.create())
+						.build()
+				}
+			}
+		}
+		return retrofit!!
+	}
 
-    fun <T> createService(tClass: Class<T>): T {
-        return getRetrofitClient().create(tClass)
-    }
+	fun <T> createService(tClass: Class<T>): T {
+		return getRetrofitClient().create(tClass)
+	}
 
-    private var _multipartApis: MultipartApis? = null
+	private var _multipartApis: MultipartApis? = null
 
-    val multipartApis: MultipartApis
-        get() {
-            if (_multipartApis == null) {
-                _multipartApis = createService(MultipartApis::class.java)
-            }
-            return _multipartApis!!
-        }
+	val multipartApis: MultipartApis
+		get() {
+			if (_multipartApis == null) {
+				_multipartApis = createService(MultipartApis::class.java)
+			}
+			return _multipartApis!!
+		}
 
-    /**
-     * Resets the Retrofit client, forcing it to be recreated on next use.
-     * Useful for applying new configuration (like logging level changes).
-     */
-    fun reset() {
-        synchronized(this) {
-            retrofit = null
-            _multipartApis = null
-        }
-    }
+	/**
+	 * Resets the Retrofit client, forcing it to be recreated on next use.
+	 * Useful for applying new configuration (like logging level changes).
+	 */
+	fun reset() {
+		synchronized(this) {
+			retrofit = null
+			_multipartApis = null
+		}
+	}
 }

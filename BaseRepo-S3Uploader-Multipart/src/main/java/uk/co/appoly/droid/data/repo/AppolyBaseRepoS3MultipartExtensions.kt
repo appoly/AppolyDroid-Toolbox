@@ -37,18 +37,18 @@ import java.io.File
  * @return [APIResult.Success] with session ID if upload started successfully, or [APIResult.Error] if failed
  */
 suspend fun GenericBaseRepo.startMultipartUpload(
-    context: Context,
-    file: File,
-    apiUrls: MultipartApiUrls,
-    config: MultipartUploadConfig = MultipartUploadConfig.DEFAULT
+	context: Context,
+	file: File,
+	apiUrls: MultipartApiUrls,
+	config: MultipartUploadConfig = MultipartUploadConfig.DEFAULT
 ): APIResult<String> {
-    val manager = MultipartUploadManager.getInstance(context, config)
-    val result = manager.startUpload(file, apiUrls)
+	val manager = MultipartUploadManager.getInstance(context, config)
+	val result = manager.startUpload(file, apiUrls)
 
-    return result.fold(
-        onSuccess = { sessionId -> APIResult.Success(sessionId) },
-        onFailure = { error -> APIResult.Error(error.message ?: "Failed to start upload", error) }
-    )
+	return result.fold(
+		onSuccess = { sessionId -> APIResult.Success(sessionId) },
+		onFailure = { error -> APIResult.Error(error.message ?: "Failed to start upload", error) }
+	)
 }
 
 /**
@@ -62,16 +62,16 @@ suspend fun GenericBaseRepo.startMultipartUpload(
  * @return [APIResult.Success] if paused successfully, or [APIResult.Error] if failed
  */
 suspend fun GenericBaseRepo.pauseMultipartUpload(
-    context: Context,
-    sessionId: String
+	context: Context,
+	sessionId: String
 ): APIResult<Unit> {
-    val manager = MultipartUploadManager.getInstance(context)
-    val result = manager.pauseUpload(sessionId)
+	val manager = MultipartUploadManager.getInstance(context)
+	val result = manager.pauseUpload(sessionId)
 
-    return result.fold(
-        onSuccess = { APIResult.Success(Unit) },
-        onFailure = { error -> APIResult.Error(error.message ?: "Failed to pause upload", error) }
-    )
+	return result.fold(
+		onSuccess = { APIResult.Success(Unit) },
+		onFailure = { error -> APIResult.Error(error.message ?: "Failed to pause upload", error) }
+	)
 }
 
 /**
@@ -82,16 +82,16 @@ suspend fun GenericBaseRepo.pauseMultipartUpload(
  * @return [APIResult.Success] if resumed successfully, or [APIResult.Error] if failed
  */
 suspend fun GenericBaseRepo.resumeMultipartUpload(
-    context: Context,
-    sessionId: String
+	context: Context,
+	sessionId: String
 ): APIResult<Unit> {
-    val manager = MultipartUploadManager.getInstance(context)
-    val result = manager.resumeUpload(sessionId)
+	val manager = MultipartUploadManager.getInstance(context)
+	val result = manager.resumeUpload(sessionId)
 
-    return result.fold(
-        onSuccess = { APIResult.Success(Unit) },
-        onFailure = { error -> APIResult.Error(error.message ?: "Failed to resume upload", error) }
-    )
+	return result.fold(
+		onSuccess = { APIResult.Success(Unit) },
+		onFailure = { error -> APIResult.Error(error.message ?: "Failed to resume upload", error) }
+	)
 }
 
 /**
@@ -105,16 +105,16 @@ suspend fun GenericBaseRepo.resumeMultipartUpload(
  * @return [APIResult.Success] if cancelled successfully, or [APIResult.Error] if failed
  */
 suspend fun GenericBaseRepo.cancelMultipartUpload(
-    context: Context,
-    sessionId: String
+	context: Context,
+	sessionId: String
 ): APIResult<Unit> {
-    val manager = MultipartUploadManager.getInstance(context)
-    val result = manager.cancelUpload(sessionId)
+	val manager = MultipartUploadManager.getInstance(context)
+	val result = manager.cancelUpload(sessionId)
 
-    return result.fold(
-        onSuccess = { APIResult.Success(Unit) },
-        onFailure = { error -> APIResult.Error(error.message ?: "Failed to cancel upload", error) }
-    )
+	return result.fold(
+		onSuccess = { APIResult.Success(Unit) },
+		onFailure = { error -> APIResult.Error(error.message ?: "Failed to cancel upload", error) }
+	)
 }
 
 /**
@@ -125,11 +125,11 @@ suspend fun GenericBaseRepo.cancelMultipartUpload(
  * @return Flow of [MultipartUploadProgress] updates
  */
 fun GenericBaseRepo.observeMultipartUploadProgress(
-    context: Context,
-    sessionId: String
+	context: Context,
+	sessionId: String
 ): Flow<MultipartUploadProgress?> {
-    val manager = MultipartUploadManager.getInstance(context)
-    return manager.observeProgress(sessionId)
+	val manager = MultipartUploadManager.getInstance(context)
+	return manager.observeProgress(sessionId)
 }
 
 /**
@@ -139,10 +139,10 @@ fun GenericBaseRepo.observeMultipartUploadProgress(
  * @return Flow of all active upload progress
  */
 fun GenericBaseRepo.observeAllMultipartUploads(
-    context: Context
+	context: Context
 ): Flow<List<MultipartUploadProgress>> {
-    val manager = MultipartUploadManager.getInstance(context)
-    return manager.observeAllUploads()
+	val manager = MultipartUploadManager.getInstance(context)
+	return manager.observeAllUploads()
 }
 
 /**
@@ -171,19 +171,19 @@ fun GenericBaseRepo.observeAllMultipartUploads(
  * @return Work name that can be used to track or cancel the upload
  */
 fun GenericBaseRepo.scheduleMultipartUploadWork(
-    context: Context,
-    file: File,
-    apiUrls: MultipartApiUrls,
-    requiresNetwork: Boolean = true,
-    requiresCharging: Boolean = false
+	context: Context,
+	file: File,
+	apiUrls: MultipartApiUrls,
+	requiresNetwork: Boolean = true,
+	requiresCharging: Boolean = false
 ): String {
-    return S3UploadWorkManager.scheduleUpload(
-        context = context,
-        file = file,
-        apiUrls = apiUrls,
-        requiresNetwork = requiresNetwork,
-        requiresCharging = requiresCharging
-    )
+	return S3UploadWorkManager.scheduleUpload(
+		context = context,
+		file = file,
+		apiUrls = apiUrls,
+		requiresNetwork = requiresNetwork,
+		requiresCharging = requiresCharging
+	)
 }
 
 /**
@@ -195,7 +195,7 @@ fun GenericBaseRepo.scheduleMultipartUploadWork(
  * @param context Application context
  */
 fun GenericBaseRepo.enableMultipartUploadAutoRecovery(context: Context) {
-    S3UploadWorkManager.enableAutoRecovery(context)
+	S3UploadWorkManager.enableAutoRecovery(context)
 }
 
 /**
@@ -205,10 +205,10 @@ fun GenericBaseRepo.enableMultipartUploadAutoRecovery(context: Context) {
  *         or [APIResult.Error] for failures/cancellations
  */
 fun MultipartUploadResult.toAPIResult(): APIResult<String> {
-    return when (this) {
-        is MultipartUploadResult.Success -> APIResult.Success(filePath)
-        is MultipartUploadResult.Error -> APIResult.Error(message, throwable)
-        is MultipartUploadResult.Paused -> APIResult.Error("Upload paused: $uploadedParts/$totalParts parts uploaded")
-        is MultipartUploadResult.Cancelled -> APIResult.Error("Upload cancelled")
-    }
+	return when (this) {
+		is MultipartUploadResult.Success -> APIResult.Success(filePath)
+		is MultipartUploadResult.Error -> APIResult.Error(message, throwable)
+		is MultipartUploadResult.Paused -> APIResult.Error("Upload paused: $uploadedParts/$totalParts parts uploaded")
+		is MultipartUploadResult.Cancelled -> APIResult.Error("Upload cancelled")
+	}
 }
