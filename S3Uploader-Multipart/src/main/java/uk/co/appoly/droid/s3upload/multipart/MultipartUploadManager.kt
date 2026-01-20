@@ -853,18 +853,8 @@ class MultipartUploadManager internal constructor(
 						break
 					}
 
-					// Get next pending part
-					val part = dao.getNextPendingPart(session.sessionId) ?: break
-
-					// Mark part as UPLOADING immediately to prevent race condition
-					// where multiple coroutines grab the same part
-					dao.updatePartStatus(
-						partId = part.partId,
-						status = PartUploadStatus.UPLOADING,
-						etag = null,
-						uploadedBytes = 0,
-						updatedAt = System.currentTimeMillis()
-					)
+					// Atomically claim the next pending part (SELECT + UPDATE in transaction)
+					val part = dao.claimNextPendingPart(session.sessionId) ?: break
 
 					// Launch part upload in parallel, limited by semaphore
 					launch {

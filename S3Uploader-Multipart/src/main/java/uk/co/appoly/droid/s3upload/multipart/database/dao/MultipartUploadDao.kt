@@ -205,6 +205,28 @@ interface MultipartUploadDao {
 	@Query("SELECT * FROM multipart_upload_parts WHERE session_id = :sessionId AND status IN ('PENDING', 'FAILED') ORDER BY part_number LIMIT 1")
 	suspend fun getNextPendingPart(sessionId: String): UploadPartEntity?
 
+	/**
+	 * Atomically claims the next pending part for upload.
+	 *
+	 * This method combines fetching and marking a part as UPLOADING in a single transaction,
+	 * preventing race conditions where multiple coroutines could claim the same part.
+	 *
+	 * @param sessionId The session ID to get a part for
+	 * @return The claimed part (now marked as UPLOADING), or null if no pending parts remain
+	 */
+	@Transaction
+	suspend fun claimNextPendingPart(sessionId: String): UploadPartEntity? {
+		val part = getNextPendingPart(sessionId) ?: return null
+		updatePartStatus(
+			partId = part.partId,
+			status = PartUploadStatus.UPLOADING,
+			etag = null,
+			uploadedBytes = 0,
+			updatedAt = System.currentTimeMillis()
+		)
+		return part
+	}
+
 	@Query("SELECT COALESCE(SUM(uploaded_bytes), 0) FROM multipart_upload_parts WHERE session_id = :sessionId")
 	suspend fun getTotalUploadedBytes(sessionId: String): Long
 

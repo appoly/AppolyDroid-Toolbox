@@ -31,19 +31,6 @@ data class MultipartUploadConfig(
 	val notificationProvider: UploadNotificationProvider? = null,
 	val lifecycleCallbacks: UploadLifecycleCallbacks? = null
 ) {
-	/**
-	 * Whether to automatically resume paused uploads when network is restored.
-	 *
-	 * @deprecated Use [defaultConstraints].[UploadConstraints.autoResumeWhenSatisfied] instead.
-	 *             This property delegates to the default constraints.
-	 */
-	@Deprecated(
-		message = "Use defaultConstraints.autoResumeWhenSatisfied instead",
-		replaceWith = ReplaceWith("defaultConstraints.autoResumeWhenSatisfied")
-	)
-	val autoResumeOnNetworkRestore: Boolean
-		get() = defaultConstraints.autoResumeWhenSatisfied
-
 	init {
 		require(chunkSize >= MIN_CHUNK_SIZE) {
 			"Chunk size must be at least ${MIN_CHUNK_SIZE / (1024 * 1024)}MB per S3 requirements"

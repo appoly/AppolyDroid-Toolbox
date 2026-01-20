@@ -5,6 +5,8 @@ import kotlinx.coroutines.flow.Flow
 import uk.co.appoly.droid.data.remote.model.APIResult
 import uk.co.appoly.droid.s3upload.multipart.MultipartUploadManager
 import uk.co.appoly.droid.s3upload.multipart.config.MultipartUploadConfig
+import uk.co.appoly.droid.s3upload.multipart.config.UploadConstraints
+import uk.co.appoly.droid.s3upload.multipart.config.UploadNetworkType
 import uk.co.appoly.droid.s3upload.multipart.network.model.MultipartApiUrls
 import uk.co.appoly.droid.s3upload.multipart.result.MultipartUploadProgress
 import uk.co.appoly.droid.s3upload.multipart.result.MultipartUploadResult
@@ -143,22 +145,59 @@ fun GenericBaseRepo.observeAllMultipartUploads(
 }
 
 /**
- * Schedules a multipart upload using WorkManager.
+ * Schedules a multipart upload using WorkManager with full constraint support.
  *
  * This is the recommended approach for production apps as it:
  * - Handles network connectivity changes
  * - Survives app restarts
  * - Runs in the background with proper system resource management
+ * - Supports WiFi-only, battery, and charging constraints
  *
  * Example usage:
  * ```
+ * // With default constraints (any network)
  * val workName = scheduleMultipartUploadWork(
  *     context = applicationContext,
  *     file = File("/path/to/large-video.mp4"),
  *     apiUrls = MultipartApiUrls.fromBaseUrl("https://api.example.com/api/s3/multipart")
  * )
- * // Observe work progress using WorkManager APIs
+ *
+ * // With WiFi-only constraint
+ * val workName = scheduleMultipartUploadWork(
+ *     context = applicationContext,
+ *     file = file,
+ *     apiUrls = apiUrls,
+ *     constraints = UploadConstraints.wifiOnly()
+ * )
  * ```
+ *
+ * @param context Application context
+ * @param file The file to upload
+ * @param apiUrls API endpoints for multipart operations
+ * @param constraints Upload constraints (network type, charging, battery, storage).
+ *                    If null, uses default constraints from [MultipartUploadManager.config].
+ * @return Work name that can be used to track or cancel the upload
+ */
+fun GenericBaseRepo.scheduleMultipartUploadWork(
+	context: Context,
+	file: File,
+	apiUrls: MultipartApiUrls,
+	constraints: UploadConstraints? = null
+): String {
+	return S3UploadWorkManager.scheduleUpload(
+		context = context,
+		file = file,
+		apiUrls = apiUrls,
+		constraints = constraints
+	)
+}
+
+/**
+ * Schedules a multipart upload using WorkManager with simple network/charging options.
+ *
+ * This is a convenience overload for common use cases. For full constraint support
+ * including WiFi-only, battery, and storage constraints, use the overload that
+ * accepts [UploadConstraints].
  *
  * @param context Application context
  * @param file The file to upload
@@ -167,7 +206,6 @@ fun GenericBaseRepo.observeAllMultipartUploads(
  * @param requiresCharging Whether to require device charging (default false)
  * @return Work name that can be used to track or cancel the upload
  */
-@Suppress("DEPRECATION")
 fun GenericBaseRepo.scheduleMultipartUploadWork(
 	context: Context,
 	file: File,
@@ -175,12 +213,15 @@ fun GenericBaseRepo.scheduleMultipartUploadWork(
 	requiresNetwork: Boolean = true,
 	requiresCharging: Boolean = false
 ): String {
+	val constraints = UploadConstraints(
+		networkType = if (requiresNetwork) UploadNetworkType.CONNECTED else UploadNetworkType.NOT_REQUIRED,
+		requiresCharging = requiresCharging
+	)
 	return S3UploadWorkManager.scheduleUpload(
 		context = context,
 		file = file,
 		apiUrls = apiUrls,
-		requiresNetwork = requiresNetwork,
-		requiresCharging = requiresCharging
+		constraints = constraints
 	)
 }
 

@@ -93,41 +93,6 @@ object S3UploadWorkManager {
 	}
 
 	/**
-	 * Schedules a new multipart upload.
-	 *
-	 * @param context Application context
-	 * @param file The file to upload
-	 * @param apiUrls API endpoints for multipart operations
-	 * @param requiresNetwork Whether to require network connectivity (default true)
-	 * @param requiresCharging Whether to require device charging (default false)
-	 * @return Unique work name that can be used to track the upload
-	 *
-	 * @deprecated Use [scheduleUpload] with [UploadConstraints] for full constraint support
-	 *             including WiFi-only, battery, and storage constraints.
-	 */
-	@Deprecated(
-		message = "Use scheduleUpload with UploadConstraints parameter",
-		replaceWith = ReplaceWith(
-			"scheduleUpload(context, file, apiUrls, UploadConstraints(networkType = if (requiresNetwork) UploadNetworkType.CONNECTED else UploadNetworkType.NOT_REQUIRED, requiresCharging = requiresCharging))",
-			"uk.co.appoly.droid.s3upload.multipart.config.UploadConstraints",
-			"uk.co.appoly.droid.s3upload.multipart.config.UploadNetworkType"
-		)
-	)
-	fun scheduleUpload(
-		context: Context,
-		file: File,
-		apiUrls: MultipartApiUrls,
-		requiresNetwork: Boolean = true,
-		requiresCharging: Boolean = false
-	): String {
-		val constraints = UploadConstraints(
-			networkType = if (requiresNetwork) UploadNetworkType.CONNECTED else UploadNetworkType.NOT_REQUIRED,
-			requiresCharging = requiresCharging
-		)
-		return scheduleUpload(context, file, apiUrls, constraints)
-	}
-
-	/**
 	 * Schedules resumption of an existing upload with full constraint support.
 	 *
 	 * @param context Application context
