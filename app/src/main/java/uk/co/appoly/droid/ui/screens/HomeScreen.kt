@@ -92,6 +92,12 @@ fun HomeScreen(navController: NavController) {
 				description = "File upload to AWS S3 with progress tracking",
 				onClick = { navController.navigate("s3_uploader") }
 			)
+
+			FeatureButton(
+				title = "Multipart Upload Test",
+				description = "Test S3 multipart uploads with pause/resume/recover",
+				onClick = { navController.navigate("multipart_upload") }
+			)
 		}
 	}
 }

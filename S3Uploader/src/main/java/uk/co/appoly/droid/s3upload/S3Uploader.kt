@@ -46,12 +46,32 @@ import java.net.UnknownHostException
  */
 object S3Uploader {
 	private lateinit var tokenProvider: AuthTokenProvider
-	internal var loggingLevel: LoggingLevel = LoggingLevel.NONE
+	private var customLogger: FlexiLog? = null
 
-	internal fun canLog(type: LogType): Boolean = loggingLevel.canLog(type)
+	var loggingLevel: LoggingLevel = LoggingLevel.NONE
+		internal set
+
+	fun canLog(type: LogType): Boolean = loggingLevel.canLog(type)
+
+	/**
+	 * Returns the custom logger provided during initialization, or null if using default.
+	 * Used by extension modules (like S3Uploader-Multipart) to share logging configuration.
+	 */
+	fun getCustomLogger(): FlexiLog? = customLogger
 
 	private fun isInitDone(): Boolean {
 		return this::tokenProvider.isInitialized
+	}
+
+	/**
+	 * Returns the token provider for use by other modules.
+	 * @throws IllegalStateException if not initialized
+	 */
+	fun getTokenProvider(): AuthTokenProvider {
+		if (!isInitDone()) {
+			throw IllegalStateException("S3Uploader is not initialized. Please call S3Uploader.initS3Uploader() before using it.")
+		}
+		return tokenProvider
 	}
 
 	/**
@@ -66,11 +86,12 @@ object S3Uploader {
 	fun initS3Uploader(
 		tokenProvider: AuthTokenProvider,
 		loggingLevel: LoggingLevel = LoggingLevel.NONE,
-		logger: FlexiLog = S3UploadLogger
+		logger: FlexiLog? = null
 	) {
 		this.tokenProvider = tokenProvider
 		this.loggingLevel = loggingLevel
-		S3UploadLog.updateLogger(logger, loggingLevel)
+		this.customLogger = logger
+		S3UploadLog.updateLogger(logger ?: S3UploadLogger, loggingLevel)
 	}
 
 	/**

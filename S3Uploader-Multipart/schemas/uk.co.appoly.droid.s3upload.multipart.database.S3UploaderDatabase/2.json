@@ -1,0 +1,294 @@
+{
+  "formatVersion": 1,
+  "database": {
+    "version": 2,
+    "identityHash": "2b09eace679b32bea3d37735189fbfed",
+    "entities": [
+      {
+        "tableName": "multipart_upload_sessions",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`session_id` TEXT NOT NULL, `upload_id` TEXT NOT NULL, `local_file_path` TEXT NOT NULL, `remote_file_path` TEXT NOT NULL, `file_name` TEXT NOT NULL, `content_type` TEXT NOT NULL, `total_file_size` INTEGER NOT NULL, `chunk_size` INTEGER NOT NULL, `total_parts` INTEGER NOT NULL, `status` TEXT NOT NULL, `initiate_url` TEXT NOT NULL, `presign_part_url` TEXT NOT NULL, `complete_url` TEXT NOT NULL, `abort_url` TEXT NOT NULL, `created_at` INTEGER NOT NULL, `updated_at` INTEGER NOT NULL, `error_message` TEXT, `retry_count` INTEGER NOT NULL, `max_retries` INTEGER NOT NULL, `constraints_json` TEXT NOT NULL DEFAULT '{}', `pause_reason` TEXT DEFAULT NULL, `constraint_violated_at` INTEGER DEFAULT NULL, `stop_reason_code` INTEGER DEFAULT NULL, PRIMARY KEY(`session_id`))",
+        "fields": [
+          {
+            "fieldPath": "sessionId",
+            "columnName": "session_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "uploadId",
+            "columnName": "upload_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "localFilePath",
+            "columnName": "local_file_path",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "remoteFilePath",
+            "columnName": "remote_file_path",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "fileName",
+            "columnName": "file_name",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "contentType",
+            "columnName": "content_type",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "totalFileSize",
+            "columnName": "total_file_size",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "chunkSize",
+            "columnName": "chunk_size",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "totalParts",
+            "columnName": "total_parts",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "status",
+            "columnName": "status",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "initiateUrl",
+            "columnName": "initiate_url",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "presignPartUrl",
+            "columnName": "presign_part_url",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "completeUrl",
+            "columnName": "complete_url",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "abortUrl",
+            "columnName": "abort_url",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "created_at",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAt",
+            "columnName": "updated_at",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "errorMessage",
+            "columnName": "error_message",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "retryCount",
+            "columnName": "retry_count",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "maxRetries",
+            "columnName": "max_retries",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "constraintsJson",
+            "columnName": "constraints_json",
+            "affinity": "TEXT",
+            "notNull": true,
+            "defaultValue": "'{}'"
+          },
+          {
+            "fieldPath": "pauseReason",
+            "columnName": "pause_reason",
+            "affinity": "TEXT",
+            "defaultValue": "NULL"
+          },
+          {
+            "fieldPath": "constraintViolatedAt",
+            "columnName": "constraint_violated_at",
+            "affinity": "INTEGER",
+            "defaultValue": "NULL"
+          },
+          {
+            "fieldPath": "stopReasonCode",
+            "columnName": "stop_reason_code",
+            "affinity": "INTEGER",
+            "defaultValue": "NULL"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "session_id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_multipart_upload_sessions_local_file_path",
+            "unique": false,
+            "columnNames": [
+              "local_file_path"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_multipart_upload_sessions_local_file_path` ON `${TABLE_NAME}` (`local_file_path`)"
+          },
+          {
+            "name": "index_multipart_upload_sessions_status",
+            "unique": false,
+            "columnNames": [
+              "status"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_multipart_upload_sessions_status` ON `${TABLE_NAME}` (`status`)"
+          }
+        ]
+      },
+      {
+        "tableName": "multipart_upload_parts",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`part_id` TEXT NOT NULL, `session_id` TEXT NOT NULL, `part_number` INTEGER NOT NULL, `start_byte` INTEGER NOT NULL, `end_byte` INTEGER NOT NULL, `part_size` INTEGER NOT NULL, `status` TEXT NOT NULL, `etag` TEXT, `uploaded_bytes` INTEGER NOT NULL, `retry_count` INTEGER NOT NULL, `updated_at` INTEGER NOT NULL, PRIMARY KEY(`part_id`), FOREIGN KEY(`session_id`) REFERENCES `multipart_upload_sessions`(`session_id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "partId",
+            "columnName": "part_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sessionId",
+            "columnName": "session_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "partNumber",
+            "columnName": "part_number",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "startByte",
+            "columnName": "start_byte",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "endByte",
+            "columnName": "end_byte",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "partSize",
+            "columnName": "part_size",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "status",
+            "columnName": "status",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "etag",
+            "columnName": "etag",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "uploadedBytes",
+            "columnName": "uploaded_bytes",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "retryCount",
+            "columnName": "retry_count",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAt",
+            "columnName": "updated_at",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "part_id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_multipart_upload_parts_session_id",
+            "unique": false,
+            "columnNames": [
+              "session_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_multipart_upload_parts_session_id` ON `${TABLE_NAME}` (`session_id`)"
+          },
+          {
+            "name": "index_multipart_upload_parts_session_id_part_number",
+            "unique": true,
+            "columnNames": [
+              "session_id",
+              "part_number"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_multipart_upload_parts_session_id_part_number` ON `${TABLE_NAME}` (`session_id`, `part_number`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "multipart_upload_sessions",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "session_id"
+            ],
+            "referencedColumns": [
+              "session_id"
+            ]
+          }
+        ]
+      }
+    ],
+    "setupQueries": [
+      "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '2b09eace679b32bea3d37735189fbfed')"
+    ]
+  }
+}

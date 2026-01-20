@@ -7,6 +7,7 @@ import androidx.navigation.compose.rememberNavController
 import uk.co.appoly.droid.ui.screens.BaseRepoDemoScreen
 import uk.co.appoly.droid.ui.screens.DateHelperDemoScreen
 import uk.co.appoly.droid.ui.screens.HomeScreen
+import uk.co.appoly.droid.ui.screens.MultipartUploadDemoScreen
 import uk.co.appoly.droid.ui.screens.PagingDemoScreen
 import uk.co.appoly.droid.ui.screens.S3UploaderDemoScreen
 import uk.co.appoly.droid.ui.screens.SnackBarDemoScreen
@@ -37,6 +38,9 @@ fun AppNavigation() {
 		}
 		composable("s3_uploader") {
 			S3UploaderDemoScreen(navController = navController)
+		}
+		composable("multipart_upload") {
+			MultipartUploadDemoScreen(navController = navController)
 		}
 	}
 }

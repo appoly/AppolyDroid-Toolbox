@@ -11,7 +11,7 @@ import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.jsonPrimitive
 import kotlin.collections.joinToString
 
-internal object StringOrListSerialiser : KSerializer<String> {
+object StringOrListSerialiser : KSerializer<String> {
     override val descriptor: SerialDescriptor = String.serializer().descriptor
 
     override fun deserialize(decoder: Decoder): String {
