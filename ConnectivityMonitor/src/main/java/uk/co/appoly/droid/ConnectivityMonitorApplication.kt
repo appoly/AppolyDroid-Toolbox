@@ -4,6 +4,11 @@ import android.app.Application
 import android.net.ConnectivityManager
 import android.net.Network
 import android.net.NetworkCapabilities
+import android.net.NetworkCapabilities.TRANSPORT_BLUETOOTH
+import android.net.NetworkCapabilities.TRANSPORT_CELLULAR
+import android.net.NetworkCapabilities.TRANSPORT_ETHERNET
+import android.net.NetworkCapabilities.TRANSPORT_VPN
+import android.net.NetworkCapabilities.TRANSPORT_WIFI
 import androidx.annotation.CallSuper
 import com.duck.flexilogger.FlexiLog
 import com.duck.flexilogger.LoggingLevel
@@ -63,6 +68,18 @@ open class ConnectivityMonitorApplication : Application() {
 	// Internal raw connectivity (immediate)
 	private val _isConnected = MutableStateFlow(false)
 
+	// Internal network type tracking
+	private val _networkType = MutableStateFlow(NetworkTransportType.NONE)
+
+	// Network type change events
+	private val _networkTypeChanges = MutableSharedFlow<NetworkTypeChangedEvent>(
+		replay = 0,
+		extraBufferCapacity = 10
+	)
+
+	// Track metered status
+	private val _isMetered = MutableStateFlow(true)
+
 	// Reconnection events
 	private val _connectivityEvents = MutableSharedFlow<ConnectivityRestoredEvent>(
 		replay = 0,
@@ -73,6 +90,8 @@ open class ConnectivityMonitorApplication : Application() {
 	private var previouslyConnected = true
 	private var offlineSince: Long? = null
 	private var reconnectionMonitorJob: Job? = null
+	private var networkTypeMonitorJob: Job? = null
+	private var previousNetworkType = NetworkTransportType.NONE
 
 	private val connectivityManager: ConnectivityManager by lazy {
 		getSystemService(CONNECTIVITY_SERVICE) as ConnectivityManager
@@ -80,6 +99,9 @@ open class ConnectivityMonitorApplication : Application() {
 
 	// Track each network's validated internet capability
 	private val networkValidationMap = mutableMapOf<Network, Boolean>()
+
+	// Track each network's capabilities for transport type determination
+	private val networkCapabilitiesMap = mutableMapOf<Network, NetworkCapabilities>()
 
 	private val networkCallback: ConnectivityManager.NetworkCallback by lazy {
 		object : ConnectivityManager.NetworkCallback() {
@@ -91,6 +113,7 @@ open class ConnectivityMonitorApplication : Application() {
 					val validated = caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) &&
 							caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
 					networkValidationMap[network] = validated
+					networkCapabilitiesMap[network] = caps
 				}
 				recomputeConnectivity()
 			}
@@ -98,6 +121,7 @@ open class ConnectivityMonitorApplication : Application() {
 			override fun onLost(network: Network) {
 				ConnectivityLog.v(this@ConnectivityMonitorApplication, "Network lost: $network")
 				networkValidationMap.remove(network)
+				networkCapabilitiesMap.remove(network)
 				recomputeConnectivity()
 			}
 
@@ -105,9 +129,16 @@ open class ConnectivityMonitorApplication : Application() {
 				val validated = capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) &&
 						capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
 				ConnectivityLog.v(this@ConnectivityMonitorApplication, "Capabilities changed: $network validated=$validated")
+
+				// Always update capabilities map for transport type tracking
+				networkCapabilitiesMap[network] = capabilities
+
 				if (networkValidationMap[network] != validated) {
 					networkValidationMap[network] = validated
 					recomputeConnectivity()
+				} else {
+					// Still recompute network type even if validation didn't change
+					recomputeNetworkType()
 				}
 			}
 
@@ -121,6 +152,7 @@ open class ConnectivityMonitorApplication : Application() {
 						val validated = caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) &&
 								caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
 						networkValidationMap[network] = validated
+						networkCapabilitiesMap[network] = caps
 					}
 				}
 				recomputeConnectivity()
@@ -146,6 +178,55 @@ open class ConnectivityMonitorApplication : Application() {
 			ConnectivityLog.v(this@ConnectivityMonitorApplication, "Connectivity changed -> $connectedNow")
 			_isConnected.value = connectedNow
 		}
+		recomputeNetworkType()
+	}
+
+	/**
+	 * Recomputes the current network transport type based on available validated networks.
+	 */
+	private fun recomputeNetworkType() {
+		// Find the primary validated network's capabilities
+		val validatedNetworks = networkValidationMap.filter { it.value }
+		val primaryCapabilities = validatedNetworks.keys
+			.mapNotNull { networkCapabilitiesMap[it] }
+			.firstOrNull()
+
+		val newNetworkType = if (primaryCapabilities != null) {
+			determineTransportType(primaryCapabilities)
+		} else {
+			NetworkTransportType.NONE
+		}
+
+		// Check metered status
+		val isNowMetered = primaryCapabilities?.let {
+			!it.hasCapability(NetworkCapabilities.NET_CAPABILITY_NOT_METERED)
+		} ?: true
+
+		if (_isMetered.value != isNowMetered) {
+			_isMetered.value = isNowMetered
+		}
+
+		if (_networkType.value != newNetworkType) {
+			ConnectivityLog.v(this@ConnectivityMonitorApplication, "Network type changed: ${_networkType.value} -> $newNetworkType (metered=$isNowMetered)")
+			_networkType.value = newNetworkType
+		}
+	}
+
+	/**
+	 * Determines the primary transport type from network capabilities.
+	 * Priority: VPN > WiFi > Ethernet > Cellular > Bluetooth > Other
+	 */
+	private fun determineTransportType(capabilities: NetworkCapabilities): NetworkTransportType {
+		return when {
+			// VPN takes priority as it wraps other transports
+			capabilities.hasTransport(TRANSPORT_VPN) -> NetworkTransportType.VPN
+			// Then check common transports in order of preference
+			capabilities.hasTransport(TRANSPORT_WIFI) -> NetworkTransportType.WIFI
+			capabilities.hasTransport(TRANSPORT_ETHERNET) -> NetworkTransportType.ETHERNET
+			capabilities.hasTransport(TRANSPORT_CELLULAR) -> NetworkTransportType.CELLULAR
+			capabilities.hasTransport(TRANSPORT_BLUETOOTH) -> NetworkTransportType.OTHER
+			else -> NetworkTransportType.OTHER
+		}
 	}
 
 	private fun initConnectivityMonitoring() {
@@ -167,6 +248,51 @@ open class ConnectivityMonitorApplication : Application() {
 
 		// Start monitoring for reconnection events
 		startReconnectionMonitoring()
+
+		// Start monitoring for network type changes
+		startNetworkTypeMonitoring()
+	}
+
+	private fun startNetworkTypeMonitoring() {
+		networkTypeMonitorJob = applicationScope.launch {
+			_networkType.collect { currentType ->
+				handleNetworkTypeChange(currentType)
+			}
+		}
+	}
+
+	private fun handleNetworkTypeChange(currentType: NetworkTransportType) {
+		if (previousNetworkType != currentType) {
+			ConnectivityLog.d(this, "Network type transition: $previousNetworkType -> $currentType")
+
+			// Emit network type change event
+			applicationScope.launch {
+				_networkTypeChanges.emit(
+					NetworkTypeChangedEvent(
+						previousType = previousNetworkType,
+						currentType = currentType,
+						isMetered = _isMetered.value
+					)
+				)
+			}
+
+			onNetworkTypeChanged(previousNetworkType, currentType)
+			previousNetworkType = currentType
+		}
+	}
+
+	/**
+	 * Called when the network transport type changes (e.g., WiFi to Cellular).
+	 * Override in subclasses to implement custom behavior.
+	 *
+	 * @param previousType The previous network transport type
+	 * @param currentType The new network transport type
+	 */
+	protected open fun onNetworkTypeChanged(
+		previousType: NetworkTransportType,
+		currentType: NetworkTransportType
+	) {
+		// Override in subclasses for custom behavior
 	}
 
 	private fun startReconnectionMonitoring() {
@@ -292,6 +418,48 @@ open class ConnectivityMonitorApplication : Application() {
 			get() {
 				if (!::instance.isInitialized) throw IllegalStateException(NOT_INITIALIZED_ERROR)
 				return instance._connectivityEvents.asSharedFlow()
+			}
+
+		/**
+		 * Provides immediate access to the current network transport type.
+		 *
+		 * Returns [NetworkTransportType.NONE] when offline, or the primary transport type
+		 * (WiFi, Cellular, etc.) when connected.
+		 *
+		 * @throws IllegalStateException if [ConnectivityMonitorApplication] has not been initialized.
+		 */
+		val networkType: StateFlow<NetworkTransportType>
+			get() {
+				if (!::instance.isInitialized) throw IllegalStateException(NOT_INITIALIZED_ERROR)
+				return instance._networkType.asStateFlow()
+			}
+
+		/**
+		 * Flow that emits events when the network transport type changes.
+		 *
+		 * This is useful for detecting transitions between WiFi and cellular networks,
+		 * for example to pause uploads when switching to a metered connection.
+		 *
+		 * @throws IllegalStateException if [ConnectivityMonitorApplication] has not been initialized.
+		 */
+		val networkTypeChanges: SharedFlow<NetworkTypeChangedEvent>
+			get() {
+				if (!::instance.isInitialized) throw IllegalStateException(NOT_INITIALIZED_ERROR)
+				return instance._networkTypeChanges.asSharedFlow()
+			}
+
+		/**
+		 * Provides immediate access to whether the current network connection is metered.
+		 *
+		 * This is more accurate than checking [networkType] alone, as WiFi connections
+		 * can also be metered in some configurations.
+		 *
+		 * @throws IllegalStateException if [ConnectivityMonitorApplication] has not been initialized.
+		 */
+		val isMetered: StateFlow<Boolean>
+			get() {
+				if (!::instance.isInitialized) throw IllegalStateException(NOT_INITIALIZED_ERROR)
+				return instance._isMetered.asStateFlow()
 			}
 
 		/**

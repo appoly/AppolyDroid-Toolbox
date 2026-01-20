@@ -4,20 +4,21 @@ plugins {
 	alias(libs.plugins.android.application)
 	alias(libs.plugins.kotlin.android)
 	alias(libs.plugins.kotlin.compose)
+	alias(libs.plugins.kotlinxSerialization)
 }
 
 android {
 	namespace = "uk.co.appoly.droid.app"
 	compileSdk {
-		version = release(libs.versions.compileSdk.get().toInt())
+		version = release(BuildConfig.Sdk.COMPILE)
 	}
 
 	defaultConfig {
 		applicationId = "uk.co.appoly.droid"
-		minSdk = 26
-		targetSdk = libs.versions.targetSdk.get().toInt()
+		minSdk = BuildConfig.MinSdk.max() // App uses highest minSdk of all modules
+		targetSdk = BuildConfig.Sdk.TARGET
 		versionCode = 1
-		versionName = libs.versions.toolboxVersion.get()
+		versionName = BuildConfig.TOOLBOX_VERSION
 
 		testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 	}
@@ -54,6 +55,7 @@ dependencies {
 	implementation(libs.androidx.ui.graphics)
 	implementation(libs.androidx.ui.tooling.preview)
 	implementation(libs.androidx.material3)
+	implementation(libs.compose.material.icons.extended)
 
 	//Navigation
 	implementation(libs.androidx.navigation.compose)
@@ -72,7 +74,17 @@ dependencies {
 	implementation(project(":LazyListPagingExtensions"))
 	implementation(project(":LazyGridPagingExtensions"))
 	implementation(project(":S3Uploader"))
+	implementation(project(":S3Uploader-Multipart"))
 	implementation(project(":ConnectivityMonitor"))
+
+	// For test backend API
+	implementation(libs.retrofit)
+	implementation(libs.retrofit.serializationConverter)
+	implementation(libs.okhttp)
+	implementation(libs.okhttp.logging)
+	implementation(libs.kotlinx.serialization)
+	implementation(libs.sandwich)
+	implementation(libs.sandwich.retrofit)
 
 	//Paging
 	implementation(libs.paging.runtime)

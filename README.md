@@ -52,7 +52,7 @@ In your `libs.versions.toml` file:
 
 ```toml
 [versions]
-appolydroidToolbox = "1.1.11" # Replace with the latest version
+appolydroidToolbox = "1.2.0" # Replace with the latest version
 
 [libraries]
 appolydroid-toolbox-bom = { group = "com.github.appoly.AppolyDroid-Toolbox", name = "AppolyDroid-Toolbox-bom", version.ref = "appolydroidToolbox" }
@@ -60,6 +60,7 @@ appolydroid-toolbox-bom = { group = "com.github.appoly.AppolyDroid-Toolbox", nam
 appolydroid-toolbox-baseRepo = { group = "com.github.appoly.AppolyDroid-Toolbox", name = "BaseRepo" }
 appolydroid-toolbox-baseRepo-appolyJson = { group = "com.github.appoly.AppolyDroid-Toolbox", name = "BaseRepo-AppolyJson" }
 appolydroid-toolbox-baseRepo-s3 = { group = "com.github.appoly.AppolyDroid-Toolbox", name = "BaseRepo-S3Uploader" }
+appolydroid-toolbox-baseRepo-s3-multipart = { group = "com.github.appoly.AppolyDroid-Toolbox", name = "BaseRepo-S3Uploader-Multipart" }
 appolydroid-toolbox-baseRepo-paging = { group = "com.github.appoly.AppolyDroid-Toolbox", name = "BaseRepo-Paging" }
 appolydroid-toolbox-baseRepo-paging-AppolyJson = { group = "com.github.appoly.AppolyDroid-Toolbox", name = "BaseRepo-Paging-AppolyJson" }
 appolydroid-toolbox-uiState = { group = "com.github.appoly.AppolyDroid-Toolbox", name = "UiState" }
@@ -73,6 +74,7 @@ appolydroid-toolbox-lazyListPagingExtensions = { group = "com.github.appoly.Appo
 appolydroid-toolbox-lazyGridPagingExtensions = { group = "com.github.appoly.AppolyDroid-Toolbox", name = "LazyGridPagingExtensions" }
 appolydroid-toolbox-pagingExtensions = { group = "com.github.appoly.AppolyDroid-Toolbox", name = "PagingExtensions" }
 appolydroid-toolbox-s3Uploader = { group = "com.github.appoly.AppolyDroid-Toolbox", name = "S3Uploader" }
+appolydroid-toolbox-s3Uploader-multipart = { group = "com.github.appoly.AppolyDroid-Toolbox", name = "S3Uploader-Multipart" }
 appolydroid-toolbox-connectivityMonitor = { group = "com.github.appoly.AppolyDroid-Toolbox", name = "ConnectivityMonitor" }
 ```
 
@@ -87,6 +89,7 @@ dependencies {
     implementation(libs.appolydroid.toolbox.baseRepo)
     implementation(libs.appolydroid.toolbox.baseRepo.appolyJson)
     implementation(libs.appolydroid.toolbox.baseRepo.s3)
+    implementation(libs.appolydroid.toolbox.baseRepo.s3.multipart)
     implementation(libs.appolydroid.toolbox.baseRepo.paging)
     implementation(libs.appolydroid.toolbox.baseRepo.pagingAppolyJson)
     implementation(libs.appolydroid.toolbox.uiState)
@@ -100,6 +103,7 @@ dependencies {
     implementation(libs.appolydroid.toolbox.lazyGridPagingExtensions)
     implementation(libs.appolydroid.toolbox.pagingExtensions)
     implementation(libs.appolydroid.toolbox.s3Uploader)
+    implementation(libs.appolydroid.toolbox.s3Uploader.multipart)
     implementation(libs.appolydroid.toolbox.connectivityMonitor)
 }
 ```
@@ -111,12 +115,13 @@ In your module's `build.gradle.kts`:
 ```gradle.kts
 dependencies {
     // Import the BOM
-    implementation(platform("com.github.appoly.AppolyDroid-Toolbox:AppolyDroid-Toolbox-bom:1.1.11"))
+    implementation(platform("com.github.appoly.AppolyDroid-Toolbox:AppolyDroid-Toolbox-bom:1.2.0"))
 
     // Now you can use AppolyDroid modules without specifying versions
     implementation("com.github.appoly.AppolyDroid-Toolbox:BaseRepo")
     implementation("com.github.appoly.AppolyDroid-Toolbox:BaseRepo-AppolyJson")
     implementation("com.github.appoly.AppolyDroid-Toolbox:BaseRepo-S3Uploader")
+    implementation("com.github.appoly.AppolyDroid-Toolbox:BaseRepo-S3Uploader-Multipart")
     implementation("com.github.appoly.AppolyDroid-Toolbox:BaseRepo-Paging")
     implementation("com.github.appoly.AppolyDroid-Toolbox:BaseRepo-Paging-AppolyJson")
     implementation("com.github.appoly.AppolyDroid-Toolbox:UiState")
@@ -130,6 +135,7 @@ dependencies {
     implementation("com.github.appoly.AppolyDroid-Toolbox:LazyGridPagingExtensions")
     implementation("com.github.appoly.AppolyDroid-Toolbox:PagingExtensions")
     implementation("com.github.appoly.AppolyDroid-Toolbox:S3Uploader")
+    implementation("com.github.appoly.AppolyDroid-Toolbox:S3Uploader-Multipart")
     implementation("com.github.appoly.AppolyDroid-Toolbox:ConnectivityMonitor")
 }
 ```
@@ -140,25 +146,27 @@ In your `libs.versions.toml` file:
 
 ```toml
 [versions]
-appolydroidToolbox = "1.1.11" # Replace with the latest version
+appolydroidToolbox = "1.2.0" # Replace with the latest version
 
 [libraries]
 #AppolyDroid-Toolbox
 appolydroid-toolbox-baseRepo = { group = "com.github.appoly.AppolyDroid-Toolbox", name = "BaseRepo", version.ref = "appolydroidToolbox" }
 appolydroid-toolbox-baseRepo-appolyJson = { group = "com.github.appoly.AppolyDroid-Toolbox", name = "BaseRepo-AppolyJson", version.ref = "appolydroidToolbox" }
 appolydroid-toolbox-baseRepo-s3 = { group = "com.github.appoly.AppolyDroid-Toolbox", name = "BaseRepo-S3Uploader", version.ref = "appolydroidToolbox" }
+appolydroid-toolbox-baseRepo-s3-multipart = { group = "com.github.appoly.AppolyDroid-Toolbox", name = "BaseRepo-S3Uploader-Multipart", version.ref = "appolydroidToolbox" }
 appolydroid-toolbox-baseRepo-paging = { group = "com.github.appoly.AppolyDroid-Toolbox", name = "BaseRepo-Paging", version.ref = "appolydroidToolbox" }
 appolydroid-toolbox-baseRepo-paging-AppolyJson = { group = "com.github.appoly.AppolyDroid-Toolbox", name = "BaseRepo-Paging-AppolyJson", version.ref = "appolydroidToolbox" }
-appolydroid-toolbox-dateHelper = { group = "com.github.appoly.AppolyDroid-Toolbox", name = "DateHelperUtil", version.ref = "appolydroidToolbox" }
-appolydroid-toolbox-dateHelper-room = { group = "com.github.appoly.AppolyDroid-Toolbox", name = "DateHelperUtil-Room", version.ref = "appolydroidToolbox" }
-appolydroid-toolbox-dateHelper-serialization = { group = "com.github.appoly.AppolyDroid-Toolbox", name = "DateHelperUtil-Serialization", version.ref = "appolydroidToolbox" }
 appolydroid-toolbox-uiState = { group = "com.github.appoly.AppolyDroid-Toolbox", name = "UiState", version.ref = "appolydroidToolbox" }
 appolydroid-toolbox-appSnackBar = { group = "com.github.appoly.AppolyDroid-Toolbox", name = "AppSnackBar", version.ref = "appolydroidToolbox" }
 appolydroid-toolbox-appSnackBar-uiState = { group = "com.github.appoly.AppolyDroid-Toolbox", name = "AppSnackBar-UiState", version.ref = "appolydroidToolbox" }
+appolydroid-toolbox-dateHelper = { group = "com.github.appoly.AppolyDroid-Toolbox", name = "DateHelperUtil", version.ref = "appolydroidToolbox" }
+appolydroid-toolbox-dateHelper-room = { group = "com.github.appoly.AppolyDroid-Toolbox", name = "DateHelperUtil-Room", version.ref = "appolydroidToolbox" }
+appolydroid-toolbox-dateHelper-serialization = { group = "com.github.appoly.AppolyDroid-Toolbox", name = "DateHelperUtil-Serialization", version.ref = "appolydroidToolbox" }
+appolydroid-toolbox-compose-extensions = { group = "com.github.appoly.AppolyDroid-Toolbox", name = "ComposeExtensions", version.ref = "appolydroidToolbox" }
 appolydroid-toolbox-lazyListPagingExtensions = { group = "com.github.appoly.AppolyDroid-Toolbox", name = "LazyListPagingExtensions", version.ref = "appolydroidToolbox" }
 appolydroid-toolbox-lazyGridPagingExtensions = { group = "com.github.appoly.AppolyDroid-Toolbox", name = "LazyGridPagingExtensions", version.ref = "appolydroidToolbox" }
 appolydroid-toolbox-s3Uploader = { group = "com.github.appoly.AppolyDroid-Toolbox", name = "S3Uploader", version.ref = "appolydroidToolbox" }
-appolydroid-toolbox-compose-extensions = { group = "com.github.appoly.AppolyDroid-Toolbox", name = "ComposeExtensions", version.ref = "appolydroidToolbox" }
+appolydroid-toolbox-s3Uploader-multipart = { group = "com.github.appoly.AppolyDroid-Toolbox", name = "S3Uploader-Multipart", version.ref = "appolydroidToolbox" }
 appolydroid-toolbox-connectivityMonitor = { group = "com.github.appoly.AppolyDroid-Toolbox", name = "ConnectivityMonitor", version.ref = "appolydroidToolbox" }
 ```
 
@@ -170,18 +178,20 @@ dependencies {
     implementation(libs.appolydroid.toolbox.baseRepo)
     implementation(libs.appolydroid.toolbox.baseRepo.appolyJson)
     implementation(libs.appolydroid.toolbox.baseRepo.s3)
+    implementation(libs.appolydroid.toolbox.baseRepo.s3.multipart)
     implementation(libs.appolydroid.toolbox.baseRepo.paging)
     implementation(libs.appolydroid.toolbox.baseRepo.pagingAppolyJson)
-    implementation(libs.appolydroid.toolbox.dateHelper)
-    implementation(libs.appolydroid.toolbox.dateHelper.room)
-    implementation(libs.appolydroid.toolbox.dateHelper.serialization)
     implementation(libs.appolydroid.toolbox.uiState)
     implementation(libs.appolydroid.toolbox.appSnackBar)
     implementation(libs.appolydroid.toolbox.appSnackBar.uiState)
+    implementation(libs.appolydroid.toolbox.dateHelper)
+    implementation(libs.appolydroid.toolbox.dateHelper.room)
+    implementation(libs.appolydroid.toolbox.dateHelper.serialization)
+    implementation(libs.appolydroid.toolbox.compose.extensions)
     implementation(libs.appolydroid.toolbox.lazyListPagingExtensions)
     implementation(libs.appolydroid.toolbox.lazyGridPagingExtensions)
     implementation(libs.appolydroid.toolbox.s3Uploader)
-    implementation(libs.appolydroid.toolbox.compose.extensions)
+    implementation(libs.appolydroid.toolbox.s3Uploader.multipart)
     implementation(libs.appolydroid.toolbox.connectivityMonitor)
 }
 ```
@@ -192,23 +202,25 @@ In your module's `build.gradle.kts`:
 
 ```gradle.kts
 dependencies {
-    val appolydroidToolbox = "1.1.11" // Replace with the latest version
+    val appolydroidToolbox = "1.2.0" // Replace with the latest version
     // Add only the modules you need
     implementation("com.github.appoly.AppolyDroid-Toolbox:BaseRepo:$appolydroidToolbox")
     implementation("com.github.appoly.AppolyDroid-Toolbox:BaseRepo-AppolyJson:$appolydroidToolbox")
     implementation("com.github.appoly.AppolyDroid-Toolbox:BaseRepo-S3Uploader:$appolydroidToolbox")
+    implementation("com.github.appoly.AppolyDroid-Toolbox:BaseRepo-S3Uploader-Multipart:$appolydroidToolbox")
     implementation("com.github.appoly.AppolyDroid-Toolbox:BaseRepo-Paging:$appolydroidToolbox")
     implementation("com.github.appoly.AppolyDroid-Toolbox:BaseRepo-Paging-AppolyJson:$appolydroidToolbox")
-    implementation("com.github.appoly.AppolyDroid-Toolbox:DateHelperUtil:$appolydroidToolbox")
-    implementation("com.github.appoly.AppolyDroid-Toolbox:DateHelperUtil-Room:$appolydroidToolbox")
-    implementation("com.github.appoly.AppolyDroid-Toolbox:DateHelperUtil-Serialization:$appolydroidToolbox")
     implementation("com.github.appoly.AppolyDroid-Toolbox:UiState:$appolydroidToolbox")
     implementation("com.github.appoly.AppolyDroid-Toolbox:AppSnackBar:$appolydroidToolbox")
     implementation("com.github.appoly.AppolyDroid-Toolbox:AppSnackBar-UiState:$appolydroidToolbox")
+    implementation("com.github.appoly.AppolyDroid-Toolbox:DateHelperUtil:$appolydroidToolbox")
+    implementation("com.github.appoly.AppolyDroid-Toolbox:DateHelperUtil-Room:$appolydroidToolbox")
+    implementation("com.github.appoly.AppolyDroid-Toolbox:DateHelperUtil-Serialization:$appolydroidToolbox")
+    implementation("com.github.appoly.AppolyDroid-Toolbox:ComposeExtensions:$appolydroidToolbox")
     implementation("com.github.appoly.AppolyDroid-Toolbox:LazyListPagingExtensions:$appolydroidToolbox")
     implementation("com.github.appoly.AppolyDroid-Toolbox:LazyGridPagingExtensions:$appolydroidToolbox")
     implementation("com.github.appoly.AppolyDroid-Toolbox:S3Uploader:$appolydroidToolbox")
-    implementation("com.github.appoly.AppolyDroid-Toolbox:ComposeExtensions:$appolydroidToolbox")
+    implementation("com.github.appoly.AppolyDroid-Toolbox:S3Uploader-Multipart:$appolydroidToolbox")
     implementation("com.github.appoly.AppolyDroid-Toolbox:ConnectivityMonitor:$appolydroidToolbox")
 }
 ```
@@ -260,6 +272,15 @@ Extensions for Jetpack Compose LazyGrid with paging support.
 ### S3Uploader
 Standalone S3 file upload utility.
 [Learn more](S3Uploader/README.md)
+
+### S3Uploader-Multipart
+Advanced S3 uploads with pause, resume, and recovery support using AWS S3 Multipart Upload API.
+[Learn more](S3Uploader-Multipart/README.md)
+
+### BaseRepo-S3Uploader-Multipart
+Extension bridging BaseRepo and S3Uploader-Multipart for pausable, resumable uploads within the repository pattern.
+[Learn more](BaseRepo-S3Uploader-Multipart/README.md)
+
 ### ConnectivityMonitor
 Connectivity monitoring flows
 [Learn more](ConnectivityMonitor/README.md)
