@@ -173,9 +173,27 @@ open class ConnectivityMonitorApplication : Application() {
 	}
 
 	private fun recomputeConnectivity() {
-		val connectedNow = networkValidationMap.values.any { it }
+		// Primary check: any validated network in our tracking map
+		val hasValidatedNetwork = networkValidationMap.values.any { it }
+
+		// Fallback check: verify activeNetwork actually exists and is validated
+		// This catches edge cases where onLost() doesn't fire (e.g., manual radio disable on some devices)
+		val activeNetwork = connectivityManager.activeNetwork
+		val hasActiveNetwork = activeNetwork != null &&
+				connectivityManager.getNetworkCapabilities(activeNetwork)?.let { caps ->
+					caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) &&
+							caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
+				} == true
+
+		// Consider connected only if BOTH our tracking map AND the system agree
+		// This provides resilience against stale networkValidationMap entries
+		val connectedNow = hasValidatedNetwork && hasActiveNetwork
+
 		if (_isConnected.value != connectedNow) {
-			ConnectivityLog.v(this@ConnectivityMonitorApplication, "Connectivity changed -> $connectedNow")
+			ConnectivityLog.v(
+				this@ConnectivityMonitorApplication,
+				"Connectivity changed -> $connectedNow (tracked=$hasValidatedNetwork, active=$hasActiveNetwork)"
+			)
 			_isConnected.value = connectedNow
 		}
 		recomputeNetworkType()
@@ -187,11 +205,10 @@ open class ConnectivityMonitorApplication : Application() {
 	private fun recomputeNetworkType() {
 		// Find the primary validated network's capabilities
 		val validatedNetworks = networkValidationMap.filter { it.value }
-		val primaryCapabilities = validatedNetworks.keys
-			.mapNotNull { networkCapabilitiesMap[it] }
-			.firstOrNull()
+		val primaryCapabilities =
+            validatedNetworks.keys.firstNotNullOfOrNull { networkCapabilitiesMap[it] }
 
-		val newNetworkType = if (primaryCapabilities != null) {
+        val newNetworkType = if (primaryCapabilities != null) {
 			determineTransportType(primaryCapabilities)
 		} else {
 			NetworkTransportType.NONE
