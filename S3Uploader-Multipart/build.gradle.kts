@@ -41,12 +41,6 @@ configure<LibraryExtension> {
         targetCompatibility = JavaVersion.VERSION_11
     }
 
-    kotlin {
-        compilerOptions {
-            jvmTarget.set(JvmTarget.JVM_11)
-        }
-    }
-
     room {
         schemaDirectory("$projectDir/schemas")
     }
@@ -54,6 +48,12 @@ configure<LibraryExtension> {
     sourceSets {
         // Adds exported schema location as test app assets for migration testing
         getByName("androidTest").assets.srcDir("$projectDir/schemas")
+    }
+}
+
+kotlin {
+    compilerOptions {
+        jvmTarget.set(JvmTarget.JVM_11)
     }
 }
 

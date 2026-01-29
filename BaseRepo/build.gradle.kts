@@ -40,13 +40,14 @@ configure<LibraryExtension> {
 		sourceCompatibility = JavaVersion.VERSION_11
 		targetCompatibility = JavaVersion.VERSION_11
 	}
-	kotlin {
-		compilerOptions {
-			jvmTarget.set(JvmTarget.JVM_11)
-		}
-	}
 	buildFeatures {
 		compose = true
+	}
+}
+
+kotlin {
+	compilerOptions {
+		jvmTarget.set(JvmTarget.JVM_11)
 	}
 }
 

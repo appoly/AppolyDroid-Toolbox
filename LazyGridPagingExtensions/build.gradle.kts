@@ -39,13 +39,14 @@ configure<LibraryExtension> {
 		sourceCompatibility = JavaVersion.VERSION_11
 		targetCompatibility = JavaVersion.VERSION_11
 	}
-	kotlin {
-		compilerOptions {
-			jvmTarget.set(JvmTarget.JVM_11)
-		}
-	}
 	buildFeatures {
 		compose = true
+	}
+}
+
+kotlin {
+	compilerOptions {
+		jvmTarget.set(JvmTarget.JVM_11)
 	}
 }
 
@@ -58,7 +59,7 @@ dependencies {
 	//Compose
 	implementation(platform(libs.androidx.compose.bom))
 	implementation(libs.androidx.ui)
-//	implementation(libs.androidx.material3)
+	implementation(libs.androidx.compose.foundation)
 
 	//Paging
 	implementation(libs.paging.runtime)
