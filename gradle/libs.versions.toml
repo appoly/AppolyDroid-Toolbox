@@ -1,24 +1,24 @@
 [versions]
 agp = "9.0.0"
-kotlin = "2.2.10"
-ksp = "2.3.3"
+kotlin = "2.3.0"
+ksp = "2.3.5"
 coreKtx = "1.17.0"
 junit = "4.13.2"
 junitVersion = "1.3.0"
 espressoCore = "3.7.0"
 lifecycleRuntimeKtx = "2.10.0"
 appcompat = "1.7.1"
-activityCompose = "1.12.2"
-composeBom = "2026.01.00"
+activityCompose = "1.12.3"
+composeBom = "2026.01.01"
 flexiLoggerVersion = "2.0.0"
 okhttp = "5.3.2"
 retrofit = "3.0.0"
 sandwichVersion = "2.2.0"
-kotlinxSerialization = "1.9.0"
-paging = "3.3.6"
+kotlinxSerialization = "1.10.0"
+paging = "3.4.0"
 roomVersion = "2.8.4"
 navigationCompose = "2.9.6"
-workManager = "2.11.0"
+workManager = "2.11.1"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -38,6 +38,7 @@ androidx-ui-tooling-preview = { group = "androidx.compose.ui", name = "ui-toolin
 androidx-ui-test-manifest = { group = "androidx.compose.ui", name = "ui-test-manifest" }
 androidx-ui-test-junit4 = { group = "androidx.compose.ui", name = "ui-test-junit4" }
 androidx-material3 = { group = "androidx.compose.material3", name = "material3" }
+androidx-compose-foundation = { group = "androidx.compose.foundation", name = "foundation" }
 compose-material-icons-extended = { group = "androidx.compose.material", name = "material-icons-extended" }
 
 #FlexiLogger (Maven Central)
@@ -80,7 +81,6 @@ androidx-work-runtime = { group = "androidx.work", name = "work-runtime-ktx", ve
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
 android-library = { id = "com.android.library", version.ref = "agp" }
-kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
 kotlinKSP = { id = "com.google.devtools.ksp", version.ref = "ksp" }
 kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
 kotlinxSerialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }

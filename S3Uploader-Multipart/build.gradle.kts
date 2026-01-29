@@ -1,8 +1,8 @@
+import com.android.build.api.dsl.LibraryExtension
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
     alias(libs.plugins.android.library)
-    alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlinKSP)
     alias(libs.plugins.kotlinxSerialization)
     alias(libs.plugins.room)
@@ -11,7 +11,7 @@ plugins {
 
 group = "com.github.appoly"
 
-android {
+configure<LibraryExtension> {
     namespace = "uk.co.appoly.droid.s3upload.multipart"
     compileSdk {
         version = release(BuildConfig.Sdk.COMPILE)
@@ -41,12 +41,6 @@ android {
         targetCompatibility = JavaVersion.VERSION_11
     }
 
-    kotlin {
-        compilerOptions {
-            jvmTarget.set(JvmTarget.JVM_11)
-        }
-    }
-
     room {
         schemaDirectory("$projectDir/schemas")
     }
@@ -54,6 +48,12 @@ android {
     sourceSets {
         // Adds exported schema location as test app assets for migration testing
         getByName("androidTest").assets.srcDir("$projectDir/schemas")
+    }
+}
+
+kotlin {
+    compilerOptions {
+        jvmTarget.set(JvmTarget.JVM_11)
     }
 }
 
