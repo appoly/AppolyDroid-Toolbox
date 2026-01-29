@@ -1,8 +1,8 @@
+import com.android.build.api.dsl.LibraryExtension
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
 	alias(libs.plugins.android.library)
-	alias(libs.plugins.kotlin.android)
 	alias(libs.plugins.kotlinKSP)
 	alias(libs.plugins.kotlin.compose)
 	`maven-publish`
@@ -10,7 +10,7 @@ plugins {
 
 group = "com.github.appoly"
 
-android {
+configure<LibraryExtension> {
 	namespace = "uk.co.appoly.droid.pagingextensions"
 	compileSdk {
 		version = release(BuildConfig.Sdk.COMPILE)

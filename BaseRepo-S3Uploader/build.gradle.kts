@@ -1,14 +1,14 @@
+import com.android.build.api.dsl.LibraryExtension
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
 	alias(libs.plugins.android.library)
-	alias(libs.plugins.kotlin.android)
 	`maven-publish`
 }
 
 group = "com.github.appoly"
 
-android {
+configure<LibraryExtension> {
 	namespace = "uk.co.appoly.droid.baserepo.s3"
 	compileSdk {
 		version = release(BuildConfig.Sdk.COMPILE)

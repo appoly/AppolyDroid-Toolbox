@@ -1,13 +1,13 @@
+import com.android.build.api.dsl.ApplicationExtension
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
 	alias(libs.plugins.android.application)
-	alias(libs.plugins.kotlin.android)
 	alias(libs.plugins.kotlin.compose)
 	alias(libs.plugins.kotlinxSerialization)
 }
 
-android {
+configure<ApplicationExtension> {
 	namespace = "uk.co.appoly.droid.app"
 	compileSdk {
 		version = release(BuildConfig.Sdk.COMPILE)
