@@ -70,6 +70,12 @@ fun HomeScreen(navController: NavController) {
 			)
 
 			FeatureButton(
+				title = "Segmented Control",
+				description = "iOS-style segmented control with smooth animations",
+				onClick = { navController.navigate("segmented_control") }
+			)
+
+			FeatureButton(
 				title = "Date Helper Utilities",
 				description = "Date formatting, parsing, and time zone operations",
 				onClick = { navController.navigate("date_helper") }

@@ -9,7 +9,7 @@ object BuildConfig {
      * The current version of the AppolyDroid Toolbox library.
      * This is used for maven publishing and README version updates.
      */
-	const val TOOLBOX_VERSION = "1.2.2"
+	const val TOOLBOX_VERSION = "1.2.3"
 
     /**
      * SDK version configuration for Android modules.
@@ -36,6 +36,9 @@ object BuildConfig {
         /** ComposeExtensions module */
         const val COMPOSE_EXTENSIONS = 21
 
+        /** SegmentedControl module */
+        const val SEGMENTED_CONTROL = 21
+
         /** DateHelperUtil and its extensions (requires Java 8 time APIs) */
         const val DATE_HELPER = 26
 
@@ -59,6 +62,7 @@ object BuildConfig {
 				UI_STATE,
 				APP_SNACK_BAR,
 				COMPOSE_EXTENSIONS,
+				SEGMENTED_CONTROL,
 				DATE_HELPER,
 				LAZY_PAGING,
 				S3_UPLOADER,
