@@ -10,6 +10,7 @@ import uk.co.appoly.droid.ui.screens.HomeScreen
 import uk.co.appoly.droid.ui.screens.MultipartUploadDemoScreen
 import uk.co.appoly.droid.ui.screens.PagingDemoScreen
 import uk.co.appoly.droid.ui.screens.S3UploaderDemoScreen
+import uk.co.appoly.droid.ui.screens.SegmentedControlDemoScreen
 import uk.co.appoly.droid.ui.screens.SnackBarDemoScreen
 import uk.co.appoly.droid.ui.screens.UiStateDemoScreen
 
@@ -26,6 +27,9 @@ fun AppNavigation() {
 		}
 		composable("snackbar") {
 			SnackBarDemoScreen(navController = navController)
+		}
+		composable("segmented_control") {
+			SegmentedControlDemoScreen(navController = navController)
 		}
 		composable("date_helper") {
 			DateHelperDemoScreen(navController = navController)

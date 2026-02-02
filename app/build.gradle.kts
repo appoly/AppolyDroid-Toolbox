@@ -71,6 +71,7 @@ dependencies {
 	implementation(project(":UiState"))
 	implementation(project(":AppSnackBar"))
 	implementation(project(":AppSnackBar-UiState"))
+	implementation(project(":SegmentedControl"))
 	implementation(project(":PagingExtensions"))
 	implementation(project(":LazyListPagingExtensions"))
 	implementation(project(":LazyGridPagingExtensions"))
