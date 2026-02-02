@@ -17,7 +17,7 @@ sandwichVersion = "2.2.0"
 kotlinxSerialization = "1.10.0"
 paging = "3.4.0"
 roomVersion = "2.8.4"
-navigationCompose = "2.9.6"
+navigationCompose = "2.9.7"
 workManager = "2.11.1"
 
 [libraries]

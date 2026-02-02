@@ -82,6 +82,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
+import uk.co.appoly.droid.ui.segmentedcontrol.SegmentedControlDefaults.textStyle
 
 /**
  * Colors for a [SegmentedControl].
@@ -485,7 +486,7 @@ fun <T : Any> SegmentedControl(
     colors: SegmentedControlColors = SegmentedControlDefaults.colors(),
     textStyle: SegmentedControlTextStyle = SegmentedControlDefaults.textStyle(),
     pressedUnselectedAlpha: Float = 0.6f,
-    segmentText: (T) -> String = { it.toString() }
+    segmentText: @Composable (T) -> String = { it.toString() }
 ) {
     SegmentedControl(
         segments = segments,
