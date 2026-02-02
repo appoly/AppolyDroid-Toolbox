@@ -13,6 +13,7 @@ AppolyDroid Toolbox is a comprehensive collection of Android utility modules tha
 - Date/time operations
 - UI state management
 - Snackbar notifications
+- Segmented controls
 - Jetpack Compose pagination utilities
 - And more!
 
@@ -52,7 +53,7 @@ In your `libs.versions.toml` file:
 
 ```toml
 [versions]
-appolydroidToolbox = "1.2.2" # Replace with the latest version
+appolydroidToolbox = "1.2.3" # Replace with the latest version
 
 [libraries]
 appolydroid-toolbox-bom = { group = "com.github.appoly.AppolyDroid-Toolbox", name = "AppolyDroid-Toolbox-bom", version.ref = "appolydroidToolbox" }
@@ -70,6 +71,7 @@ appolydroid-toolbox-dateHelper = { group = "com.github.appoly.AppolyDroid-Toolbo
 appolydroid-toolbox-dateHelper-room = { group = "com.github.appoly.AppolyDroid-Toolbox", name = "DateHelperUtil-Room" }
 appolydroid-toolbox-dateHelper-serialization = { group = "com.github.appoly.AppolyDroid-Toolbox", name = "DateHelperUtil-Serialization" }
 appolydroid-toolbox-compose-extensions = { group = "com.github.appoly.AppolyDroid-Toolbox", name = "ComposeExtensions" }
+appolydroid-toolbox-segmentedControl = { group = "com.github.appoly.AppolyDroid-Toolbox", name = "SegmentedControl" }
 appolydroid-toolbox-lazyListPagingExtensions = { group = "com.github.appoly.AppolyDroid-Toolbox", name = "LazyListPagingExtensions" }
 appolydroid-toolbox-lazyGridPagingExtensions = { group = "com.github.appoly.AppolyDroid-Toolbox", name = "LazyGridPagingExtensions" }
 appolydroid-toolbox-pagingExtensions = { group = "com.github.appoly.AppolyDroid-Toolbox", name = "PagingExtensions" }
@@ -99,6 +101,7 @@ dependencies {
     implementation(libs.appolydroid.toolbox.dateHelper.room)
     implementation(libs.appolydroid.toolbox.dateHelper.serialization)
     implementation(libs.appolydroid.toolbox.compose.extensions)
+    implementation(libs.appolydroid.toolbox.segmentedControl)
     implementation(libs.appolydroid.toolbox.lazyListPagingExtensions)
     implementation(libs.appolydroid.toolbox.lazyGridPagingExtensions)
     implementation(libs.appolydroid.toolbox.pagingExtensions)
@@ -115,7 +118,7 @@ In your module's `build.gradle.kts`:
 ```gradle.kts
 dependencies {
     // Import the BOM
-    implementation(platform("com.github.appoly.AppolyDroid-Toolbox:AppolyDroid-Toolbox-bom:1.2.2"))
+    implementation(platform("com.github.appoly.AppolyDroid-Toolbox:AppolyDroid-Toolbox-bom:1.2.3"))
 
     // Now you can use AppolyDroid modules without specifying versions
     implementation("com.github.appoly.AppolyDroid-Toolbox:BaseRepo")
@@ -131,6 +134,7 @@ dependencies {
     implementation("com.github.appoly.AppolyDroid-Toolbox:DateHelperUtil-Room")
     implementation("com.github.appoly.AppolyDroid-Toolbox:DateHelperUtil-Serialization")
     implementation("com.github.appoly.AppolyDroid-Toolbox:ComposeExtensions")
+    implementation("com.github.appoly.AppolyDroid-Toolbox:SegmentedControl")
     implementation("com.github.appoly.AppolyDroid-Toolbox:LazyListPagingExtensions")
     implementation("com.github.appoly.AppolyDroid-Toolbox:LazyGridPagingExtensions")
     implementation("com.github.appoly.AppolyDroid-Toolbox:PagingExtensions")
@@ -146,7 +150,7 @@ In your `libs.versions.toml` file:
 
 ```toml
 [versions]
-appolydroidToolbox = "1.2.2" # Replace with the latest version
+appolydroidToolbox = "1.2.3" # Replace with the latest version
 
 [libraries]
 #AppolyDroid-Toolbox
@@ -163,6 +167,7 @@ appolydroid-toolbox-dateHelper = { group = "com.github.appoly.AppolyDroid-Toolbo
 appolydroid-toolbox-dateHelper-room = { group = "com.github.appoly.AppolyDroid-Toolbox", name = "DateHelperUtil-Room", version.ref = "appolydroidToolbox" }
 appolydroid-toolbox-dateHelper-serialization = { group = "com.github.appoly.AppolyDroid-Toolbox", name = "DateHelperUtil-Serialization", version.ref = "appolydroidToolbox" }
 appolydroid-toolbox-compose-extensions = { group = "com.github.appoly.AppolyDroid-Toolbox", name = "ComposeExtensions", version.ref = "appolydroidToolbox" }
+appolydroid-toolbox-segmentedControl = { group = "com.github.appoly.AppolyDroid-Toolbox", name = "SegmentedControl", version.ref = "appolydroidToolbox" }
 appolydroid-toolbox-lazyListPagingExtensions = { group = "com.github.appoly.AppolyDroid-Toolbox", name = "LazyListPagingExtensions", version.ref = "appolydroidToolbox" }
 appolydroid-toolbox-lazyGridPagingExtensions = { group = "com.github.appoly.AppolyDroid-Toolbox", name = "LazyGridPagingExtensions", version.ref = "appolydroidToolbox" }
 appolydroid-toolbox-s3Uploader = { group = "com.github.appoly.AppolyDroid-Toolbox", name = "S3Uploader", version.ref = "appolydroidToolbox" }
@@ -188,6 +193,7 @@ dependencies {
     implementation(libs.appolydroid.toolbox.dateHelper.room)
     implementation(libs.appolydroid.toolbox.dateHelper.serialization)
     implementation(libs.appolydroid.toolbox.compose.extensions)
+    implementation(libs.appolydroid.toolbox.segmentedControl)
     implementation(libs.appolydroid.toolbox.lazyListPagingExtensions)
     implementation(libs.appolydroid.toolbox.lazyGridPagingExtensions)
     implementation(libs.appolydroid.toolbox.s3Uploader)
@@ -202,7 +208,7 @@ In your module's `build.gradle.kts`:
 
 ```gradle.kts
 dependencies {
-    val appolydroidToolbox = "1.2.2" // Replace with the latest version
+    val appolydroidToolbox = "1.2.3" // Replace with the latest version
     // Add only the modules you need
     implementation("com.github.appoly.AppolyDroid-Toolbox:BaseRepo:$appolydroidToolbox")
     implementation("com.github.appoly.AppolyDroid-Toolbox:BaseRepo-AppolyJson:$appolydroidToolbox")
@@ -217,6 +223,7 @@ dependencies {
     implementation("com.github.appoly.AppolyDroid-Toolbox:DateHelperUtil-Room:$appolydroidToolbox")
     implementation("com.github.appoly.AppolyDroid-Toolbox:DateHelperUtil-Serialization:$appolydroidToolbox")
     implementation("com.github.appoly.AppolyDroid-Toolbox:ComposeExtensions:$appolydroidToolbox")
+    implementation("com.github.appoly.AppolyDroid-Toolbox:SegmentedControl:$appolydroidToolbox")
     implementation("com.github.appoly.AppolyDroid-Toolbox:LazyListPagingExtensions:$appolydroidToolbox")
     implementation("com.github.appoly.AppolyDroid-Toolbox:LazyGridPagingExtensions:$appolydroidToolbox")
     implementation("com.github.appoly.AppolyDroid-Toolbox:S3Uploader:$appolydroidToolbox")
@@ -263,6 +270,9 @@ Enhanced Snackbar implementation.
 ### AppSnackBar-UiState
 Integration of AppSnackBar with UiState.
 [Learn more](AppSnackBar-UiState/README.md)
+### SegmentedControl
+iOS-style segmented control with smooth animations and customizable styling.
+[Learn more](SegmentedControl/README.md)
 ### LazyListPagingExtensions
 Extensions for Jetpack Compose LazyList with paging support.
 [Learn more](LazyListPagingExtensions/README.md)

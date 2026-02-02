@@ -33,6 +33,7 @@ dependencies {
 
 		// Compose & Pagination modules
 		api("com.github.appoly.AppolyDroid-Toolbox:ComposeExtensions:${BuildConfig.TOOLBOX_VERSION}")
+		api("com.github.appoly.AppolyDroid-Toolbox:SegmentedControl:${BuildConfig.TOOLBOX_VERSION}")
 		api("com.github.appoly.AppolyDroid-Toolbox:LazyListPagingExtensions:${BuildConfig.TOOLBOX_VERSION}")
 		api("com.github.appoly.AppolyDroid-Toolbox:LazyGridPagingExtensions:${BuildConfig.TOOLBOX_VERSION}")
 		api("com.github.appoly.AppolyDroid-Toolbox:PagingExtensions:${BuildConfig.TOOLBOX_VERSION}")
