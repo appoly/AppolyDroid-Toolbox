@@ -41,14 +41,14 @@ configure<LibraryExtension> {
         targetCompatibility = JavaVersion.VERSION_11
     }
 
-    room {
-        schemaDirectory("$projectDir/schemas")
-    }
-
     sourceSets {
         // Adds exported schema location as test app assets for migration testing
-        getByName("androidTest").assets.srcDir("$projectDir/schemas")
+        getByName("androidTest").assets.directories.add("$projectDir/schemas")
     }
+}
+
+room {
+    schemaDirectory("$projectDir/schemas")
 }
 
 kotlin {
