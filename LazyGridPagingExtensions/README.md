@@ -18,7 +18,7 @@ implementation("com.github.appoly.AppolyDroid-Toolbox:PagingExtensions:1.2.5")
 implementation("com.github.appoly.AppolyDroid-Toolbox:LazyGridPagingExtensions:1.2.5")
 
 // Make sure to include Jetpack Paging Compose
-implementation("androidx.paging:paging-compose:3.4.0")
+implementation("androidx.paging:paging-compose:3.4.1")
 ```
 
 ## Usage
