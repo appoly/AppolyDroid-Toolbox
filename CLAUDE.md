@@ -34,7 +34,7 @@ The library uses a layered module structure:
 
 **Core Foundation:**
 - `BaseRepo` - Repository pattern with Retrofit/Sandwich integration, `APIResult<T>` and `APIFlowState<T>` sealed classes
-- `BOM` - Bill of Materials providing version constraints (current: 1.1.11)
+- `BOM` - Bill of Materials providing version constraints (current: 1.2.5)
 
 **BaseRepo Extensions:**
 - `BaseRepo-AppolyJson` - Appoly's standard JSON response format
@@ -85,17 +85,18 @@ flow.collect { state ->
 
 - Versions are centralized in `gradle/libs.versions.toml`
 - The `UpdateReadmeVersions` Gradle task (in `buildSrc`) automatically syncs version numbers in README files during Gradle sync
-- Library version is defined in `libs.versions.toml` under `appolyDroid`
+- Library version is defined in `buildSrc/src/main/kotlin/BuildConfig.kt` as `TOOLBOX_VERSION`
+- SDK levels (compile/target) are also in `BuildConfig.kt` under `BuildConfig.Sdk`
 
 ## Tech Stack
 
-- Kotlin 2.3.0, AGP 8.13.2
+- Kotlin 2.3.10, AGP 9.0.1, Gradle 9.2.1
 - Target/Compile SDK 36, Java 11
-- Jetpack Compose BOM 2025.12.01
+- Jetpack Compose BOM 2026.02.00
 - OkHttp 5.3.2, Retrofit 3.0.0
-- Sandwich 2.2.0 (API response handling)
-- Jetpack Paging 3.3.6, Room 2.8.4
-- kotlinx-serialization 1.9.0
+- Sandwich 2.2.1 (API response handling)
+- Jetpack Paging 3.4.1, Room 2.8.4
+- kotlinx-serialization 1.10.0
 
 ## Publishing
 
