@@ -18,7 +18,7 @@ import okhttp3.MediaType
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.RequestBody.Companion.asRequestBody
 import uk.co.appoly.droid.s3upload.S3Uploader.initS3Uploader
-import uk.co.appoly.droid.s3upload.interfaces.AuthTokenProvider
+import uk.co.appoly.droid.s3upload.interfaces.HeaderProvider
 import uk.co.appoly.droid.s3upload.network.ErrorBody
 import uk.co.appoly.droid.s3upload.network.GetPreSignedUrlResponse
 import uk.co.appoly.droid.s3upload.network.PreSignedURLData
@@ -45,7 +45,7 @@ import java.net.UnknownHostException
  * Must be initialized with [initS3Uploader] before use.
  */
 object S3Uploader {
-	private lateinit var tokenProvider: AuthTokenProvider
+	private lateinit var headerProvider: HeaderProvider
 	private var customLogger: FlexiLog? = null
 
 	var loggingLevel: LoggingLevel = LoggingLevel.NONE
@@ -60,18 +60,18 @@ object S3Uploader {
 	fun getCustomLogger(): FlexiLog? = customLogger
 
 	private fun isInitDone(): Boolean {
-		return this::tokenProvider.isInitialized
+		return this::headerProvider.isInitialized
 	}
 
 	/**
-	 * Returns the token provider for use by other modules.
+	 * Returns the header provider for use by other modules.
 	 * @throws IllegalStateException if not initialized
 	 */
-	fun getTokenProvider(): AuthTokenProvider {
+	fun getHeaderProvider(): HeaderProvider {
 		if (!isInitDone()) {
 			throw IllegalStateException("S3Uploader is not initialized. Please call S3Uploader.initS3Uploader() before using it.")
 		}
-		return tokenProvider
+		return headerProvider
 	}
 
 	/**
@@ -79,16 +79,16 @@ object S3Uploader {
 	 *
 	 * This must be called before using any upload functionality, typically in your Application class.
 	 *
-	 * @param tokenProvider Provider for authentication tokens required for API calls
+	 * @param headerProvider Provider for HTTP headers to include in API requests
 	 * @param loggingLevel Controls the verbosity of logging (default is no logging)
 	 * @param logger Custom logger implementation
 	 */
 	fun initS3Uploader(
-		tokenProvider: AuthTokenProvider,
+		headerProvider: HeaderProvider,
 		loggingLevel: LoggingLevel = LoggingLevel.NONE,
 		logger: FlexiLog? = null
 	) {
-		this.tokenProvider = tokenProvider
+		this.headerProvider = headerProvider
 		this.loggingLevel = loggingLevel
 		this.customLogger = logger
 		S3UploadLog.updateLogger(logger ?: S3UploadLogger, loggingLevel)
@@ -212,7 +212,7 @@ object S3Uploader {
 		S3UploadLog.v(this, "Getting Pre-Signed URL for file: ${file.name}, from API:\"$getPresignedUrlAPI\"")
 		return try {
 			val response: ApiResponse<GetPreSignedUrlResponse> = RetrofitClient.apiService.getPreSignedURL(
-				authToken = tokenProvider.provideToken(),
+				headers = headerProvider.provideHeaders(),
 				url = getPresignedUrlAPI,
 				file.name
 			)

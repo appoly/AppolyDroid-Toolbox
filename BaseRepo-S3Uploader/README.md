@@ -18,9 +18,9 @@ An extension module that bridges BaseRepo and S3Uploader, enabling seamless file
 
 ```gradle.kts
 // Requires both the base modules
-implementation("com.github.appoly.AppolyDroid-Toolbox:BaseRepo:1.2.6")
-implementation("com.github.appoly.AppolyDroid-Toolbox:S3Uploader:1.2.6")
-implementation("com.github.appoly.AppolyDroid-Toolbox:BaseRepo-S3Uploader:1.2.6")
+implementation("com.github.appoly.AppolyDroid-Toolbox:BaseRepo:1.2.7")
+implementation("com.github.appoly.AppolyDroid-Toolbox:S3Uploader:1.2.7")
+implementation("com.github.appoly.AppolyDroid-Toolbox:BaseRepo-S3Uploader:1.2.7")
 ```
 
 ## How it Works
@@ -64,9 +64,9 @@ class MyApp: Application() {
     override fun onCreate() {
         super.onCreate()
 
-        // Initialize S3Uploader with your auth token provider
+        // Initialize S3Uploader with your header provider
         S3Uploader.initS3Uploader(
-            tokenProvider = {
+            headerProvider = HeaderProvider.bearer {
                 // Return your authentication token
                 authManager.getToken()
             },

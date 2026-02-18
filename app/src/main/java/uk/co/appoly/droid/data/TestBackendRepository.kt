@@ -18,6 +18,7 @@ import uk.co.appoly.droid.network.LoginRequest
 import uk.co.appoly.droid.network.LoginResponse
 import uk.co.appoly.droid.network.TestBackendRetrofitClient
 import uk.co.appoly.droid.s3upload.S3Uploader
+import uk.co.appoly.droid.s3upload.interfaces.HeaderProvider
 import uk.co.appoly.droid.s3upload.multipart.MultipartUploadManager
 import uk.co.appoly.droid.s3upload.multipart.config.MultipartUploadConfig
 import uk.co.appoly.droid.s3upload.multipart.interfaces.BeforeUploadResult
@@ -297,7 +298,7 @@ class TestBackendRepository(
      */
     private fun initializeS3Uploader() {
         S3Uploader.initS3Uploader(
-            tokenProvider = { _authToken.value },
+            headerProvider = HeaderProvider.bearer { _authToken.value },
             loggingLevel = LoggingLevel.V,
             logger = uk.co.appoly.droid.Log
         )

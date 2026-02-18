@@ -21,12 +21,11 @@ import java.util.concurrent.TimeUnit
 /**
  * Service wrapper for multipart upload API operations.
  *
- * Handles authentication token injection and provides a clean API
- * for the upload manager.
+ * Handles header injection and provides a clean API for the upload manager.
  */
 internal class MultipartApiService(
 	private val api: MultipartApis,
-	private val tokenProvider: () -> String?
+	private val headerProvider: () -> Map<String, String>
 ) {
 
 	/**
@@ -48,21 +47,12 @@ internal class MultipartApiService(
 		)
 
 		return try {
-			val token = tokenProvider()
-			if (token.isNullOrBlank()) {
-				api.initiateMultipartUpload(
-					accept = ACCEPT_JSON,
-					url = url,
-					body = body
-				)
-			} else {
-				api.initiateMultipartUpload(
-					authorization = "Bearer $token",
-					accept = ACCEPT_JSON,
-					url = url,
-					body = body
-				)
-			}
+			api.initiateMultipartUpload(
+				headers = headerProvider(),
+				accept = ACCEPT_JSON,
+				url = url,
+				body = body
+			)
 		} catch (e: Exception) {
 			ApiResponse.Failure.Exception(e)
 		}
@@ -90,21 +80,12 @@ internal class MultipartApiService(
 		)
 
 		return try {
-			val token = tokenProvider()
-			if (token.isNullOrBlank()) {
-				api.getPresignedUrlForPart(
-					accept = ACCEPT_JSON,
-					url = url,
-					body = body
-				)
-			} else {
-				api.getPresignedUrlForPart(
-					authorization = "Bearer $token",
-					accept = ACCEPT_JSON,
-					url = url,
-					body = body
-				)
-			}
+			api.getPresignedUrlForPart(
+				headers = headerProvider(),
+				accept = ACCEPT_JSON,
+				url = url,
+				body = body
+			)
 		} catch (e: Exception) {
 			ApiResponse.Failure.Exception(e)
 		}
@@ -132,21 +113,12 @@ internal class MultipartApiService(
 		)
 
 		return try {
-			val token = tokenProvider()
-			if (token.isNullOrBlank()) {
-				api.completeMultipartUpload(
-					accept = ACCEPT_JSON,
-					url = url,
-					body = body
-				)
-			} else {
-				api.completeMultipartUpload(
-					authorization = "Bearer $token",
-					accept = ACCEPT_JSON,
-					url = url,
-					body = body
-				)
-			}
+			api.completeMultipartUpload(
+				headers = headerProvider(),
+				accept = ACCEPT_JSON,
+				url = url,
+				body = body
+			)
 		} catch (e: Exception) {
 			ApiResponse.Failure.Exception(e)
 		}
@@ -171,21 +143,12 @@ internal class MultipartApiService(
 		)
 
 		return try {
-			val token = tokenProvider()
-			if (token.isNullOrBlank()) {
-				api.abortMultipartUpload(
-					accept = ACCEPT_JSON,
-					url = url,
-					body = body
-				)
-			} else {
-				api.abortMultipartUpload(
-					authorization = "Bearer $token",
-					accept = ACCEPT_JSON,
-					url = url,
-					body = body
-				)
-			}
+			api.abortMultipartUpload(
+				headers = headerProvider(),
+				accept = ACCEPT_JSON,
+				url = url,
+				body = body
+			)
 		} catch (e: Exception) {
 			ApiResponse.Failure.Exception(e)
 		}

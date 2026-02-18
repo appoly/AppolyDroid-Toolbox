@@ -16,7 +16,7 @@ Advanced S3 upload module with pause, resume, and recovery support using AWS S3 
 ## Installation
 
 ```gradle.kts
-implementation("com.github.appoly.AppolyDroid-Toolbox:S3Uploader-Multipart:1.2.6")
+implementation("com.github.appoly.AppolyDroid-Toolbox:S3Uploader-Multipart:1.2.7")
 ```
 
 This module depends on `S3Uploader` and includes it transitively.
@@ -34,15 +34,19 @@ Your backend must implement four endpoints that proxy requests to AWS S3's Multi
 | **Complete**     | Finalizes the upload by combining all parts into the final file       |
 | **Abort**        | Cancels an in-progress upload and cleans up uploaded parts            |
 
-### Authentication
+### Request Headers
 
-All endpoints require authentication. The mobile app sends a Bearer token in the `Authorization` header:
+The library includes configurable HTTP headers on every API request, controlled by the `HeaderProvider` configured during initialisation. This is typically used for authentication but can include any headers your backend requires.
 
-```
-Authorization: Bearer <token>
-```
+**Common configurations:**
 
-Your backend should validate this token using your existing authentication system (e.g., Laravel Sanctum, JWT, etc.).
+| Pattern | Example Header | Factory |
+|---------|---------------|---------|
+| Bearer token | `Authorization: Bearer <token>` | `HeaderProvider.bearer { getToken() }` |
+| Custom auth header | `User-Api-Token: <token>` | `HeaderProvider.custom("User-Api-Token") { getToken() }` |
+| Multiple headers | Auth + app metadata | `HeaderProvider { buildMap { ... } }` |
+
+Your backend should validate the appropriate headers using your existing authentication system (e.g., Laravel Sanctum, JWT, etc.). See the [S3Uploader README](../S3Uploader/README.md#initializing-the-s3uploader) for full `HeaderProvider` usage examples.
 
 ### Response Format
 
@@ -81,7 +85,7 @@ Creates a new multipart upload session with S3.
 **Request Headers:**
 ```
 Content-Type: application/json
-Authorization: Bearer <token>
+<headers from HeaderProvider>
 ```
 
 **Request Body:**
@@ -144,7 +148,7 @@ Generates a pre-signed URL that allows the mobile app to upload a single part di
 **Request Headers:**
 ```
 Content-Type: application/json
-Authorization: Bearer <token>
+<headers from HeaderProvider>
 ```
 
 **Request Body:**
@@ -213,7 +217,7 @@ Finalizes the upload by instructing S3 to combine all uploaded parts into the fi
 **Request Headers:**
 ```
 Content-Type: application/json
-Authorization: Bearer <token>
+<headers from HeaderProvider>
 ```
 
 **Request Body:**
@@ -289,7 +293,7 @@ Cancels an in-progress upload and instructs S3 to delete any uploaded parts.
 **Request Headers:**
 ```
 Content-Type: application/json
-Authorization: Bearer <token>
+<headers from HeaderProvider>
 ```
 
 **Request Body:**
@@ -457,7 +461,7 @@ class MyApp : Application() {
         super.onCreate()
 
         S3Uploader.initS3Uploader(
-            tokenProvider = { authManager.getToken() },
+            headerProvider = HeaderProvider.bearer { authManager.getToken() },
             loggingLevel = if (BuildConfig.DEBUG) LoggingLevel.D else LoggingLevel.NONE
         )
     }
@@ -867,7 +871,7 @@ class MyApplication : Application() {
 
         // Initialize S3Uploader as usual
         S3Uploader.initS3Uploader(
-            tokenProvider = { authManager.getToken() }
+            headerProvider = HeaderProvider.bearer { authManager.getToken() }
         )
     }
 }

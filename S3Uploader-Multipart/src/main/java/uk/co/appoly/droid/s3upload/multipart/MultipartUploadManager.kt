@@ -77,7 +77,7 @@ class MultipartUploadManager internal constructor(
 
 	private val apiService = MultipartApiService(
 		api = MultipartRetrofitClient.multipartApis,
-		tokenProvider = { S3Uploader.getTokenProvider().provideToken() }
+		headerProvider = { S3Uploader.getHeaderProvider().provideHeaders() }
 	)
 
 	private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
