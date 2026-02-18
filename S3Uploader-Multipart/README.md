@@ -203,6 +203,9 @@ Content-Type: application/json
 - Set an appropriate expiry time (recommended: 60 minutes)
 - The `headers` field can be used if your S3 configuration requires additional headers (e.g., custom encryption headers)
 
+**Important - Repeated Requests for the Same Part Number:**
+The mobile app may request a pre-signed URL for the same part number multiple times. This happens when an upload is interrupted (e.g., app killed, network lost, WorkManager constraint violation) and later resumed — the app does not cache pre-signed URLs, so it requests a fresh one for each attempt. Your backend should simply generate a new pre-signed URL each time; no deduplication or tracking of previous requests is needed. S3 handles this naturally — if the same part number is uploaded more than once, the latest upload overwrites the previous one.
+
 **Important - ETag Handling:**
 When the mobile app uploads a part to the pre-signed URL, S3 returns an `ETag` header in its response. The app captures this automatically and will send it back in the Complete request. Your backend does not need to track ETags.
 
