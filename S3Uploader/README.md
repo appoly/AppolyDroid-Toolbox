@@ -16,7 +16,7 @@ Standalone module for Amazon S3 file uploading with progress tracking and error 
 ## Installation
 
 ```gradle.kts
-implementation("com.github.appoly.AppolyDroid-Toolbox:S3Uploader:1.2.6")
+implementation("com.github.appoly.AppolyDroid-Toolbox:S3Uploader:1.2.7")
 ```
 
 ## Usage
@@ -34,12 +34,32 @@ class MyApp: Application() {
 
     private fun initS3Uploader() {
         S3Uploader.initS3Uploader(
-            tokenProvider = {
-                // Provide your API auth token if needed
-            },
+            // Bearer token auth (most common)
+            headerProvider = HeaderProvider.bearer { authManager.getToken() },
             loggingLevel =,// Set desired LoggingLevel. e.g: if (isDebug) LoggingLevel.W else LoggingLevel.NONE
             logger = // Your implementation of FlexiLogger
         )
+    }
+}
+```
+
+The `HeaderProvider` controls which HTTP headers are sent with pre-signed URL requests to your backend. Common patterns:
+
+```kotlin
+// Bearer token (Authorization: Bearer <token>)
+HeaderProvider.bearer { authManager.getToken() }
+
+// Custom header name (e.g. User-Api-Token: <token>)
+HeaderProvider.custom("User-Api-Token") { apiKeyStore.getKey() }
+
+// Multiple headers (auth + metadata)
+HeaderProvider {
+    buildMap {
+        val token = getToken()
+        if (!token.isNullOrBlank()) {
+            put("Authorization", "Bearer $token")
+        }
+        put("X-App-Version", BuildConfig.VERSION_NAME)
     }
 }
 ```

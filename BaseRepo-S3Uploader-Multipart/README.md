@@ -15,9 +15,9 @@ Extension module that bridges BaseRepo and S3Uploader-Multipart, enabling pausab
 
 ```gradle.kts
 // Requires the base modules
-implementation("com.github.appoly.AppolyDroid-Toolbox:BaseRepo:1.2.6")
-implementation("com.github.appoly.AppolyDroid-Toolbox:S3Uploader-Multipart:1.2.6")
-implementation("com.github.appoly.AppolyDroid-Toolbox:BaseRepo-S3Uploader-Multipart:1.2.6")
+implementation("com.github.appoly.AppolyDroid-Toolbox:BaseRepo:1.2.7")
+implementation("com.github.appoly.AppolyDroid-Toolbox:S3Uploader-Multipart:1.2.7")
+implementation("com.github.appoly.AppolyDroid-Toolbox:BaseRepo-S3Uploader-Multipart:1.2.7")
 ```
 
 ## Usage
@@ -32,7 +32,7 @@ class MyApp : Application() {
         super.onCreate()
 
         S3Uploader.initS3Uploader(
-            tokenProvider = { authManager.getToken() },
+            headerProvider = HeaderProvider.bearer { authManager.getToken() },
             loggingLevel = if (BuildConfig.DEBUG) LoggingLevel.D else LoggingLevel.NONE
         )
 
