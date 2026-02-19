@@ -21,25 +21,17 @@ internal class APIService {
 		}
 
 	suspend fun getPreSignedURL(
-		authToken: String?,
+		headers: Map<String, String>,
 		url: String,
 		fileName: String
 	): ApiResponse<GetPreSignedUrlResponse> {
 		return try {
-			if(authToken.isNullOrBlank()) {
-				client.getPreSignedURL(
-					accepts = "application/json",
-					url = url,
-					body = GetPreSignedUrlBody(fileName)
-				)
-			} else {
-				client.getPreSignedURL(
-					authorization = "Bearer $authToken",
-					accepts = "application/json",
-					url = url,
-					body = GetPreSignedUrlBody(fileName)
-				)
-			}
+			client.getPreSignedURL(
+				headers = headers,
+				accepts = "application/json",
+				url = url,
+				body = GetPreSignedUrlBody(fileName)
+			)
 		} catch (e: Exception) {
 			S3UploadLog.e(this, "Exception in getPreSignedURL! url=\"$url\"", e)
 			ApiResponse.Failure.Exception(e)

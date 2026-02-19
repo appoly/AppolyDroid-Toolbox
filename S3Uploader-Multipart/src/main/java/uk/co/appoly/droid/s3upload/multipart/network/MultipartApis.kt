@@ -22,11 +22,9 @@ import uk.co.appoly.droid.s3upload.multipart.network.model.PresignPartResponse
  */
 internal interface MultipartApis {
 
-	// ==================== With Authorization ====================
-
 	@POST
 	suspend fun initiateMultipartUpload(
-		@Header("Authorization") authorization: String,
+		@HeaderMap headers: Map<String, String>,
 		@Header("Accept") accept: String,
 		@Url url: String,
 		@Body body: InitiateMultipartRequest
@@ -34,7 +32,7 @@ internal interface MultipartApis {
 
 	@POST
 	suspend fun getPresignedUrlForPart(
-		@Header("Authorization") authorization: String,
+		@HeaderMap headers: Map<String, String>,
 		@Header("Accept") accept: String,
 		@Url url: String,
 		@Body body: PresignPartRequest
@@ -42,7 +40,7 @@ internal interface MultipartApis {
 
 	@POST
 	suspend fun completeMultipartUpload(
-		@Header("Authorization") authorization: String,
+		@HeaderMap headers: Map<String, String>,
 		@Header("Accept") accept: String,
 		@Url url: String,
 		@Body body: CompleteMultipartRequest
@@ -50,37 +48,7 @@ internal interface MultipartApis {
 
 	@POST
 	suspend fun abortMultipartUpload(
-		@Header("Authorization") authorization: String,
-		@Header("Accept") accept: String,
-		@Url url: String,
-		@Body body: AbortMultipartRequest
-	): ApiResponse<AbortMultipartResponse>
-
-	// ==================== Without Authorization ====================
-
-	@POST
-	suspend fun initiateMultipartUpload(
-		@Header("Accept") accept: String,
-		@Url url: String,
-		@Body body: InitiateMultipartRequest
-	): ApiResponse<InitiateMultipartResponse>
-
-	@POST
-	suspend fun getPresignedUrlForPart(
-		@Header("Accept") accept: String,
-		@Url url: String,
-		@Body body: PresignPartRequest
-	): ApiResponse<PresignPartResponse>
-
-	@POST
-	suspend fun completeMultipartUpload(
-		@Header("Accept") accept: String,
-		@Url url: String,
-		@Body body: CompleteMultipartRequest
-	): ApiResponse<CompleteMultipartResponse>
-
-	@POST
-	suspend fun abortMultipartUpload(
+		@HeaderMap headers: Map<String, String>,
 		@Header("Accept") accept: String,
 		@Url url: String,
 		@Body body: AbortMultipartRequest

@@ -14,13 +14,7 @@ import uk.co.appoly.droid.s3upload.network.GetPreSignedUrlResponse
 internal interface APIs {
 	@POST
 	suspend fun getPreSignedURL(
-		@Header("Accepts") accepts: String,
-		@Url url: String,
-		@Body body: GetPreSignedUrlBody
-	): ApiResponse<GetPreSignedUrlResponse>
-	@POST
-	suspend fun getPreSignedURL(
-		@Header("Authorization") authorization: String,
+		@HeaderMap headers: Map<String, String>,
 		@Header("Accepts") accepts: String,
 		@Url url: String,
 		@Body body: GetPreSignedUrlBody
