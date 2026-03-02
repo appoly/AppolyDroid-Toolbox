@@ -15,9 +15,9 @@ Extension module that bridges BaseRepo and S3Uploader-Multipart, enabling pausab
 
 ```gradle.kts
 // Requires the base modules
-implementation("com.github.appoly.AppolyDroid-Toolbox:BaseRepo:1.2.7")
-implementation("com.github.appoly.AppolyDroid-Toolbox:S3Uploader-Multipart:1.2.7")
-implementation("com.github.appoly.AppolyDroid-Toolbox:BaseRepo-S3Uploader-Multipart:1.2.7")
+implementation("com.github.appoly.AppolyDroid-Toolbox:BaseRepo:1.2.8")
+implementation("com.github.appoly.AppolyDroid-Toolbox:S3Uploader-Multipart:1.2.8")
+implementation("com.github.appoly.AppolyDroid-Toolbox:BaseRepo-S3Uploader-Multipart:1.2.8")
 ```
 
 ## Usage
@@ -57,7 +57,7 @@ class MediaRepository(private val context: Context) : AppolyBaseRepo({ YourRetro
     /**
      * Start a resumable upload for large files
      */
-    suspend fun uploadLargeVideo(videoFile: File): APIResult<String> {
+    suspend fun uploadLargeVideo(videoFile: File): APIResult<MultipartUploadSuccess> {
         return startMultipartUpload(
             context = context,
             file = videoFile,
@@ -113,8 +113,8 @@ class UploadViewModel(
 
             when (val result = mediaRepository.uploadLargeVideo(file)) {
                 is APIResult.Success -> {
-                    currentSessionId = result.data
-                    observeProgress(result.data)
+                    currentSessionId = result.data.sessionId
+                    observeProgress(result.data.sessionId)
                 }
                 is APIResult.Error -> {
                     _uploadState.value = UploadState.Error(result.message)
@@ -207,24 +207,22 @@ class UserRepository(private val context: Context) : AppolyBaseRepo({ YourRetrof
     private val userService by lazyService<UserAPI>()
 
     /**
-     * Upload a large video and associate it with a post
+     * Upload a large video and associate it with a post.
+     * startMultipartUpload suspends until the upload completes, then returns
+     * the S3 path which can be passed to the backend API.
      */
     suspend fun uploadPostVideo(postId: String, videoFile: File): APIResult<Post> {
-        // Start the multipart upload
         val uploadResult = startMultipartUpload(
             context = context,
             file = videoFile,
             apiUrls = apiUrls
         )
 
-        // If upload started successfully, wait for completion and update post
         return when (uploadResult) {
             is APIResult.Success -> {
-                val sessionId = uploadResult.data
-                // In production, you'd observe progress and wait for completion
-                // For simplicity, we'll demonstrate the pattern
+                val s3Path = uploadResult.data.location ?: uploadResult.data.filePath
                 doAPICall("updatePostVideo") {
-                    userService.api.updatePostVideo(postId, sessionId)
+                    userService.api.updatePostVideo(postId, s3Path)
                 }
             }
             is APIResult.Error -> uploadResult
@@ -238,13 +236,13 @@ class UserRepository(private val context: Context) : AppolyBaseRepo({ YourRetrof
 ### Upload Control
 
 ```kotlin
-// Start a new multipart upload
+// Start a new multipart upload (suspends until complete)
 suspend fun GenericBaseRepo.startMultipartUpload(
     context: Context,
     file: File,
     apiUrls: MultipartApiUrls,
     config: MultipartUploadConfig = MultipartUploadConfig.DEFAULT
-): APIResult<String>
+): APIResult<MultipartUploadSuccess>
 
 // Pause an active upload
 suspend fun GenericBaseRepo.pauseMultipartUpload(
@@ -300,7 +298,7 @@ fun GenericBaseRepo.enableMultipartUploadAutoRecovery(context: Context)
 
 ```kotlin
 // Convert MultipartUploadResult to APIResult
-fun MultipartUploadResult.toAPIResult(): APIResult<String>
+fun MultipartUploadResult.toAPIResult(): APIResult<MultipartUploadSuccess>
 ```
 
 ## Error Handling
@@ -310,8 +308,8 @@ All extension methods return `APIResult`, enabling standard error handling:
 ```kotlin
 when (val result = mediaRepository.uploadLargeVideo(videoFile)) {
     is APIResult.Success -> {
-        val sessionId = result.data
-        Log.d("Upload", "Started upload with session: $sessionId")
+        val s3Path = result.data.location ?: result.data.filePath
+        Log.d("Upload", "Upload complete: $s3Path")
     }
     is APIResult.Error -> {
         Log.e("Upload", "Upload failed: ${result.message}")
