@@ -14,6 +14,19 @@ import uk.co.appoly.droid.s3upload.multipart.worker.S3UploadWorkManager
 import java.io.File
 
 /**
+ * Result data for a successful multipart upload.
+ *
+ * @property sessionId The library's internal session ID
+ * @property filePath The S3 file path (key) where the file was stored
+ * @property location The full S3 URL, if provided by the server
+ */
+data class MultipartUploadSuccess(
+	val sessionId: String,
+	val filePath: String,
+	val location: String?,
+)
+
+/**
  * Converts a [kotlin.Result] of [Unit] to [APIResult].
  */
 private fun Result<Unit>.toUnitAPIResult(defaultErrorMessage: String): APIResult<Unit> {
@@ -28,8 +41,12 @@ private fun Result<Unit>.toUnitAPIResult(defaultErrorMessage: String): APIResult
 /**
  * Starts a multipart upload for large files with pause/resume/recovery support.
  *
- * This extension function provides a resumable upload mechanism using AWS S3 Multipart Upload.
+ * This is an inline (suspending) upload that blocks until the upload completes.
+ * For background uploads that survive app restarts, use [scheduleMultipartUploadWork] instead.
+ *
  * The upload state is persisted to allow recovery after app crashes or device restarts.
+ * Progress can be observed via [observeMultipartUploadProgress] using the session ID
+ * from [MultipartUploadSuccess.sessionId].
  *
  * Example usage:
  * ```
@@ -39,7 +56,10 @@ private fun Result<Unit>.toUnitAPIResult(defaultErrorMessage: String): APIResult
  *     apiUrls = MultipartApiUrls.fromBaseUrl("https://api.example.com/api/s3/multipart")
  * )
  * when (result) {
- *     is APIResult.Success -> println("Session ID: ${result.data}")
+ *     is APIResult.Success -> {
+ *         val s3Path = result.data.location ?: result.data.filePath
+ *         // Register with backend using s3Path
+ *     }
  *     is APIResult.Error -> println("Error: ${result.message}")
  * }
  * ```
@@ -48,19 +68,28 @@ private fun Result<Unit>.toUnitAPIResult(defaultErrorMessage: String): APIResult
  * @param file The file to upload to S3
  * @param apiUrls API endpoints for multipart operations
  * @param config Optional upload configuration (chunk size, concurrency, retries)
- * @return [APIResult.Success] with session ID if upload started successfully, or [APIResult.Error] if failed
+ * @return [APIResult.Success] with [MultipartUploadSuccess] containing the S3 path and location,
+ *         or [APIResult.Error] if the upload failed or was cancelled
  */
 suspend fun GenericBaseRepo.startMultipartUpload(
 	context: Context,
 	file: File,
 	apiUrls: MultipartApiUrls,
 	config: MultipartUploadConfig = MultipartUploadConfig.DEFAULT
-): APIResult<String> {
+): APIResult<MultipartUploadSuccess> {
 	val manager = MultipartUploadManager.getInstance(context, config)
 	return when (val result = manager.startUpload(file, apiUrls)) {
-		is MultipartUploadResult.Success -> APIResult.Success(result.sessionId)
+		is MultipartUploadResult.Success -> APIResult.Success(
+			MultipartUploadSuccess(
+				sessionId = result.sessionId,
+				filePath = result.filePath,
+				location = result.location,
+			)
+		)
 		is MultipartUploadResult.Error -> APIResult.Error(result.message, result.throwable)
-		is MultipartUploadResult.Paused -> APIResult.Success(result.sessionId) // Upload started but paused
+		is MultipartUploadResult.Paused -> APIResult.Error(
+			"Upload paused: ${result.uploadedParts}/${result.totalParts} parts uploaded"
+		)
 		is MultipartUploadResult.Cancelled -> APIResult.Error("Upload was cancelled")
 	}
 }
@@ -240,12 +269,18 @@ fun GenericBaseRepo.enableMultipartUploadAutoRecovery(context: Context) {
 /**
  * Converts a [MultipartUploadResult] to [APIResult].
  *
- * @return [APIResult.Success] with file path for successful uploads,
- *         or [APIResult.Error] for failures/cancellations
+ * @return [APIResult.Success] with [MultipartUploadSuccess] for successful uploads,
+ *         or [APIResult.Error] for failures/cancellations/paused
  */
-fun MultipartUploadResult.toAPIResult(): APIResult<String> {
+fun MultipartUploadResult.toAPIResult(): APIResult<MultipartUploadSuccess> {
 	return when (this) {
-		is MultipartUploadResult.Success -> APIResult.Success(filePath)
+		is MultipartUploadResult.Success -> APIResult.Success(
+			MultipartUploadSuccess(
+				sessionId = sessionId,
+				filePath = filePath,
+				location = location,
+			)
+		)
 		is MultipartUploadResult.Error -> APIResult.Error(message, throwable)
 		is MultipartUploadResult.Paused -> APIResult.Error("Upload paused: $uploadedParts/$totalParts parts uploaded")
 		is MultipartUploadResult.Cancelled -> APIResult.Error("Upload cancelled")
