@@ -72,7 +72,7 @@ object S3UploadWorkManager {
 		val constraintsJson = json.encodeToString(resolvedConstraints)
 
 		val workRequest = OneTimeWorkRequestBuilder<MultipartUploadWorker>()
-			.setInputData(MultipartUploadWorker.createInputData(file, apiUrls, constraintsJson))
+			.setInputData(MultipartUploadWorker.createInputData(file, apiUrls, constraintsJson, workName))
 			.setConstraints(workConstraints)
 			.setBackoffCriteria(
 				BackoffPolicy.EXPONENTIAL,

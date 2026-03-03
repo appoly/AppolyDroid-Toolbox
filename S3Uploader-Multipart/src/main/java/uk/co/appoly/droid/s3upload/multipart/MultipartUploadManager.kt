@@ -654,12 +654,16 @@ class MultipartUploadManager internal constructor(
 	 * @param apiUrls API endpoints for multipart operations
 	 * @param constraints Upload constraints for this session. Used for auto-resume when
 	 *                    paused due to constraint violations. Defaults to [config.defaultConstraints].
+	 * @param sessionId Optional session ID to use. If null, a new UUID will be generated.
+	 *                  Pass the work name from [S3UploadWorkManager.scheduleUpload] to ensure
+	 *                  lifecycle callbacks receive the same ID that was returned at scheduling time.
 	 * @return Result containing the session ID on success
 	 */
 	internal suspend fun initializeUpload(
 		file: File,
 		apiUrls: MultipartApiUrls,
-		constraints: UploadConstraints = config.defaultConstraints
+		constraints: UploadConstraints = config.defaultConstraints,
+		sessionId: String? = null,
 	): Result<String> = withContext(Dispatchers.IO) {
 		try {
 			// Validate file
@@ -678,7 +682,7 @@ class MultipartUploadManager internal constructor(
 				return@withContext Result.success(existingSession.sessionId)
 			}
 
-			val sessionId = UUID.randomUUID().toString()
+			val resolvedSessionId = sessionId ?: UUID.randomUUID().toString()
 			val fileName = file.name
 			val contentType = getMimeType(file) ?: "application/octet-stream"
 			val fileSize = file.length()
@@ -705,7 +709,7 @@ class MultipartUploadManager internal constructor(
 
 					// Create session entity
 					val session = UploadSessionEntity(
-						sessionId = sessionId,
+						sessionId = resolvedSessionId,
 						uploadId = data.uploadId,
 						localFilePath = file.absolutePath,
 						remoteFilePath = data.filePath,
@@ -726,19 +730,19 @@ class MultipartUploadManager internal constructor(
 					)
 
 					// Create part entities
-					val parts = createPartEntities(sessionId, fileSize, config.chunkSize, now)
+					val parts = createPartEntities(resolvedSessionId, fileSize, config.chunkSize, now)
 
 					// Save to database
 					dao.insertSession(session)
 					dao.insertParts(parts)
 
-					MultipartUploadLog.d(this@MultipartUploadManager, "Created session: $sessionId with ${parts.size} parts")
+					MultipartUploadLog.d(this@MultipartUploadManager, "Created session: $resolvedSessionId with ${parts.size} parts")
 
 					// Note: We don't call startUploadJob here anymore.
 					// The caller (worker or direct API) is responsible for calling executeUpload.
 					// This avoids double-execution when the worker schedules uploads.
 
-					Result.success(sessionId)
+					Result.success(resolvedSessionId)
 				}
 
 				is ApiResponse.Failure.Error -> {
