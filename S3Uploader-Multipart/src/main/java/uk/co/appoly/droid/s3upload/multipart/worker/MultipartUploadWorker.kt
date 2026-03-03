@@ -220,6 +220,7 @@ open class MultipartUploadWorker(
 		MultipartUploadManager.syncLoggerConfig()
 
 		val sessionId = inputData.getString(KEY_SESSION_ID)
+		val workName = inputData.getString(KEY_WORK_NAME)
 		val filePath = inputData.getString(KEY_FILE_PATH)
 		val isResume = inputData.getBoolean(KEY_IS_RESUME, false)
 
@@ -281,7 +282,8 @@ open class MultipartUploadWorker(
 				} ?: manager.config.defaultConstraints
 
 				// Initialize the upload session (does not execute)
-				val initResult = manager.initializeUpload(file, apiUrls, constraints)
+				// Pass workName as sessionId to ensure callback IDs match what scheduleUpload returned
+				val initResult = manager.initializeUpload(file, apiUrls, constraints, sessionId = workName)
 				if (initResult.isFailure) {
 					return@withContext Result.failure(
 						workDataOf(KEY_ERROR_MESSAGE to (initResult.exceptionOrNull()?.message ?: "Failed to initialize upload"))
@@ -667,6 +669,7 @@ open class MultipartUploadWorker(
 
 	companion object {
 		const val KEY_SESSION_ID = "session_id"
+		const val KEY_WORK_NAME = "work_name"
 		const val KEY_FILE_PATH = "file_path"
 		const val KEY_INITIATE_URL = "initiate_url"
 		const val KEY_PRESIGN_URL = "presign_url"
@@ -711,11 +714,14 @@ open class MultipartUploadWorker(
 		 * @param apiUrls API endpoints for multipart operations
 		 * @param constraintsJson Optional JSON-serialized [UploadConstraints][uk.co.appoly.droid.s3upload.multipart.config.UploadConstraints].
 		 *                        If null, manager defaults will be used.
+		 * @param workName Optional work name to use as the session ID, ensuring lifecycle
+		 *                 callbacks receive the same ID returned by [S3UploadWorkManager.scheduleUpload].
 		 */
 		fun createInputData(
 			file: File,
 			apiUrls: MultipartApiUrls,
-			constraintsJson: String? = null
+			constraintsJson: String? = null,
+			workName: String? = null,
 		): Data = workDataOf(
 			KEY_FILE_PATH to file.absolutePath,
 			KEY_INITIATE_URL to apiUrls.initiateUrl,
@@ -723,7 +729,8 @@ open class MultipartUploadWorker(
 			KEY_COMPLETE_URL to apiUrls.completeUrl,
 			KEY_ABORT_URL to apiUrls.abortUrl,
 			KEY_IS_RESUME to false,
-			KEY_CONSTRAINTS_JSON to constraintsJson
+			KEY_CONSTRAINTS_JSON to constraintsJson,
+			KEY_WORK_NAME to workName,
 		)
 
 		/**
