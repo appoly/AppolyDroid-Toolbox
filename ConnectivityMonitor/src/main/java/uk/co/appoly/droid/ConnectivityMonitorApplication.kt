@@ -93,6 +93,10 @@ open class ConnectivityMonitorApplication : Application() {
 	private var networkTypeMonitorJob: Job? = null
 	private var previousNetworkType = NetworkTransportType.NONE
 
+	// Offline debounce — prevents brief false-negative blips during app resume
+	@Volatile
+	private var offlineDebounceJob: Job? = null
+
 	private val connectivityManager: ConnectivityManager by lazy {
 		getSystemService(CONNECTIVITY_SERVICE) as ConnectivityManager
 	}
@@ -190,11 +194,33 @@ open class ConnectivityMonitorApplication : Application() {
 		val connectedNow = hasValidatedNetwork && hasActiveNetwork
 
 		if (_isConnected.value != connectedNow) {
-			ConnectivityLog.v(
-				this@ConnectivityMonitorApplication,
-				"Connectivity changed -> $connectedNow (tracked=$hasValidatedNetwork, active=$hasActiveNetwork)"
-			)
-			_isConnected.value = connectedNow
+			if (connectedNow) {
+				// Coming back online: cancel any pending offline debounce and update immediately
+				offlineDebounceJob?.cancel()
+				offlineDebounceJob = null
+				ConnectivityLog.v(
+					this@ConnectivityMonitorApplication,
+					"Connectivity changed -> true (tracked=$hasValidatedNetwork, active=$hasActiveNetwork)"
+				)
+				_isConnected.value = true
+			} else {
+				// Going offline: debounce to avoid false negatives during app resume/lock screen
+				if (offlineDebounceJob?.isActive != true) {
+					offlineDebounceJob = applicationScope.launch {
+						delay(offlineDebounceDelayMillis)
+						ConnectivityLog.v(
+							this@ConnectivityMonitorApplication,
+							"Connectivity changed -> false (after ${offlineDebounceDelayMillis}ms debounce)"
+						)
+						_isConnected.value = false
+						offlineDebounceJob = null
+					}
+				}
+			}
+		} else if (connectedNow) {
+			// Still connected — cancel any stale pending offline debounce
+			offlineDebounceJob?.cancel()
+			offlineDebounceJob = null
 		}
 		recomputeNetworkType()
 	}
@@ -484,6 +510,15 @@ open class ConnectivityMonitorApplication : Application() {
 		 * a connection is established. Defaults to 2000ms.
 		 */
 		var onlineDebounceDelayMillis: Long = 2000L
+
+		/**
+		 * The delay in milliseconds before [isConnected] transitions to `false` after
+		 * connectivity appears lost. This prevents brief false-negative blips that occur
+		 * during app resume from background or lock screen. Defaults to 500ms.
+		 *
+		 * Set to 0 to disable offline debouncing (immediate offline reporting).
+		 */
+		var offlineDebounceDelayMillis: Long = 500L
 	}
 }
 
