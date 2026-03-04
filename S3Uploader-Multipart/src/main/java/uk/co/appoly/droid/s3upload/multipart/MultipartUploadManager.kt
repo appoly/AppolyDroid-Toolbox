@@ -324,6 +324,11 @@ class MultipartUploadManager internal constructor(
 			MultipartUploadLog.d(this@MultipartUploadManager, "Resuming recovered session: ${session.sessionId}")
 			val result = resumeUpload(session.sessionId)
 			if (result.isSuccess) {
+				// Schedule a WorkManager job to actually execute the upload
+				S3UploadWorkManager.scheduleResume(
+					context = applicationContext,
+					sessionId = session.sessionId,
+				)
 				recoveredIds.add(session.sessionId)
 			} else {
 				MultipartUploadLog.e(this@MultipartUploadManager, "Failed to resume session: ${result.exceptionOrNull()?.message}")
