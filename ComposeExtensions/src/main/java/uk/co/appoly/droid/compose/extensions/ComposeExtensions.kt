@@ -9,9 +9,11 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.calculateEndPadding
 import androidx.compose.foundation.layout.calculateStartPadding
+import androidx.compose.foundation.layout.exclude
 import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.isImeVisible
 import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.union
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.State
 import androidx.compose.runtime.rememberUpdatedState
@@ -25,29 +27,21 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.LayoutDirection
 
-@ExperimentalLayoutApi
+/**
+ * Returns the max of IME and navigation bar insets at every frame,
+ * animating smoothly with the keyboard.
+ */
 val WindowInsets.Companion.navigationBarsOrIme: WindowInsets
 	@Composable
-	get() {
-		val imeIsVisible = WindowInsets.isImeVisible
-		return if (imeIsVisible) {
-			WindowInsets.ime
-		} else {
-			WindowInsets.navigationBars
-		}
-	}
+	get() = WindowInsets.ime.union(WindowInsets.navigationBars)
 
-@ExperimentalLayoutApi
+/**
+ * Returns navigation bar insets that smoothly shrink to zero as the IME appears,
+ * animating frame-by-frame with the keyboard.
+ */
 val WindowInsets.Companion.navigationBarsOrNoneIfIme: WindowInsets
 	@Composable
-	get() {
-		val imeIsVisible = WindowInsets.isImeVisible
-		return if (imeIsVisible) {
-			WindowInsets.None
-		} else {
-			WindowInsets.navigationBars
-		}
-	}
+	get() = WindowInsets.navigationBars.exclude(WindowInsets.ime)
 
 val WindowInsets.Companion.None: WindowInsets
 	get() {
