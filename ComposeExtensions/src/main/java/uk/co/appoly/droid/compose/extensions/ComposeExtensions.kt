@@ -18,12 +18,15 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.State
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.draw.drawWithCache
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.LayoutDirection
 
@@ -76,6 +79,25 @@ fun Modifier.gradientTint(brush: Brush): Modifier =
 						drawRect(brush, blendMode = BlendMode.SrcAtop)
 					}
 				}
+
+/**
+ * Hides this composable in sync with the IME (keyboard) animation.
+ * As the keyboard slides up, the composable's layout height smoothly shrinks to zero
+ * (clipped from the bottom), and the space it occupied is reclaimed by sibling layouts.
+ */
+@Composable
+fun Modifier.hideWithIme(): Modifier {
+	val imeBottom = WindowInsets.ime.getBottom(LocalDensity.current)
+	return this
+		.clipToBounds()
+		.layout { measurable, constraints ->
+			val placeable = measurable.measure(constraints)
+			val offset = imeBottom.coerceAtMost(placeable.height)
+			layout(placeable.width, (placeable.height - offset).coerceAtLeast(0)) {
+				placeable.placeRelative(0, 0)
+			}
+		}
+}
 
 /**
  * Combines two [PaddingValues] instances, taking into account the current layout direction.
