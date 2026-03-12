@@ -15,8 +15,8 @@ Extension module for DateHelperUtil that provides Room database integration for 
 
 ```gradle.kts
 // Requires base DateHelperUtil module
-implementation("com.github.appoly.AppolyDroid-Toolbox:DateHelperUtil:1.2.13")
-implementation("com.github.appoly.AppolyDroid-Toolbox:DateHelperUtil-Room:1.2.13")
+implementation("com.github.appoly.AppolyDroid-Toolbox:DateHelperUtil:1.2.14")
+implementation("com.github.appoly.AppolyDroid-Toolbox:DateHelperUtil-Room:1.2.14")
 
 // Required Room dependencies
 implementation("androidx.room:room-runtime:2.8.4")
