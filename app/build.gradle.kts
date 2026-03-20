@@ -78,6 +78,10 @@ dependencies {
 	implementation(project(":S3Uploader"))
 	implementation(project(":S3Uploader-Multipart"))
 	implementation(project(":ConnectivityMonitor"))
+	implementation(project(":MockInterceptor"))
+	implementation(project(":MockInterceptor-Serialization"))
+	implementation(project(":MockInterceptor-AppolyJson"))
+	implementation(project(":MockInterceptor-Retrofit"))
 
 	// For test backend API
 	implementation(libs.retrofit)

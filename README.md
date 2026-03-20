@@ -53,7 +53,7 @@ In your `libs.versions.toml` file:
 
 ```toml
 [versions]
-appolydroidToolbox = "1.2.15" # Replace with the latest version
+appolydroidToolbox = "1.3.0" # Replace with the latest version
 
 [libraries]
 appolydroid-toolbox-bom = { group = "com.github.appoly.AppolyDroid-Toolbox", name = "AppolyDroid-Toolbox-bom", version.ref = "appolydroidToolbox" }
@@ -78,6 +78,10 @@ appolydroid-toolbox-pagingExtensions = { group = "com.github.appoly.AppolyDroid-
 appolydroid-toolbox-s3Uploader = { group = "com.github.appoly.AppolyDroid-Toolbox", name = "S3Uploader" }
 appolydroid-toolbox-s3Uploader-multipart = { group = "com.github.appoly.AppolyDroid-Toolbox", name = "S3Uploader-Multipart" }
 appolydroid-toolbox-connectivityMonitor = { group = "com.github.appoly.AppolyDroid-Toolbox", name = "ConnectivityMonitor" }
+appolydroid-toolbox-mockInterceptor = { group = "com.github.appoly.AppolyDroid-Toolbox", name = "MockInterceptor" }
+appolydroid-toolbox-mockInterceptor-serialization = { group = "com.github.appoly.AppolyDroid-Toolbox", name = "MockInterceptor-Serialization" }
+appolydroid-toolbox-mockInterceptor-appolyjson = { group = "com.github.appoly.AppolyDroid-Toolbox", name = "MockInterceptor-AppolyJson" }
+appolydroid-toolbox-mockInterceptor-retrofit = { group = "com.github.appoly.AppolyDroid-Toolbox", name = "MockInterceptor-Retrofit" }
 ```
 
 Then in your module's `build.gradle.kts`:
@@ -108,6 +112,10 @@ dependencies {
     implementation(libs.appolydroid.toolbox.s3Uploader)
     implementation(libs.appolydroid.toolbox.s3Uploader.multipart)
     implementation(libs.appolydroid.toolbox.connectivityMonitor)
+    implementation(libs.appolydroid.toolbox.mockInterceptor)
+    implementation(libs.appolydroid.toolbox.mockInterceptor.serialization)
+    implementation(libs.appolydroid.toolbox.mockInterceptor.appolyjson)
+    implementation(libs.appolydroid.toolbox.mockInterceptor.retrofit)
 }
 ```
 
@@ -118,7 +126,7 @@ In your module's `build.gradle.kts`:
 ```gradle.kts
 dependencies {
     // Import the BOM
-    implementation(platform("com.github.appoly.AppolyDroid-Toolbox:AppolyDroid-Toolbox-bom:1.2.15"))
+    implementation(platform("com.github.appoly.AppolyDroid-Toolbox:AppolyDroid-Toolbox-bom:1.3.0"))
 
     // Now you can use AppolyDroid modules without specifying versions
     implementation("com.github.appoly.AppolyDroid-Toolbox:BaseRepo")
@@ -141,6 +149,10 @@ dependencies {
     implementation("com.github.appoly.AppolyDroid-Toolbox:S3Uploader")
     implementation("com.github.appoly.AppolyDroid-Toolbox:S3Uploader-Multipart")
     implementation("com.github.appoly.AppolyDroid-Toolbox:ConnectivityMonitor")
+    implementation("com.github.appoly.AppolyDroid-Toolbox:MockInterceptor")
+    implementation("com.github.appoly.AppolyDroid-Toolbox:MockInterceptor-Serialization")
+    implementation("com.github.appoly.AppolyDroid-Toolbox:MockInterceptor-AppolyJson")
+    implementation("com.github.appoly.AppolyDroid-Toolbox:MockInterceptor-Retrofit")
 }
 ```
 
@@ -150,7 +162,7 @@ In your `libs.versions.toml` file:
 
 ```toml
 [versions]
-appolydroidToolbox = "1.2.15" # Replace with the latest version
+appolydroidToolbox = "1.3.0" # Replace with the latest version
 
 [libraries]
 #AppolyDroid-Toolbox
@@ -173,6 +185,10 @@ appolydroid-toolbox-lazyGridPagingExtensions = { group = "com.github.appoly.Appo
 appolydroid-toolbox-s3Uploader = { group = "com.github.appoly.AppolyDroid-Toolbox", name = "S3Uploader", version.ref = "appolydroidToolbox" }
 appolydroid-toolbox-s3Uploader-multipart = { group = "com.github.appoly.AppolyDroid-Toolbox", name = "S3Uploader-Multipart", version.ref = "appolydroidToolbox" }
 appolydroid-toolbox-connectivityMonitor = { group = "com.github.appoly.AppolyDroid-Toolbox", name = "ConnectivityMonitor", version.ref = "appolydroidToolbox" }
+appolydroid-toolbox-mockInterceptor = { group = "com.github.appoly.AppolyDroid-Toolbox", name = "MockInterceptor", version.ref = "appolydroidToolbox" }
+appolydroid-toolbox-mockInterceptor-serialization = { group = "com.github.appoly.AppolyDroid-Toolbox", name = "MockInterceptor-Serialization", version.ref = "appolydroidToolbox" }
+appolydroid-toolbox-mockInterceptor-appolyjson = { group = "com.github.appoly.AppolyDroid-Toolbox", name = "MockInterceptor-AppolyJson", version.ref = "appolydroidToolbox" }
+appolydroid-toolbox-mockInterceptor-retrofit = { group = "com.github.appoly.AppolyDroid-Toolbox", name = "MockInterceptor-Retrofit", version.ref = "appolydroidToolbox" }
 ```
 
 Then in your module's `build.gradle.kts`:
@@ -199,6 +215,10 @@ dependencies {
     implementation(libs.appolydroid.toolbox.s3Uploader)
     implementation(libs.appolydroid.toolbox.s3Uploader.multipart)
     implementation(libs.appolydroid.toolbox.connectivityMonitor)
+    implementation(libs.appolydroid.toolbox.mockInterceptor)
+    implementation(libs.appolydroid.toolbox.mockInterceptor.serialization)
+    implementation(libs.appolydroid.toolbox.mockInterceptor.appolyjson)
+    implementation(libs.appolydroid.toolbox.mockInterceptor.retrofit)
 }
 ```
 
@@ -208,7 +228,7 @@ In your module's `build.gradle.kts`:
 
 ```gradle.kts
 dependencies {
-    val appolydroidToolbox = "1.2.15" // Replace with the latest version
+    val appolydroidToolbox = "1.3.0" // Replace with the latest version
     // Add only the modules you need
     implementation("com.github.appoly.AppolyDroid-Toolbox:BaseRepo:$appolydroidToolbox")
     implementation("com.github.appoly.AppolyDroid-Toolbox:BaseRepo-AppolyJson:$appolydroidToolbox")
@@ -229,6 +249,10 @@ dependencies {
     implementation("com.github.appoly.AppolyDroid-Toolbox:S3Uploader:$appolydroidToolbox")
     implementation("com.github.appoly.AppolyDroid-Toolbox:S3Uploader-Multipart:$appolydroidToolbox")
     implementation("com.github.appoly.AppolyDroid-Toolbox:ConnectivityMonitor:$appolydroidToolbox")
+    implementation("com.github.appoly.AppolyDroid-Toolbox:MockInterceptor:$appolydroidToolbox")
+    implementation("com.github.appoly.AppolyDroid-Toolbox:MockInterceptor-Serialization:$appolydroidToolbox")
+    implementation("com.github.appoly.AppolyDroid-Toolbox:MockInterceptor-AppolyJson:$appolydroidToolbox")
+    implementation("com.github.appoly.AppolyDroid-Toolbox:MockInterceptor-Retrofit:$appolydroidToolbox")
 }
 ```
 
@@ -294,6 +318,23 @@ Extension bridging BaseRepo and S3Uploader-Multipart for pausable, resumable upl
 ### ConnectivityMonitor
 Connectivity monitoring flows
 [Learn more](ConnectivityMonitor/README.md)
+
+### MockInterceptor
+OkHttp interceptor with a route-matching DSL for mocking API responses during development and testing.
+[Learn more](MockInterceptor/README.md)
+
+### MockInterceptor-Serialization
+Adds `jsonBody<T>()` and `paginate()` helpers using kotlinx-serialization for type-safe mock responses.
+[Learn more](MockInterceptor-Serialization/README.md)
+
+### MockInterceptor-AppolyJson
+Appoly JSON envelope helpers (`successBody`, `errorBody`, `pagedBody`) for mocking Appoly-standard API responses.
+[Learn more](MockInterceptor-AppolyJson/README.md)
+
+### MockInterceptor-Retrofit
+`mockApi<T>()` DSL that reads Retrofit annotations via reflection to auto-register mock routes from interface methods.
+[Learn more](MockInterceptor-Retrofit/README.md)
+
 ## Dependencies
 
 Some modules depend on [FlexiLogger](https://github.com/projectdelta6/FlexiLogger) for logging capabilities.
