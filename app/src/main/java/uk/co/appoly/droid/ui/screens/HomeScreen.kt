@@ -104,6 +104,12 @@ fun HomeScreen(navController: NavController) {
 				description = "Test S3 multipart uploads with pause/resume/recover",
 				onClick = { navController.navigate("multipart_upload") }
 			)
+
+			FeatureButton(
+				title = "Mock Interceptor",
+				description = "OkHttp interceptor DSL for mocking API responses with typed bodies and pagination",
+				onClick = { navController.navigate("mock_interceptor") }
+			)
 		}
 	}
 }

@@ -12,6 +12,7 @@ import uk.co.appoly.droid.ui.screens.PagingDemoScreen
 import uk.co.appoly.droid.ui.screens.S3UploaderDemoScreen
 import uk.co.appoly.droid.ui.screens.SegmentedControlDemoScreen
 import uk.co.appoly.droid.ui.screens.SnackBarDemoScreen
+import uk.co.appoly.droid.ui.screens.MockInterceptorDemoScreen
 import uk.co.appoly.droid.ui.screens.UiStateDemoScreen
 
 @Composable
@@ -45,6 +46,9 @@ fun AppNavigation() {
 		}
 		composable("multipart_upload") {
 			MultipartUploadDemoScreen(navController = navController)
+		}
+		composable("mock_interceptor") {
+			MockInterceptorDemoScreen(navController = navController)
 		}
 	}
 }
