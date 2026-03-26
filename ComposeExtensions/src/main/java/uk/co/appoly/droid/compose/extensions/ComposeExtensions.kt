@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.exclude
 import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.isImeVisible
 import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.union
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.State
@@ -20,11 +21,11 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.draw.drawWithCache
-import androidx.compose.ui.layout.layout
 import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
@@ -39,12 +40,40 @@ val WindowInsets.Companion.navigationBarsOrIme: WindowInsets
 	get() = WindowInsets.ime.union(WindowInsets.navigationBars)
 
 /**
+ * Applies padding for whichever is larger: the navigation bars or the IME (keyboard).
+ * Animates smoothly as the keyboard slides in and out.
+ *
+ * Use this when content should always be padded above the navigation bar, but should also
+ * move up to stay above the keyboard when it appears.
+ *
+ * @see WindowInsets.Companion.navigationBarsOrIme
+ */
+@Composable
+fun Modifier.navigationBarsOrImePadding(): Modifier = this then Modifier.padding(
+	WindowInsets.navigationBarsOrIme.asPaddingValues()
+)
+
+/**
  * Returns navigation bar insets that smoothly shrink to zero as the IME appears,
  * animating frame-by-frame with the keyboard.
  */
 val WindowInsets.Companion.navigationBarsOrNoneIfIme: WindowInsets
 	@Composable
 	get() = WindowInsets.navigationBars.exclude(WindowInsets.ime)
+
+/**
+ * Applies navigation bar padding that smoothly shrinks to zero as the IME (keyboard) appears.
+ *
+ * Use this for elements (e.g. bottom bars) that should be padded above the navigation bar
+ * normally, but should lose that padding when the keyboard is visible — typically because the
+ * keyboard itself already pushes the content up.
+ *
+ * @see WindowInsets.Companion.navigationBarsOrNoneIfIme
+ */
+@Composable
+fun Modifier.navigationBarsOrNoneIfImePadding(): Modifier = this then Modifier.padding(
+	WindowInsets.navigationBarsOrNoneIfIme.asPaddingValues()
+)
 
 val WindowInsets.Companion.None: WindowInsets
 	get() {
