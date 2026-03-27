@@ -796,7 +796,9 @@ private fun <T> Segments(
                     targetValue = if (isSelected) colors.textSelectedColor else colors.textUnselectedColor,
                     label = "textColor_$i"
                 )
-                val activeTextStyle = if (isSelected) textStyle.selectedStyle else textStyle.unselectedStyle
+                val activeTextStyle = LocalTextStyle.current.merge(
+                    if (isSelected) textStyle.selectedStyle else textStyle.unselectedStyle
+                )
                 CompositionLocalProvider(
                     LocalContentColor provides activeTextColor,
                     LocalTextStyle provides activeTextStyle
