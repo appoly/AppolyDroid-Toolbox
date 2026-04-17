@@ -19,8 +19,8 @@ implementation("com.github.appoly.AppolyDroid-Toolbox:DateHelperUtil:1.3.1")
 implementation("com.github.appoly.AppolyDroid-Toolbox:DateHelperUtil-Serialization:1.3.1")
 
 // Required kotlinx.serialization dependencies
-implementation("org.jetbrains.kotlinx:kotlinx-serialization-core:1.10.0")
-implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.10.0")
+implementation("org.jetbrains.kotlinx:kotlinx-serialization-core:1.11.0")
+implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.11.0")
 ```
 
 ## Usage

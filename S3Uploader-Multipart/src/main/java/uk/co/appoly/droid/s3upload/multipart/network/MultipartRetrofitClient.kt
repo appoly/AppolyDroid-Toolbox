@@ -12,8 +12,7 @@ import retrofit2.converter.kotlinx.serialization.asConverterFactory
 import uk.co.appoly.droid.s3upload.S3Uploader
 import uk.co.appoly.droid.s3upload.multipart.utils.MultipartUploadLog
 import java.util.concurrent.TimeUnit
-
-@Suppress("DEPRECATION")
+import kotlin.getValue
 
 /**
  * Retrofit client configured for multipart upload operations.
