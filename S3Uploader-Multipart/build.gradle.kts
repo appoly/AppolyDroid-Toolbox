@@ -73,7 +73,7 @@ dependencies {
     implementation(libs.androidx.work.runtime)
 
     // Coroutines
-    implementation(libs.androidx.lifecycle.runtime.ktx)
+    implementation(libs.androidx.lifecycle.runtime)
 
     // kotlinx serialization (for JSON storage)
     implementation(libs.kotlinx.serialization)

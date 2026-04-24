@@ -9,14 +9,14 @@ object BuildConfig {
      * The current version of the AppolyDroid Toolbox library.
      * This is used for maven publishing and README version updates.
      */
-	const val TOOLBOX_VERSION = "1.3.2"
+	const val TOOLBOX_VERSION = "1.3.3"
 
     /**
      * SDK version configuration for Android modules.
      */
     object Sdk {
-        const val COMPILE = 36
-        const val TARGET = 36
+        const val COMPILE = 37
+        const val TARGET = 37
     }
 
     /**
