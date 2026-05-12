@@ -129,14 +129,26 @@ object DateHelper {
 	 * @param dateTime String representation of date-time to parse (e.g., "2023-12-01T10:38:29.000000")
 	 * @return Parsed [LocalDateTime] or null if the input is null, blank, or cannot be parsed
 	 */
-	fun parseNaiveDateTime(dateTime: String?): LocalDateTime? {
+	fun parseNaiveDateTime(dateTime: String?): LocalDateTime? =
+		parseNaiveDateTimeInternal(dateTime, logTag = "parseNaiveDateTime")
+
+	/**
+	 * Internal worker for naive date-time parsing. Takes an explicit [logTag] used in all
+	 * log messages so error sources are attributable to the public entry point that
+	 * invoked the parse (e.g. `"parseLocalDate (date-time fallback)"` when [parseLocalDate]
+	 * delegates here for the fallback path).
+	 *
+	 * Behaviour is identical to [parseNaiveDateTime] for any non-log-related concern —
+	 * same return values for the same inputs, same fallback chain.
+	 */
+	private fun parseNaiveDateTimeInternal(dateTime: String?, logTag: String): LocalDateTime? {
 		if (dateTime.isNullOrBlank()) return null
 
 		// 1. New honest naive format (no zone marker)
 		try {
 			return LocalDateTime.parse(dateTime, DateTimeFormatter.ofPattern(NAIVE_PATTERN_FULL))
 		} catch (e: Exception) {
-			DateHelperLog.d(this, "parseNaiveDateTime: \"$dateTime\" not in NAIVE_PATTERN_FULL, trying SERVER_PATTERN_FULL_OFFSET", e)
+			DateHelperLog.d(this, "$logTag: \"$dateTime\" not in NAIVE_PATTERN_FULL, trying SERVER_PATTERN_FULL_OFFSET", e)
 		}
 
 		// 2. Any explicit offset (legacy "Z", "+00:00", "+01:00", etc.) — offset stripped
@@ -145,14 +157,14 @@ object DateHelper {
 				.parse(dateTime, DateTimeFormatter.ofPattern(SERVER_PATTERN_FULL_OFFSET))
 				.toLocalDateTime()
 		} catch (e: Exception) {
-			DateHelperLog.d(this, "parseNaiveDateTime: \"$dateTime\" not in SERVER_PATTERN_FULL_OFFSET, trying SERVER_PATTERN_SHORT", e)
+			DateHelperLog.d(this, "$logTag: \"$dateTime\" not in SERVER_PATTERN_FULL_OFFSET, trying SERVER_PATTERN_SHORT", e)
 		}
 
 		// 3. Short format ("yyyy-MM-dd HH:mm:ss")
 		return try {
 			LocalDateTime.parse(dateTime, DateTimeFormatter.ofPattern(SERVER_PATTERN_SHORT))
 		} catch (e: Exception) {
-			DateHelperLog.e(this@DateHelper, "parseNaiveDateTime: failed to parse \"$dateTime\" with any known format", e)
+			DateHelperLog.e(this@DateHelper, "$logTag: failed to parse \"$dateTime\" with any known format", e)
 			null
 		}
 	}
@@ -252,21 +264,23 @@ object DateHelper {
 	 * @return Parsed [LocalDate] or null if the input is null, blank, or cannot be parsed
 	 */
 	fun parseLocalDate(dateTime: String?): LocalDate? {
-		return if (dateTime.isNullOrBlank()) {
-			null
-		} else {
-			//attempt to pars from pattern SERVER_PATTERN_DATE
-			try {
-				val it: LocalDate = LocalDate.parse(dateTime, DateTimeFormatter.ofPattern(SERVER_PATTERN_DATE))
-				it
-			} catch (e: Exception) {
-				DateHelperLog.e(this@DateHelper, "parseLocalDate: failed to parse \"$dateTime\" with SERVER_PATTERN_DATE", e)
-				null
-			} ?: run {
-				//attempt to parse as date-time
-				parseNaiveDateTime(dateTime)?.toLocalDate()
-			}
+		if (dateTime.isNullOrBlank()) return null
+
+		// 1. Date-only format
+		try {
+			return LocalDate.parse(dateTime, DateTimeFormatter.ofPattern(SERVER_PATTERN_DATE))
+		} catch (e: Exception) {
+			DateHelperLog.d(this, "parseLocalDate: \"$dateTime\" not in SERVER_PATTERN_DATE, trying as date-time", e)
 		}
+
+		// 2. Fall back to date-time parse, take the date part. Use the internal worker with
+		//    a parseLocalDate-attributed log tag so the terminal ERROR log (if every format
+		//    fails) correctly identifies *this* function as the originating call site rather
+		//    than the naive parser it delegated through.
+		return parseNaiveDateTimeInternal(
+			dateTime,
+			logTag = "parseLocalDate (date-time fallback)"
+		)?.toLocalDate()
 	}
 
 	/**

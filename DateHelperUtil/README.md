@@ -14,7 +14,7 @@ A utility module for standardized date and time operations in Android applicatio
 ## Installation
 
 ```gradle.kts
-implementation("com.github.appoly.AppolyDroid-Toolbox:DateHelperUtil:1.4.0-rc01")
+implementation("com.github.appoly.AppolyDroid-Toolbox:DateHelperUtil:1.4.0-rc02")
 ```
 
 ## Migrating from 1.3.x to 1.4.0
@@ -66,7 +66,7 @@ are **byte-identical** to pre-1.4 for any UTC moment. No change for those.
 
 ### Step-by-step migration
 
-1. Bump to `1.4.0` (or `1.4.0-rc01`). Build the app.
+1. Bump to `1.4.0` (or `1.4.0-rc02`). Build the app.
 2. Audit IDE warnings on `formatLocalDateTime`, `parseLocalDateTime`, and direct uses of
    `SERVER_PATTERN_FULL`. For each call site, decide:
    - **Server I/O** (the field represents a moment in time): migrate the field type to
