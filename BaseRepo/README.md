@@ -14,7 +14,7 @@ Foundation module for implementing the repository pattern with standardized API 
 ## Installation
 
 ```gradle.kts
-implementation("com.github.appoly.AppolyDroid-Toolbox:BaseRepo:1.3.3")
+implementation("com.github.appoly.AppolyDroid-Toolbox:BaseRepo:1.4.0-rc01")
 ```
 
 ## Extensions

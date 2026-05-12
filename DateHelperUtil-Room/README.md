@@ -4,9 +4,10 @@ Extension module for DateHelperUtil that provides Room database integration for 
 
 ## Features
 
-- Room TypeConverters for LocalDateTime, LocalDate, and ZonedDateTime
+- Room TypeConverters for `Instant`, `LocalDateTime`, `LocalDate`, and `ZonedDateTime`
+- **Zone-safe `Instant` storage** — UTC enforced at the type level, no caller-side conversion required
 - Standardized date/time formatting using ISO-8601 formats
-- Timezone preservation for ZonedDateTime values
+- Timezone preservation for `ZonedDateTime` values
 - Automatic UTC conversion for consistent storage
 - Null-safety for all conversions
 - Seamless integration with Room database entities
@@ -15,8 +16,8 @@ Extension module for DateHelperUtil that provides Room database integration for 
 
 ```gradle.kts
 // Requires base DateHelperUtil module
-implementation("com.github.appoly.AppolyDroid-Toolbox:DateHelperUtil:1.3.3")
-implementation("com.github.appoly.AppolyDroid-Toolbox:DateHelperUtil-Room:1.3.3")
+implementation("com.github.appoly.AppolyDroid-Toolbox:DateHelperUtil:1.4.0-rc01")
+implementation("com.github.appoly.AppolyDroid-Toolbox:DateHelperUtil-Room:1.4.0-rc01")
 
 // Required Room dependencies
 implementation("androidx.room:room-runtime:2.8.4")
@@ -74,12 +75,19 @@ data class UserEntity(
     val email: String,
     // LocalDate will be stored as "YYYY-MM-DD" in the database
     val birthDate: LocalDate?,
+    // Instant is stored as ISO-8601 UTC — guaranteed correct regardless of device zone
+    val createdAt: Instant,
     // LocalDateTime will be stored as "YYYY-MM-DDThh:mm:ss.SSSSSSZ" in the database
     val registrationDate: LocalDateTime,
     // ZonedDateTime will be converted to UTC before storage
     val lastLoginDate: ZonedDateTime?
 )
 ```
+
+> [!TIP]
+> For new entity columns that represent a moment in time (timestamps, "created at",
+> "updated at"), prefer `Instant` over `LocalDateTime`. `Instant` carries UTC at the type
+> level so the converter cannot accidentally store device-local digits.
 
 ### Working with Queries
 
@@ -150,9 +158,20 @@ The DateHelperUtil-Room module stores date-time values in the following formats:
 
 | Java Type | Database Storage Format | Example |
 |-----------|-------------------------|---------|
-| LocalDateTime | ISO-8601 extended format | "2023-05-30T15:45:30.000000Z" |
+| Instant | ISO-8601 extended format (UTC) | "2023-05-30T15:45:30.000000Z" |
+| LocalDateTime | ISO-8601 naive format (no zone marker) | "2023-05-30T15:45:30.000000" |
 | LocalDate | Simple date format | "2023-05-30" |
 | ZonedDateTime | ISO-8601 extended format (UTC) | "2023-05-30T15:45:30.000000Z" |
+
+> [!IMPORTANT]
+> **Storage format change in 1.4.0** for `LocalDateTime` columns: writes now use the honest
+> no-zone format (no trailing `Z`). Reads are fully backward-compatible — existing rows
+> with the legacy `...Z` suffix continue to parse correctly via `parseNaiveDateTime`'s
+> fallback chain. No Room migration required.
+>
+> If your `LocalDateTime` column genuinely represents a moment in time (`createdAt`,
+> `updatedAt`, etc.), consider migrating it to `Instant`, which routes through
+> `formatServerTimestamp` and retains byte-identical `...Z` output.
 
 For ZonedDateTime values:
 
@@ -160,6 +179,14 @@ For ZonedDateTime values:
 2. When retrieving: The UTC time is parsed and then converted to the device's local timezone
 
 This approach ensures consistent storage while preserving timezone information.
+
+For Instant values:
+
+1. When storing: Formatted via `DateHelper.formatServerTimestamp(Instant)`, which pins the
+   formatter to UTC. The stored digits are always UTC wall-clock regardless of device zone.
+2. When retrieving: Parsed via `DateHelper.parseServerInstant`, which explicitly attaches
+   `ZoneOffset.UTC`. The returned Instant carries UTC at the type level — it cannot be
+   silently misinterpreted as device-local downstream.
 
 ## API Reference
 
@@ -186,6 +213,12 @@ class DBDateConverters {
 
     @TypeConverter
     fun jsonToZonedDateTime(json: String?): ZonedDateTime?
+
+    @TypeConverter
+    fun instantToJson(instant: Instant?): String?
+
+    @TypeConverter
+    fun jsonToInstant(json: String?): Instant?
 }
 ```
 

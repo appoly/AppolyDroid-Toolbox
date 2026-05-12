@@ -4,10 +4,11 @@ Extension module for DateHelperUtil that provides kotlinx.serialization integrat
 
 ## Features
 
-- Serializers for LocalDate, LocalDateTime, and ZonedDateTime
+- Serializers for `Instant`, `LocalDate`, `LocalDateTime`, and `ZonedDateTime`
+- **Zone-safe `Instant` serialization** — UTC enforced at the type level, no caller-side conversion required
 - Support for both nullable and non-nullable date-time values
 - Standardized date/time formatting using ISO-8601 formats
-- Timezone preservation for ZonedDateTime values
+- Timezone preservation for `ZonedDateTime` values
 - Automatic UTC conversion for consistent serialization
 - Full compatibility with kotlinx.serialization
 
@@ -15,8 +16,8 @@ Extension module for DateHelperUtil that provides kotlinx.serialization integrat
 
 ```gradle.kts
 // Requires base DateHelperUtil module
-implementation("com.github.appoly.AppolyDroid-Toolbox:DateHelperUtil:1.3.3")
-implementation("com.github.appoly.AppolyDroid-Toolbox:DateHelperUtil-Serialization:1.3.3")
+implementation("com.github.appoly.AppolyDroid-Toolbox:DateHelperUtil:1.4.0-rc01")
+implementation("com.github.appoly.AppolyDroid-Toolbox:DateHelperUtil-Serialization:1.4.0-rc01")
 
 // Required kotlinx.serialization dependencies
 implementation("org.jetbrains.kotlinx:kotlinx-serialization-core:1.11.0")
@@ -42,8 +43,9 @@ Use the provided typealiases to simplify declarations without annotations:
 
 ```kotlin
 import kotlinx.serialization.Serializable
-import uk.co.appoly.droid.util.SerializableLocalDate
 import uk.co.appoly.droid.util.NullableSerializableDateTime
+import uk.co.appoly.droid.util.SerializableInstant
+import uk.co.appoly.droid.util.SerializableLocalDate
 import uk.co.appoly.droid.util.SerializableZonedDateTime
 
 @Serializable
@@ -58,9 +60,17 @@ data class Event(
     val startTime: NullableSerializableDateTime,
 
     // ZonedDateTime (with timezone preservation)
-    val createdAt: SerializableZonedDateTime
+    val createdAt: SerializableZonedDateTime,
+
+    // Instant — recommended for any "moment in time" field. Always UTC.
+    val timestamp: SerializableInstant
 )
 ```
+
+> [!TIP]
+> For new fields representing a moment in time, prefer `SerializableInstant` /
+> `NullableSerializableInstant` over the `LocalDateTime` variants. `Instant` carries UTC at
+> the type level so the serializer cannot accidentally emit device-local digits.
 
 > **Note:** These typealiases are equivalent to their underlying types (e.g., `SerializableLocalDate` is just `LocalDate` with built-in serialization). You can assign and use them interchangeably with standard `LocalDate`, `LocalDateTime`, or `ZonedDateTime` values without any conversion.
 
@@ -122,10 +132,12 @@ val parsedEvent = jsonFormat.decodeFromString(Event.serializer(), jsonString)
 |------------|-----------|------|-------------|
 | `LocalDateSerializer` | `SerializableLocalDate` | `LocalDate` | Non-nullable date |
 | `NullableLocalDateSerializer` | `NullableSerializableLocalDate` | `LocalDate?` | Nullable date |
-| `DateTimeSerializer` | `SerializableDateTime` | `LocalDateTime` | Non-nullable date-time |
-| `NullableDateTimeSerializer` | `NullableSerializableDateTime` | `LocalDateTime?` | Nullable date-time |
+| `DateTimeSerializer` | `SerializableDateTime` | `LocalDateTime` | Non-nullable date-time (zone-naive) |
+| `NullableDateTimeSerializer` | `NullableSerializableDateTime` | `LocalDateTime?` | Nullable date-time (zone-naive) |
 | `ZonedDateTimeSerializer` | `SerializableZonedDateTime` | `ZonedDateTime` | Non-nullable date-time with timezone |
 | `NullableZonedDateTimeSerializer` | `NullableSerializableZonedDateTime` | `ZonedDateTime?` | Nullable date-time with timezone |
+| `InstantSerializer` | `SerializableInstant` | `Instant` | **Recommended** — non-nullable UTC moment in time |
+| `NullableInstantSerializer` | `NullableSerializableInstant` | `Instant?` | **Recommended** — nullable UTC moment in time |
 
 ## Serialization Format
 
@@ -134,8 +146,21 @@ The serializers use the standard date formats defined in DateHelper:
 | Java Type | JSON Format | Example |
 |-----------|-------------|---------|
 | LocalDate | ISO-8601 date | `"2025-06-15"` |
-| LocalDateTime | ISO-8601 datetime | `"2025-06-15T09:00:00.000000Z"` |
+| LocalDateTime | ISO-8601 datetime (naive, no zone marker) | `"2025-06-15T09:00:00.000000"` |
 | ZonedDateTime | ISO-8601 datetime (UTC) | `"2025-06-15T13:00:00.000000Z"` |
+| Instant | ISO-8601 datetime (UTC) | `"2025-06-15T13:00:00.000000Z"` |
+
+> [!IMPORTANT]
+> **Wire format change in 1.4.0** for `LocalDateTime` serialization: emitted JSON no longer
+> carries a trailing `Z`. The honest no-zone format reflects that `LocalDateTime` carries
+> no zone information.
+>
+> Reading legacy data is fully backward-compatible: `DateTimeSerializer` and
+> `NullableDateTimeSerializer` accept both the new no-Z format and the legacy `...Z` format
+> (plus any explicit ISO-8601 offset and the short `yyyy-MM-dd HH:mm:ss` format).
+>
+> If you need byte-identical `...Z` output for backend compat, migrate the field type to
+> `Instant` and use `InstantSerializer` — the wire bytes for UTC moments are unchanged.
 
 Note: ZonedDateTime values are always converted to UTC before serialization for consistent storage and transmission.
 
@@ -147,6 +172,14 @@ For ZonedDateTime values:
 2. When deserializing: The UTC time is parsed and then converted to the device's local timezone
 
 This approach ensures consistent serialization while preserving timezone information.
+
+For Instant values:
+
+1. When serializing: Formatted via `DateHelper.formatServerTimestamp(Instant)`, which pins the
+   formatter to UTC. The emitted digits are always UTC wall-clock regardless of device zone.
+2. When deserializing: Parsed via `DateHelper.parseServerInstant`, which explicitly attaches
+   `ZoneOffset.UTC`. The returned Instant carries UTC at the type level — it cannot be
+   silently misinterpreted as device-local downstream.
 
 ## Example: Custom JSON Configuration
 
