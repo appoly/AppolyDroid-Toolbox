@@ -28,6 +28,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import uk.co.appoly.droid.util.DateHelper
+import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
@@ -35,11 +36,11 @@ import java.time.format.DateTimeFormatter
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DateHelperDemoScreen(navController: NavController) {
-	var inputDateTime by remember { mutableStateOf("2025-09-16T14:30:00.000000Z") }
+	var inputServerTimestamp by remember { mutableStateOf("2025-09-16T14:30:00.000000Z") }
 	var inputDate by remember { mutableStateOf("2025-09-16") }
-	var parsedDateTime by remember { mutableStateOf<LocalDateTime?>(null) }
+	var parsedInstant by remember { mutableStateOf<Instant?>(null) }
+	var formattedInstant by remember { mutableStateOf<String?>(null) }
 	var parsedDate by remember { mutableStateOf<LocalDate?>(null) }
-	var formattedDateTime by remember { mutableStateOf<String?>(null) }
 	var formattedDate by remember { mutableStateOf<String?>(null) }
 
 	Scaffold(
@@ -81,29 +82,37 @@ fun DateHelperDemoScreen(navController: NavController) {
 					)
 					Spacer(modifier = Modifier.height(8.dp))
 
-					val currentTime = DateHelper.nowAsUTC()
+					val currentInstant = Instant.now()
+					val currentZoned = DateHelper.nowAsUTC()
 					val currentLocal = LocalDateTime.now()
 
-					Text("Current UTC: ${currentTime}")
-					Text("Current Local: ${currentLocal}")
-					Text("UTC as JSON: ${DateHelper.formatLocalDateTime(currentTime.toLocalDateTime())}")
+					Text("Current Instant: $currentInstant")
+					Text("Current UTC: $currentZoned")
+					Text("Current Local: $currentLocal")
+					Text("Server timestamp (Instant): ${DateHelper.formatServerTimestamp(currentInstant)}")
+					Text("Server timestamp (Zoned): ${DateHelper.formatServerTimestamp(currentZoned)}")
 					Text("Local as file: ${currentLocal.format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss.SSS"))}")
 				}
 			}
 
-			// DateTime parsing and formatting
+			// Server timestamps — the recommended path
 			Card(modifier = Modifier.fillMaxWidth()) {
 				Column(modifier = Modifier.padding(16.dp)) {
 					Text(
-						text = "DateTime Parsing & Formatting",
+						text = "Server Timestamps (Recommended)",
 						style = MaterialTheme.typography.titleMedium
+					)
+					Spacer(modifier = Modifier.height(4.dp))
+					Text(
+						text = "Routes through Instant — UTC enforced at the type level. Use this for any wire I/O.",
+						style = MaterialTheme.typography.bodySmall
 					)
 					Spacer(modifier = Modifier.height(8.dp))
 
 					OutlinedTextField(
-						value = inputDateTime,
-						onValueChange = { inputDateTime = it },
-						label = { Text("DateTime String") },
+						value = inputServerTimestamp,
+						onValueChange = { inputServerTimestamp = it },
+						label = { Text("Server Timestamp String") },
 						modifier = Modifier.fillMaxWidth()
 					)
 
@@ -113,8 +122,8 @@ fun DateHelperDemoScreen(navController: NavController) {
 					) {
 						Button(
 							onClick = {
-								parsedDateTime = DateHelper.parseLocalDateTime(inputDateTime)
-								formattedDateTime = DateHelper.formatLocalDateTime(parsedDateTime)
+								parsedInstant = DateHelper.parseServerInstant(inputServerTimestamp)
+								formattedInstant = DateHelper.formatServerTimestamp(parsedInstant)
 							},
 							modifier = Modifier.weight(1f)
 						) {
@@ -123,8 +132,8 @@ fun DateHelperDemoScreen(navController: NavController) {
 
 						Button(
 							onClick = {
-								parsedDateTime = null
-								formattedDateTime = null
+								parsedInstant = null
+								formattedInstant = null
 							},
 							modifier = Modifier.weight(1f)
 						) {
@@ -132,11 +141,11 @@ fun DateHelperDemoScreen(navController: NavController) {
 						}
 					}
 
-					if (parsedDateTime != null) {
-						Text("Parsed: $parsedDateTime")
+					if (parsedInstant != null) {
+						Text("Parsed Instant: $parsedInstant")
 					}
-					if (formattedDateTime != null) {
-						Text("Formatted: $formattedDateTime")
+					if (formattedInstant != null) {
+						Text("Formatted: $formattedInstant")
 					}
 				}
 			}
@@ -191,31 +200,35 @@ fun DateHelperDemoScreen(navController: NavController) {
 				}
 			}
 
-			// Extension functions demo
+			// Naive helpers — for genuinely zone-naive use cases
 			Card(modifier = Modifier.fillMaxWidth()) {
 				Column(modifier = Modifier.padding(16.dp)) {
 					Text(
-						text = "Direct Function Calls",
+						text = "Naive Helpers (Zone-Naive)",
 						style = MaterialTheme.typography.titleMedium
+					)
+					Spacer(modifier = Modifier.height(4.dp))
+					Text(
+						text = "Use only for genuinely naive values (date pickers, display labels). " +
+							"No UTC enforcement — caller is responsible for zone semantics.",
+						style = MaterialTheme.typography.bodySmall
 					)
 					Spacer(modifier = Modifier.height(8.dp))
 
 					val demoDateTime = LocalDateTime.now()
 					val demoDate = LocalDate.now()
 
-					Text("DateHelper.formatLocalDateTime(): ${DateHelper.formatLocalDateTime(demoDateTime)}")
-					Text("DateTimeFormatter file format: ${demoDateTime.format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss.SSS"))}")
-					Text("DateHelper.formatLocalDate(): ${DateHelper.formatLocalDate(demoDate)}")
-
-					Spacer(modifier = Modifier.height(8.dp))
-
-					Text("DateHelper.parseLocalDateTime():")
-					Text("DateHelper.parseLocalDateTime(\"2025-09-16T14:30:00.000000Z\") =")
-					Text("${DateHelper.parseLocalDateTime("2025-09-16T14:30:00.000000Z")}")
-
-					Text("DateHelper.parseLocalDate():")
-					Text("DateHelper.parseLocalDate(\"2025-09-16\") =")
-					Text("${DateHelper.parseLocalDate("2025-09-16")}")
+					Text("formatNaiveDateTime(): ${DateHelper.formatNaiveDateTime(demoDateTime)}")
+					Text(
+						"parseNaiveDateTime(\"2025-09-16T14:30:00.000000Z\") = " +
+							"${DateHelper.parseNaiveDateTime("2025-09-16T14:30:00.000000Z")}"
+					)
+					Text("formatLocalDate(): ${DateHelper.formatLocalDate(demoDate)}")
+					Text("parseLocalDate(\"2025-09-16\") = ${DateHelper.parseLocalDate("2025-09-16")}")
+					Text(
+						"File-safe format: " +
+							demoDateTime.format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss.SSS"))
+					)
 				}
 			}
 
@@ -229,19 +242,24 @@ fun DateHelperDemoScreen(navController: NavController) {
 					Spacer(modifier = Modifier.height(8.dp))
 					Text(
 						text = """
-                        // Basic parsing and formatting
-                        val dateTime = DateHelper.parseLocalDateTime("2025-09-16T14:30:00.000000Z")
-                        val jsonString = DateHelper.formatLocalDateTime(dateTime)
-                        
-                        // File-safe formatting
-                        val fileName = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss.SSS"))
-                        
-                        // Current time in UTC
-                        val utcNow = DateHelper.nowAsUTC()
-                        
-                        // Direct function calls
+                        // Recommended: server timestamps via Instant (UTC at the type level)
+                        val payload = DateHelper.formatServerTimestamp(Instant.now())
+                        val instant = DateHelper.parseServerInstant("2025-09-16T14:30:00.000000Z")
+
+                        // Naive helpers for genuinely zone-naive values
+                        val text = DateHelper.formatNaiveDateTime(localDateTime)
+                        val ldt = DateHelper.parseNaiveDateTime("2025-09-16T14:30:00.000000Z")
+
+                        // Dates (no zone ambiguity to worry about)
                         val date = DateHelper.parseLocalDate("2025-09-16")
                         val formatted = DateHelper.formatLocalDate(date)
+
+                        // Current time in UTC
+                        val utcNow = DateHelper.nowAsUTC()
+
+                        // File-safe formatting
+                        val fileName = LocalDateTime.now()
+                            .format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss.SSS"))
                         """.trimIndent(),
 						style = MaterialTheme.typography.bodySmall,
 						modifier = Modifier.fillMaxWidth()

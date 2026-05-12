@@ -7,8 +7,8 @@ import kotlinx.serialization.Serializer
 import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
 import uk.co.appoly.droid.util.DateHelper.parseJsonDate
-import uk.co.appoly.droid.util.DateHelper.parseJsonDateTime
 import uk.co.appoly.droid.util.DateHelper.toJsonString
+import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.ZoneOffset
@@ -40,6 +40,15 @@ typealias SerializableZonedDateTime = @Serializable(with = ZonedDateTimeSerializ
  * Typealias for a nullable serializable [ZonedDateTime] using [NullableZonedDateTimeSerializer].
  */
 typealias NullableSerializableZonedDateTime = @Serializable(with = NullableZonedDateTimeSerializer::class) ZonedDateTime?
+
+/**
+ * Typealias for a serializable [Instant] using [InstantSerializer].
+ */
+typealias SerializableInstant = @Serializable(with = InstantSerializer::class) Instant
+/**
+ * Typealias for a nullable serializable [Instant] using [NullableInstantSerializer].
+ */
+typealias NullableSerializableInstant = @Serializable(with = NullableInstantSerializer::class) Instant?
 
 /**
  * Serializer for nullable [LocalDate] instances using kotlinx.serialization.
@@ -102,8 +111,12 @@ object LocalDateSerializer : KSerializer<LocalDate> {
 /**
  * Serializer for nullable [LocalDateTime] instances using kotlinx.serialization.
  *
- * This serializer handles nullable [LocalDateTime] values and uses the standard ISO-8601 format
- * defined in [DateHelper] (yyyy-MM-dd'T'HH:mm:ss.SSSSSS'Z').
+ * Wire format is the honest naive [DateHelper.NAIVE_PATTERN_FULL] (no zone marker, e.g.
+ * "2025-05-29T10:38:29.000000"). Reads tolerate the legacy `...Z` form, any explicit
+ * ISO-8601 offset, and the short `yyyy-MM-dd HH:mm:ss` format for backward compatibility.
+ *
+ * For server-emitted moments in time, prefer [InstantSerializer] / [NullableInstantSerializer] —
+ * those preserve the literal-`Z` wire bytes for UTC moments.
  *
  * Usage:
  * ```kotlin
@@ -119,20 +132,24 @@ object LocalDateSerializer : KSerializer<LocalDate> {
 @Serializer(forClass = LocalDateTime::class)
 object NullableDateTimeSerializer : KSerializer<LocalDateTime?> {
 	override fun serialize(encoder: Encoder, value: LocalDateTime?) {
-		value.toJsonString()?.let {
+		DateHelper.formatNaiveDateTime(value)?.let {
 			encoder.encodeString(it)
 		}
 	}
 
 	override fun deserialize(decoder: Decoder): LocalDateTime? =
-		decoder.decodeString().parseJsonDateTime()
+		DateHelper.parseNaiveDateTime(decoder.decodeString())
 }
 
 /**
  * Serializer for non-nullable [LocalDateTime] instances using kotlinx.serialization.
  *
- * This serializer handles non-nullable [LocalDateTime] values and uses the standard ISO-8601 format
- * defined in [DateHelper] (yyyy-MM-dd'T'HH:mm:ss.SSSSSS'Z').
+ * Wire format is the honest naive [DateHelper.NAIVE_PATTERN_FULL] (no zone marker, e.g.
+ * "2025-05-29T10:38:29.000000"). Reads tolerate the legacy `...Z` form, any explicit
+ * ISO-8601 offset, and the short `yyyy-MM-dd HH:mm:ss` format for backward compatibility.
+ *
+ * For server-emitted moments in time, prefer [InstantSerializer] — it preserves the
+ * literal-`Z` wire bytes for UTC moments.
  *
  * Usage:
  * ```kotlin
@@ -148,13 +165,13 @@ object NullableDateTimeSerializer : KSerializer<LocalDateTime?> {
 @Serializer(forClass = LocalDateTime::class)
 object DateTimeSerializer : KSerializer<LocalDateTime> {
 	override fun serialize(encoder: Encoder, value: LocalDateTime) {
-		value.toJsonString()?.let {
+		DateHelper.formatNaiveDateTime(value)?.let {
 			encoder.encodeString(it)
 		}
 	}
 
 	override fun deserialize(decoder: Decoder): LocalDateTime =
-		decoder.decodeString().parseJsonDateTime()!!
+		DateHelper.parseNaiveDateTime(decoder.decodeString())!!
 }
 
 /**
@@ -179,13 +196,13 @@ object DateTimeSerializer : KSerializer<LocalDateTime> {
 @Serializer(forClass = LocalDateTime::class)
 object ZonedDateTimeSerializer : KSerializer<ZonedDateTime> {
 	override fun serialize(encoder: Encoder, value: ZonedDateTime) {
-		value.toUTC().toLocalDateTime().toJsonString()?.let {
+		DateHelper.formatServerTimestamp(value)?.let {
 			encoder.encodeString(it)
 		}
 	}
 
 	override fun deserialize(decoder: Decoder): ZonedDateTime =
-		decoder.decodeString().parseJsonDateTime()!!.atZone(ZoneOffset.UTC).toDeviceZone()
+		DateHelper.parseServerZoneDateTime(decoder.decodeString())!!.toDeviceZone()
 }
 
 /**
@@ -210,11 +227,74 @@ object ZonedDateTimeSerializer : KSerializer<ZonedDateTime> {
 @Serializer(forClass = LocalDateTime::class)
 object NullableZonedDateTimeSerializer : KSerializer<ZonedDateTime?> {
 	override fun serialize(encoder: Encoder, value: ZonedDateTime?) {
-		value?.toUTC()?.toLocalDateTime().toJsonString()?.let {
+		DateHelper.formatServerTimestamp(value)?.let {
 			encoder.encodeString(it)
 		}
 	}
 
 	override fun deserialize(decoder: Decoder): ZonedDateTime? =
-		decoder.decodeString().parseJsonDateTime()?.atZone(ZoneOffset.UTC)?.toDeviceZone()
+		DateHelper.parseServerInstant(decoder.decodeString())?.atZone(ZoneOffset.UTC)?.toDeviceZone()
+}
+
+/**
+ * Serializer for non-nullable [Instant] instances using kotlinx.serialization.
+ *
+ * [Instant] is UTC by definition, so this serializer is unambiguous: the emitted digits are
+ * guaranteed UTC wall-clock regardless of device timezone, and parsing returns an [Instant]
+ * that carries the UTC information at the type level (it cannot be silently misinterpreted as
+ * device-local downstream).
+ *
+ * Wire format is [DateHelper.SERVER_PATTERN_FULL_OFFSET] pinned to UTC, which renders as
+ * "2023-12-01T10:38:29.000000Z" — byte-identical to the legacy literal-`Z` format for any
+ * UTC moment, so any server already accepting the existing format keeps working.
+ *
+ * Usage:
+ * ```kotlin
+ * @Serializable
+ * data class Event(
+ *     val id: Int,
+ *     @Serializable(with = InstantSerializer::class)
+ *     val timestamp: Instant
+ * )
+ * ```
+ */
+@OptIn(ExperimentalSerializationApi::class)
+@Serializer(forClass = Instant::class)
+object InstantSerializer : KSerializer<Instant> {
+	override fun serialize(encoder: Encoder, value: Instant) {
+		DateHelper.formatServerTimestamp(value)?.let {
+			encoder.encodeString(it)
+		}
+	}
+
+	override fun deserialize(decoder: Decoder): Instant =
+		DateHelper.parseServerInstant(decoder.decodeString())!!
+}
+
+/**
+ * Serializer for nullable [Instant] instances using kotlinx.serialization.
+ *
+ * Same semantics as [InstantSerializer], but tolerates null values.
+ *
+ * Usage:
+ * ```kotlin
+ * @Serializable
+ * data class Event(
+ *     val id: Int,
+ *     @Serializable(with = NullableInstantSerializer::class)
+ *     val timestamp: Instant?
+ * )
+ * ```
+ */
+@OptIn(ExperimentalSerializationApi::class)
+@Serializer(forClass = Instant::class)
+object NullableInstantSerializer : KSerializer<Instant?> {
+	override fun serialize(encoder: Encoder, value: Instant?) {
+		DateHelper.formatServerTimestamp(value)?.let {
+			encoder.encodeString(it)
+		}
+	}
+
+	override fun deserialize(decoder: Decoder): Instant? =
+		DateHelper.parseServerInstant(decoder.decodeString())
 }
