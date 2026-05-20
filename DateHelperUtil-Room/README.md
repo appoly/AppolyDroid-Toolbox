@@ -16,8 +16,8 @@ Extension module for DateHelperUtil that provides Room database integration for 
 
 ```gradle.kts
 // Requires base DateHelperUtil module
-implementation("com.github.appoly.AppolyDroid-Toolbox:DateHelperUtil:1.4.0")
-implementation("com.github.appoly.AppolyDroid-Toolbox:DateHelperUtil-Room:1.4.0")
+implementation("com.github.appoly.AppolyDroid-Toolbox:DateHelperUtil:1.4.1")
+implementation("com.github.appoly.AppolyDroid-Toolbox:DateHelperUtil-Room:1.4.1")
 
 // Required Room dependencies
 implementation("androidx.room:room-runtime:2.8.4")
@@ -164,7 +164,7 @@ The DateHelperUtil-Room module stores date-time values in the following formats:
 | ZonedDateTime | ISO-8601 extended format (UTC) | "2023-05-30T15:45:30.000000Z" |
 
 > [!IMPORTANT]
-> **Storage format change in 1.4.0** for `LocalDateTime` columns: writes now use the honest
+> **Storage format change in 1.4.1** for `LocalDateTime` columns: writes now use the honest
 > no-zone format (no trailing `Z`). Reads are fully backward-compatible — existing rows
 > with the legacy `...Z` suffix continue to parse correctly via `parseNaiveDateTime`'s
 > fallback chain. No Room migration required.

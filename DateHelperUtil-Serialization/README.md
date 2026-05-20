@@ -16,8 +16,8 @@ Extension module for DateHelperUtil that provides kotlinx.serialization integrat
 
 ```gradle.kts
 // Requires base DateHelperUtil module
-implementation("com.github.appoly.AppolyDroid-Toolbox:DateHelperUtil:1.4.0")
-implementation("com.github.appoly.AppolyDroid-Toolbox:DateHelperUtil-Serialization:1.4.0")
+implementation("com.github.appoly.AppolyDroid-Toolbox:DateHelperUtil:1.4.1")
+implementation("com.github.appoly.AppolyDroid-Toolbox:DateHelperUtil-Serialization:1.4.1")
 
 // Required kotlinx.serialization dependencies
 implementation("org.jetbrains.kotlinx:kotlinx-serialization-core:1.11.0")
@@ -151,7 +151,7 @@ The serializers use the standard date formats defined in DateHelper:
 | Instant | ISO-8601 datetime (UTC) | `"2025-06-15T13:00:00.000000Z"` |
 
 > [!IMPORTANT]
-> **Wire format change in 1.4.0** for `LocalDateTime` serialization: emitted JSON no longer
+> **Wire format change in 1.4.1** for `LocalDateTime` serialization: emitted JSON no longer
 > carries a trailing `Z`. The honest no-zone format reflects that `LocalDateTime` carries
 > no zone information.
 >
