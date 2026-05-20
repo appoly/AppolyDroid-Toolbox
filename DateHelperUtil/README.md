@@ -14,12 +14,22 @@ A utility module for standardized date and time operations in Android applicatio
 ## Installation
 
 ```gradle.kts
-implementation("com.github.appoly.AppolyDroid-Toolbox:DateHelperUtil:1.4.0")
+implementation("com.github.appoly.AppolyDroid-Toolbox:DateHelperUtil:1.4.1")
 ```
 
-## Migrating from 1.3.x to 1.4.0
+## 1.4.1 patch note
 
-1.4.0 makes timezone semantics explicit at the type level. The summary:
+`parseServerInstant` and `parseServerZoneDateTime` (and therefore the
+`ZonedDateTimeSerializer` / `NullableZonedDateTimeSerializer` they back) now fall back to
+the short `yyyy-MM-dd HH:mm:ss` format, treating the digits as UTC. This restores the
+pre-1.4 tolerance that 1.4.0 inadvertently lost — apps consuming Carbon/Laravel-style
+backends were getting `DateTimeParseException` on every `created_at` / `updated_at` field
+when bumping from 1.3.x straight to 1.4.0. 1.4.1 is the recommended baseline for the 1.4
+line; 1.4.0 should be avoided against any backend that emits zone-naive server timestamps.
+
+## Migrating from 1.3.x to 1.4
+
+1.4.0 made timezone semantics explicit at the type level. The summary:
 
 ### What's new
 
@@ -66,7 +76,7 @@ are **byte-identical** to pre-1.4 for any UTC moment. No change for those.
 
 ### Step-by-step migration
 
-1. Bump to `1.4.0`. Build the app.
+1. Bump to `1.4.1`. Build the app.
 2. Audit IDE warnings on `formatLocalDateTime`, `parseLocalDateTime`, and direct uses of
    `SERVER_PATTERN_FULL`. For each call site, decide:
    - **Server I/O** (the field represents a moment in time): migrate the field type to

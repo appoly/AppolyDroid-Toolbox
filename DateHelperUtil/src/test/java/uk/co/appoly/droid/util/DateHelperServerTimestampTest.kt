@@ -179,6 +179,33 @@ class DateHelperServerTimestampTest {
 		assertEquals(expected, parsed)
 	}
 
+	// 1.4.1 regression coverage: Carbon/Laravel-style short timestamps were tolerated by the
+	// pre-1.4 ZonedDateTimeSerializer (via parseLocalDateTime → SERVER_PATTERN_SHORT fallback).
+	// 1.4.0 lost that tolerance; 1.4.1 restores it inside parseServerInstant so the same
+	// inputs keep working against Carbon-style backends.
+
+	@Test
+	fun `parseServerInstant accepts Carbon short format and treats digits as UTC`() {
+		val parsed = DateHelper.parseServerInstant("2025-05-29 10:38:29")
+		val expected = LocalDateTime.of(2025, 5, 29, 10, 38, 29).toInstant(ZoneOffset.UTC)
+		assertEquals(expected, parsed)
+	}
+
+	@Test
+	fun `parseServerInstant short format is independent of device timezone`() {
+		val text = "2025-05-29 10:38:29"
+		val expected = LocalDateTime.of(2025, 5, 29, 10, 38, 29).toInstant(ZoneOffset.UTC)
+
+		TimeZone.setDefault(TimeZone.getTimeZone("Europe/London")) // BST in May
+		assertEquals(expected, DateHelper.parseServerInstant(text))
+
+		TimeZone.setDefault(TimeZone.getTimeZone("Asia/Tokyo"))
+		assertEquals(expected, DateHelper.parseServerInstant(text))
+
+		TimeZone.setDefault(TimeZone.getTimeZone("America/Los_Angeles"))
+		assertEquals(expected, DateHelper.parseServerInstant(text))
+	}
+
 	// endregion
 
 	// region parseServerZoneDateTime(String?)
@@ -259,6 +286,16 @@ class DateHelperServerTimestampTest {
 		val viaWrapper = DateHelper.parseServerZoneDateTime(text)
 		val viaInstant = DateHelper.parseServerInstant(text)?.atZone(ZoneOffset.UTC)
 		assertEquals(viaInstant, viaWrapper)
+	}
+
+	@Test
+	fun `parseServerZoneDateTime accepts Carbon short format and returns UTC ZonedDateTime`() {
+		// 1.4.1 regression coverage — restores pre-1.4 ZonedDateTimeSerializer behaviour
+		// for naive Carbon/Laravel-style server timestamps.
+		val parsed = DateHelper.parseServerZoneDateTime("2025-05-29 10:38:29")
+		val expected = LocalDateTime.of(2025, 5, 29, 10, 38, 29).atZone(ZoneOffset.UTC)
+		assertEquals(expected, parsed)
+		assertEquals(ZoneOffset.UTC, parsed!!.zone)
 	}
 
 	@Test

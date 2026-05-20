@@ -303,7 +303,7 @@ object DateHelper {
 	 * Delegates to [formatNaiveDateTime] — does not enforce UTC. For server I/O,
 	 * prefer [formatServerTimestamp] with an [Instant] / [ZonedDateTime].
 	 *
-	 * @return Formatted date-time string using [SERVER_PATTERN_FULL] or null if the receiver is null
+	 * @return Formatted date-time string using [NAIVE_PATTERN_FULL] or null if the receiver is null
 	 */
 	fun LocalDateTime?.toJsonString(): String? {
 		return formatNaiveDateTime(this)
@@ -361,7 +361,7 @@ object DateHelper {
 	}
 
 	/**
-	 * Formats an [Instant] for transmission to the server using [SERVER_PATTERN_FULL].
+	 * Formats an [Instant] for transmission to the server using [SERVER_PATTERN_FULL_OFFSET].
 	 *
 	 * Because [Instant] is UTC by definition and the formatter is pinned to UTC via
 	 * [serverFormatterUtc], the emitted digits are *guaranteed* to be UTC wall-clock —
@@ -377,7 +377,7 @@ object DateHelper {
 		instant?.let { serverFormatterUtc.format(it) }
 
 	/**
-	 * Formats a [ZonedDateTime] for transmission to the server using [SERVER_PATTERN_FULL].
+	 * Formats a [ZonedDateTime] for transmission to the server using [SERVER_PATTERN_FULL_OFFSET].
 	 *
 	 * The zone is collapsed to an [Instant] before formatting, so the emitted digits are UTC
 	 * regardless of the input zone. Equivalent to `formatServerTimestamp(zoned?.toInstant())`.
@@ -391,24 +391,45 @@ object DateHelper {
 	/**
 	 * Parses a server-emitted timestamp into an [Instant].
 	 *
-	 * The wire format follows [SERVER_PATTERN_FULL_OFFSET] — microsecond precision plus a real
-	 * ISO-8601 offset designator. `Z`, `+00:00`, `+01:00`, `-05:00` are all valid input; the
-	 * returned [Instant] represents the same moment regardless of which offset the server
+	 * The recommended wire format is [SERVER_PATTERN_FULL_OFFSET] — microsecond precision plus a
+	 * real ISO-8601 offset designator. `Z`, `+00:00`, `+01:00`, `-05:00` are all valid input;
+	 * the returned [Instant] represents the same moment regardless of which offset the server
 	 * chose. Once parsed, the [Instant] carries UTC at the type level — it cannot be silently
 	 * reinterpreted as device-local downstream.
 	 *
-	 * Backward compatibility: `Z` was previously the only accepted suffix; it remains so by
-	 * construction. The parser is now strictly more lenient.
+	 * Fallback for zone-naive server output: if the input does not match
+	 * [SERVER_PATTERN_FULL_OFFSET], the parser falls back to [SERVER_PATTERN_SHORT]
+	 * (`yyyy-MM-dd HH:mm:ss`) and **treats the digits as UTC**. This matches what pre-1.4
+	 * [parseLocalDateTime] did downstream of the [ZonedDateTimeSerializer], and keeps
+	 * Carbon/Laravel-style backends (which emit `"2025-12-01 10:38:29"` by default for
+	 * `created_at` / `updated_at` etc.) parseable without forcing a server-side change.
 	 *
-	 * @param text String representation of the server timestamp (e.g., "2023-12-01T10:38:29.000000Z")
+	 * Backward compatibility: `Z` was the only accepted suffix pre-1.4; it still parses. Any
+	 * explicit ISO-8601 offset parses. The short Carbon format now also parses (1.4.1+) — this
+	 * restores the pre-1.4 `ZonedDateTimeSerializer.deserialize` tolerance that 1.4.0 lost.
+	 *
+	 * @param text String representation of the server timestamp (e.g., "2023-12-01T10:38:29.000000Z"
+	 *   or the Carbon-style "2023-12-01 10:38:29")
 	 * @return Parsed [Instant], or null if the input is null, blank, or cannot be parsed
 	 */
 	fun parseServerInstant(text: String?): Instant? {
 		if (text.isNullOrBlank()) return null
-		return try {
-			OffsetDateTime.parse(text, serverParserOffset).toInstant()
+
+		// 1. Strict ISO-8601 with offset designator (recommended path).
+		try {
+			return OffsetDateTime.parse(text, serverParserOffset).toInstant()
 		} catch (e: Exception) {
-			DateHelperLog.e(this, "parseServerInstant: failed to parse \"$text\" with SERVER_PATTERN_FULL_OFFSET", e)
+			DateHelperLog.d(this, "parseServerInstant: \"$text\" not in SERVER_PATTERN_FULL_OFFSET, trying SERVER_PATTERN_SHORT (as UTC)", e)
+		}
+
+		// 2. Carbon/Laravel short format ("yyyy-MM-dd HH:mm:ss") — treat as UTC.
+		//    Restores pre-1.4 ZonedDateTimeSerializer tolerance for naive server timestamps.
+		return try {
+			LocalDateTime
+				.parse(text, DateTimeFormatter.ofPattern(SERVER_PATTERN_SHORT))
+				.toInstant(ZoneOffset.UTC)
+		} catch (e: Exception) {
+			DateHelperLog.e(this, "parseServerInstant: failed to parse \"$text\" with any known format", e)
 			null
 		}
 	}
@@ -416,29 +437,20 @@ object DateHelper {
 	/**
 	 * Parses a server-emitted timestamp into a [ZonedDateTime] in UTC.
 	 *
-	 * Convenience over [parseServerInstant] for the common case where the caller wants a
-	 * [ZonedDateTime] rather than a raw [Instant]. The returned value **always carries the
-	 * UTC zone** — regardless of whether the input used `Z`, `+00:00`, `+01:00`, `-05:00`,
-	 * or any other ISO-8601 offset, the resulting `ZonedDateTime` represents the same
-	 * moment expressed in UTC. To shift it into the device's local zone, chain
-	 * [toDeviceZone] from `DateHelperExtensions`.
+	 * Convenience wrapper over [parseServerInstant] for callers that want a [ZonedDateTime]
+	 * rather than a raw [Instant]. The returned value **always carries the UTC zone** —
+	 * regardless of whether the input used `Z`, `+00:00`, `+01:00`, `-05:00`, any other
+	 * ISO-8601 offset, or the zone-naive Carbon short form, the resulting `ZonedDateTime`
+	 * represents the same moment expressed in UTC. To shift it into the device's local zone,
+	 * chain [toDeviceZone] from `DateHelperExtensions`.
 	 *
-	 * Accepts the same input formats as [parseServerInstant]; the wire format is
-	 * [SERVER_PATTERN_FULL_OFFSET].
+	 * Accepts the same input formats as [parseServerInstant]; the recommended wire format is
+	 * [SERVER_PATTERN_FULL_OFFSET]. See [parseServerInstant] for the full fallback chain.
 	 *
-	 * @param text String representation of the server timestamp (e.g., "2023-12-01T10:38:29.000000Z")
+	 * @param text String representation of the server timestamp (e.g., "2023-12-01T10:38:29.000000Z"
+	 *   or the Carbon-style "2023-12-01 10:38:29")
 	 * @return Parsed [ZonedDateTime] in UTC, or null if the input is null, blank, or cannot be parsed
 	 */
-	fun parseServerZoneDateTime(text: String?): ZonedDateTime? {
-		if (text.isNullOrBlank()) return null
-		return try {
-			OffsetDateTime
-				.parse(text, serverParserOffset)
-				.toInstant()
-				.atZone(ZoneOffset.UTC)
-		} catch (e: Exception) {
-			DateHelperLog.e(this, "parseServerZoneDateTime: failed to parse \"$text\" with SERVER_PATTERN_FULL_OFFSET", e)
-			null
-		}
-	}
+	fun parseServerZoneDateTime(text: String?): ZonedDateTime? =
+		parseServerInstant(text)?.atZone(ZoneOffset.UTC)
 }
