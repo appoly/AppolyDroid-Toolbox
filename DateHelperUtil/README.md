@@ -27,9 +27,9 @@ backends were getting `DateTimeParseException` on every `created_at` / `updated_
 when bumping from 1.3.x straight to 1.4.0. 1.4.1 is the recommended baseline for the 1.4
 line; 1.4.0 should be avoided against any backend that emits zone-naive server timestamps.
 
-## Migrating from 1.3.x to 1.4.1
+## Migrating from 1.3.x to 1.4
 
-1.4.1 makes timezone semantics explicit at the type level. The summary:
+1.4.0 made timezone semantics explicit at the type level. The summary:
 
 ### What's new
 
@@ -158,7 +158,7 @@ val fileString = localDateTime.toFileString()
 ```
 
 > [!IMPORTANT]
-> **Wire format change in 1.4.1.** The naive format helpers (and any path routing through
+> **Wire format change in 1.4.0.** The naive format helpers (and any path routing through
 > them — `LocalDateTime.toJsonString()`, `DateTimeSerializer`, `localDateTimeToJson` Room
 > converter) now emit `2025-05-29T10:38:29.000000` (no `Z`) where pre-1.4 they emitted
 > `2025-05-29T10:38:29.000000Z`. The honest no-zone format reflects what `LocalDateTime`

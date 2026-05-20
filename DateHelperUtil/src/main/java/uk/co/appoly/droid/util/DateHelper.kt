@@ -303,7 +303,7 @@ object DateHelper {
 	 * Delegates to [formatNaiveDateTime] — does not enforce UTC. For server I/O,
 	 * prefer [formatServerTimestamp] with an [Instant] / [ZonedDateTime].
 	 *
-	 * @return Formatted date-time string using [SERVER_PATTERN_FULL] or null if the receiver is null
+	 * @return Formatted date-time string using [NAIVE_PATTERN_FULL] or null if the receiver is null
 	 */
 	fun LocalDateTime?.toJsonString(): String? {
 		return formatNaiveDateTime(this)
@@ -361,7 +361,7 @@ object DateHelper {
 	}
 
 	/**
-	 * Formats an [Instant] for transmission to the server using [SERVER_PATTERN_FULL].
+	 * Formats an [Instant] for transmission to the server using [SERVER_PATTERN_FULL_OFFSET].
 	 *
 	 * Because [Instant] is UTC by definition and the formatter is pinned to UTC via
 	 * [serverFormatterUtc], the emitted digits are *guaranteed* to be UTC wall-clock —
@@ -377,7 +377,7 @@ object DateHelper {
 		instant?.let { serverFormatterUtc.format(it) }
 
 	/**
-	 * Formats a [ZonedDateTime] for transmission to the server using [SERVER_PATTERN_FULL].
+	 * Formats a [ZonedDateTime] for transmission to the server using [SERVER_PATTERN_FULL_OFFSET].
 	 *
 	 * The zone is collapsed to an [Instant] before formatting, so the emitted digits are UTC
 	 * regardless of the input zone. Equivalent to `formatServerTimestamp(zoned?.toInstant())`.
