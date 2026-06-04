@@ -3,7 +3,6 @@ import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 plugins {
 	id("java-library")
 	alias(libs.plugins.kotlin.jvm)
-	alias(libs.plugins.kover)
 	`maven-publish`
 }
 

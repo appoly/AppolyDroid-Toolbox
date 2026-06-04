@@ -4,7 +4,6 @@ plugins {
 	id("java-library")
 	alias(libs.plugins.kotlin.jvm)
 	alias(libs.plugins.kotlinxSerialization)
-	alias(libs.plugins.kover)
 	`maven-publish`
 }
 

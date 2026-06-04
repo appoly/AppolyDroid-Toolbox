@@ -6,7 +6,6 @@ plugins {
 	alias(libs.plugins.kotlin.compose) apply false
 	alias(libs.plugins.kotlin.jvm) apply false
 	alias(libs.plugins.kotlinxSerialization) apply false
-	alias(libs.plugins.kover) apply false
 }
 
 tasks.wrapper {

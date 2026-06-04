@@ -5,7 +5,6 @@ plugins {
 	alias(libs.plugins.android.application)
 	alias(libs.plugins.kotlin.compose)
 	alias(libs.plugins.kotlinxSerialization)
-	alias(libs.plugins.kover)
 }
 
 configure<ApplicationExtension> {
@@ -45,32 +44,9 @@ kotlin {
 	}
 }
 
-// Coverage report for the published library modules. The demo app is the aggregation point
-// (an Android application), pulling in the library modules via the kover(project(...)) deps
-// below and reporting on the "debug" variant:
-//   ./gradlew :app:koverHtmlReportDebug → app/build/reports/kover/reportDebug/html/index.html
-//   ./gradlew :app:koverXmlReportDebug  → XML report
-//
-// Pass 1 measures & reports coverage but does NOT gate on it: most modules are still
-// untested (~1% aggregate), and Kover's minBound is integer-only so no meaningful nonzero
-// floor is possible yet.
-//
-// KNOWN LIMITATION (Pass 2): the "debug" variant only includes the Android-library modules.
-// The pure-Kotlin (java-library) modules — the MockInterceptor family — expose a "jvm"
-// variant instead, and unifying both into one report requires either a custom variant
-// declared in *every* module or the `org.jetbrains.kotlinx.kover.aggregation` settings
-// plugin. Deferred to Pass 2, alongside introducing the coverage floor:
-//   reports { verify { rule { minBound(N) } } }
-kover {
-	reports {
-		// The demo app is scaffolding — measure the published libraries only.
-		filters {
-			excludes {
-				classes("uk.co.appoly.droid.app.*")
-			}
-		}
-	}
-}
+// Coverage is aggregated across the whole build by the kover.aggregation settings plugin
+// (see settings.gradle.kts) — no per-project Kover config needed here. The demo app is
+// excluded there via excludedProjects.
 
 dependencies {
 
@@ -110,33 +86,6 @@ dependencies {
 	implementation(project(":MockInterceptor-Serialization"))
 	implementation(project(":MockInterceptor-AppolyJson"))
 	implementation(project(":MockInterceptor-Retrofit"))
-
-	// Kover coverage aggregation — every published library module, including those the
-	// demo app doesn't otherwise depend on, so the gate measures all of them.
-	kover(project(":BaseRepo"))
-	kover(project(":BaseRepo-S3Uploader"))
-	kover(project(":BaseRepo-S3Uploader-Multipart"))
-	kover(project(":BaseRepo-Paging"))
-	kover(project(":BaseRepo-AppolyJson"))
-	kover(project(":BaseRepo-Paging-AppolyJson"))
-	kover(project(":UiState"))
-	kover(project(":AppSnackBar"))
-	kover(project(":AppSnackBar-UiState"))
-	kover(project(":SegmentedControl"))
-	kover(project(":DateHelperUtil"))
-	kover(project(":DateHelperUtil-Room"))
-	kover(project(":DateHelperUtil-Serialization"))
-	kover(project(":PagingExtensions"))
-	kover(project(":LazyListPagingExtensions"))
-	kover(project(":LazyGridPagingExtensions"))
-	kover(project(":ComposeExtensions"))
-	kover(project(":S3Uploader"))
-	kover(project(":S3Uploader-Multipart"))
-	kover(project(":ConnectivityMonitor"))
-	kover(project(":MockInterceptor"))
-	kover(project(":MockInterceptor-Serialization"))
-	kover(project(":MockInterceptor-AppolyJson"))
-	kover(project(":MockInterceptor-Retrofit"))
 
 	// For test backend API
 	implementation(libs.retrofit)

@@ -11,6 +11,22 @@ pluginManagement {
 		gradlePluginPortal()
 	}
 }
+
+// Kover coverage aggregation across the whole build (Android + pure-JVM modules) into a
+// single root report. Version kept in sync with `kover` in gradle/libs.versions.toml (the
+// settings plugins block can't read the version catalog).
+plugins {
+	id("org.jetbrains.kotlinx.kover.aggregation") version "0.9.8"
+}
+
+kover {
+	enableCoverage()
+	reports {
+		// The demo app is scaffolding — measure the published libraries only.
+		excludedProjects.add(":app")
+	}
+}
+
 dependencyResolutionManagement {
 	repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
 	repositories {

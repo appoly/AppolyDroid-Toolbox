@@ -5,7 +5,6 @@ plugins {
 	alias(libs.plugins.android.library)
 	alias(libs.plugins.kotlinKSP)
 	alias(libs.plugins.kotlinxSerialization)
-	alias(libs.plugins.kover)
 	`maven-publish`
 }
 

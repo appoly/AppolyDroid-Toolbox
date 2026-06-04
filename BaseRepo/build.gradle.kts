@@ -6,7 +6,6 @@ plugins {
 	alias(libs.plugins.kotlinKSP)
 	alias(libs.plugins.kotlinxSerialization)
 	alias(libs.plugins.kotlin.compose)
-	alias(libs.plugins.kover)
 	`maven-publish`
 }
 
@@ -71,6 +70,7 @@ dependencies {
 	api(libs.sandwich.retrofit)
 
 	testImplementation(libs.junit)
+	testImplementation(libs.kotlinx.coroutines.test)
 	androidTestImplementation(libs.androidx.junit)
 	androidTestImplementation(libs.androidx.espresso.core)
 }
