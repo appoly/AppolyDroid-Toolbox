@@ -6,6 +6,7 @@ plugins {
 	alias(libs.plugins.kotlinKSP)
 	alias(libs.plugins.kotlinxSerialization)
 	alias(libs.plugins.kotlin.compose)
+	alias(libs.plugins.kover)
 	`maven-publish`
 }
 

@@ -5,6 +5,7 @@ plugins {
 	alias(libs.plugins.android.application)
 	alias(libs.plugins.kotlin.compose)
 	alias(libs.plugins.kotlinxSerialization)
+	alias(libs.plugins.kover)
 }
 
 configure<ApplicationExtension> {
@@ -41,6 +42,31 @@ configure<ApplicationExtension> {
 kotlin {
 	compilerOptions {
 		jvmTarget.set(JvmTarget.JVM_11)
+	}
+}
+
+// Aggregated coverage gate for the published library modules. The demo app acts as the
+// aggregation point (it's an Android application, so Kover creates per-variant report tasks):
+//   ./gradlew :app:koverHtmlReportDebug   → app/build/reports/kover/reportDebug/html/index.html
+//   ./gradlew :app:koverXmlReportDebug    → XML for CI
+//   ./gradlew :app:koverVerifyDebug       → enforce the coverage floor
+kover {
+	reports {
+		// The demo app is scaffolding — measure the published libraries only.
+		filters {
+			excludes {
+				classes("uk.co.appoly.droid.app.*")
+			}
+		}
+		variant("debug") {
+			verify {
+				// Deliberately low starting floor: all library modules are aggregated and
+				// many are still untested. Raise this as coverage improves (see the report).
+				rule {
+					minBound(5)
+				}
+			}
+		}
 	}
 }
 
@@ -82,6 +108,33 @@ dependencies {
 	implementation(project(":MockInterceptor-Serialization"))
 	implementation(project(":MockInterceptor-AppolyJson"))
 	implementation(project(":MockInterceptor-Retrofit"))
+
+	// Kover coverage aggregation — every published library module, including those the
+	// demo app doesn't otherwise depend on, so the gate measures all of them.
+	kover(project(":BaseRepo"))
+	kover(project(":BaseRepo-S3Uploader"))
+	kover(project(":BaseRepo-S3Uploader-Multipart"))
+	kover(project(":BaseRepo-Paging"))
+	kover(project(":BaseRepo-AppolyJson"))
+	kover(project(":BaseRepo-Paging-AppolyJson"))
+	kover(project(":UiState"))
+	kover(project(":AppSnackBar"))
+	kover(project(":AppSnackBar-UiState"))
+	kover(project(":SegmentedControl"))
+	kover(project(":DateHelperUtil"))
+	kover(project(":DateHelperUtil-Room"))
+	kover(project(":DateHelperUtil-Serialization"))
+	kover(project(":PagingExtensions"))
+	kover(project(":LazyListPagingExtensions"))
+	kover(project(":LazyGridPagingExtensions"))
+	kover(project(":ComposeExtensions"))
+	kover(project(":S3Uploader"))
+	kover(project(":S3Uploader-Multipart"))
+	kover(project(":ConnectivityMonitor"))
+	kover(project(":MockInterceptor"))
+	kover(project(":MockInterceptor-Serialization"))
+	kover(project(":MockInterceptor-AppolyJson"))
+	kover(project(":MockInterceptor-Retrofit"))
 
 	// For test backend API
 	implementation(libs.retrofit)
