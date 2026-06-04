@@ -58,8 +58,11 @@ kotlin {
 kover {
 	currentProject {
 		createVariant("aggregated") {
-			add("debug") // Android-library modules
-			add("jvm")   // pure-Kotlin java-library modules
+			// addWithDependencies (not add) reaches into the kover(project(...)) dependencies.
+			// optional = true tolerates a variant being absent on a given project — :app has no
+			// "jvm" variant of its own, and the pure-JVM modules have no "debug".
+			addWithDependencies("debug", optional = true) // Android-library modules (+ app, filtered out)
+			addWithDependencies("jvm", optional = true)   // pure-Kotlin java-library modules
 		}
 	}
 	reports {
