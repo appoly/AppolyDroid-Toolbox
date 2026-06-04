@@ -30,18 +30,19 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
 
-      # `test` runs the unit tests across every module; the :app debug-variant Kover report
-      # aggregates the Android-library modules' coverage (see app/build.gradle.kts for the
-      # known JVM-module limitation). Pass 1 reports coverage but does not gate on it.
+      # `test` runs unit tests across every module; the kover.aggregation settings plugin
+      # (see settings.gradle.kts) aggregates ALL modules (Android + pure-JVM) into one root
+      # report. Pass 2 (WIP) reports coverage; koverVerify with a floor is added before the
+      # final push.
       - name: Run tests and generate coverage report
-        run: ./gradlew test :app:koverXmlReportDebug :app:koverHtmlReportDebug
+        run: ./gradlew test koverXmlReport koverHtmlReport
 
       - name: Upload Kover coverage report
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: kover-report
-          path: app/build/reports/kover/
+          path: build/reports/kover/
           if-no-files-found: ignore
 
       - name: Upload test reports
