@@ -45,26 +45,23 @@ kotlin {
 	}
 }
 
-// Aggregated coverage for the published library modules. The demo app is the aggregation
-// point (an Android application). A custom "aggregated" variant unions the Android-library
-// debug coverage with the pure-JVM (java-library) module coverage — the built-in "debug"
-// variant omits java-library modules (e.g. the MockInterceptor family).
-//   ./gradlew :app:koverHtmlReportAggregated → app/build/reports/kover/htmlAggregated/index.html
-//   ./gradlew :app:koverXmlReportAggregated  → XML report
+// Coverage report for the published library modules. The demo app is the aggregation point
+// (an Android application), pulling in the library modules via the kover(project(...)) deps
+// below and reporting on the "debug" variant:
+//   ./gradlew :app:koverHtmlReportDebug → app/build/reports/kover/reportDebug/html/index.html
+//   ./gradlew :app:koverXmlReportDebug  → XML report
+//
 // Pass 1 measures & reports coverage but does NOT gate on it: most modules are still
 // untested (~1% aggregate), and Kover's minBound is integer-only so no meaningful nonzero
-// floor is possible yet. Pass 2 backfills tests, then add a floor here:
-//   reports { variant("aggregated") { verify { rule { minBound(N) } } } }
+// floor is possible yet.
+//
+// KNOWN LIMITATION (Pass 2): the "debug" variant only includes the Android-library modules.
+// The pure-Kotlin (java-library) modules — the MockInterceptor family — expose a "jvm"
+// variant instead, and unifying both into one report requires either a custom variant
+// declared in *every* module or the `org.jetbrains.kotlinx.kover.aggregation` settings
+// plugin. Deferred to Pass 2, alongside introducing the coverage floor:
+//   reports { verify { rule { minBound(N) } } }
 kover {
-	currentProject {
-		createVariant("aggregated") {
-			// addWithDependencies (not add) reaches into the kover(project(...)) dependencies.
-			// optional = true tolerates a variant being absent on a given project — :app has no
-			// "jvm" variant of its own, and the pure-JVM modules have no "debug".
-			addWithDependencies("debug", optional = true) // Android-library modules (+ app, filtered out)
-			addWithDependencies("jvm", optional = true)   // pure-Kotlin java-library modules
-		}
-	}
 	reports {
 		// The demo app is scaffolding — measure the published libraries only.
 		filters {

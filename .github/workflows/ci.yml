@@ -30,11 +30,11 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
 
-      # `test` runs the unit tests across every module; the :app "aggregated" Kover variant
-      # unions Android-library (debug) + pure-JVM module coverage into one report.
-      # Pass 1 reports coverage but does not gate on it (see app/build.gradle.kts).
+      # `test` runs the unit tests across every module; the :app debug-variant Kover report
+      # aggregates the Android-library modules' coverage (see app/build.gradle.kts for the
+      # known JVM-module limitation). Pass 1 reports coverage but does not gate on it.
       - name: Run tests and generate coverage report
-        run: ./gradlew test :app:koverXmlReportAggregated :app:koverHtmlReportAggregated
+        run: ./gradlew test :app:koverXmlReportDebug :app:koverHtmlReportDebug
 
       - name: Upload Kover coverage report
         if: always()
