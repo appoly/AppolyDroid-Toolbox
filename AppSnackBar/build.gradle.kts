@@ -42,6 +42,13 @@ configure<LibraryExtension> {
 	buildFeatures {
 		compose = true
 	}
+	testOptions {
+		unitTests {
+			// Required for Robolectric + Compose UI tests (createComposeRule) to load the
+			// merged manifest/resources on the JVM unit-test classpath.
+			isIncludeAndroidResources = true
+		}
+	}
 }
 
 kotlin {
@@ -61,6 +68,11 @@ dependencies {
 	implementation(libs.androidx.material3)
 
 	testImplementation(libs.junit)
+	testImplementation(libs.robolectric)
+	testImplementation(libs.androidx.junit)
+	testImplementation(platform(libs.androidx.compose.bom))
+	testImplementation(libs.androidx.ui.test.junit4)
+	testImplementation(libs.androidx.ui.test.manifest)
 	androidTestImplementation(libs.androidx.junit)
 	androidTestImplementation(libs.androidx.espresso.core)
 }
