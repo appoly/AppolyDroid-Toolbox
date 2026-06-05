@@ -46,6 +46,7 @@ configure<LibraryExtension> {
 	testOptions {
 		unitTests {
 			isIncludeAndroidResources = true
+			isReturnDefaultValues = true
 		}
 	}
 }
@@ -75,6 +76,7 @@ dependencies {
 	api(libs.sandwich.retrofit)
 
 	testImplementation(libs.junit)
+	testImplementation(libs.retrofit)
 	testImplementation(libs.kotlinx.coroutines.test)
 	testImplementation(libs.robolectric)
 	testImplementation(libs.androidx.junit)
