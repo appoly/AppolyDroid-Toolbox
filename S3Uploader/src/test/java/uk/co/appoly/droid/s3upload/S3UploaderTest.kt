@@ -105,4 +105,26 @@ class S3UploaderTest {
 
 		assertTrue(result is UploadResult.Error)
 	}
+
+	@Test
+	fun `uploadFileDirect returns Success when the S3 PUT succeeds`() = runTest {
+		server.enqueue(MockResponse().setResponseCode(200))
+		val result = S3Uploader.uploadFileDirect(
+			file = tempFile(),
+			presignedUrl = server.url("/s3-direct").toString(),
+			mediaType = "text/plain".toMediaType()
+		)
+		assertTrue(result is DirectUploadResult.Success)
+	}
+
+	@Test
+	fun `uploadFileDirect returns Error when the S3 PUT fails`() = runTest {
+		server.enqueue(MockResponse().setResponseCode(403))
+		val result = S3Uploader.uploadFileDirect(
+			file = tempFile(),
+			presignedUrl = server.url("/s3-direct").toString(),
+			mediaType = "text/plain".toMediaType()
+		)
+		assertTrue(result is DirectUploadResult.Error)
+	}
 }
