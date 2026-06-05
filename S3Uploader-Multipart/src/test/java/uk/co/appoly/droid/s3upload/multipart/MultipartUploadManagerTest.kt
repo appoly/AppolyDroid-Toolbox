@@ -15,6 +15,8 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import uk.co.appoly.droid.s3upload.S3Uploader
 import uk.co.appoly.droid.s3upload.interfaces.HeaderProvider
+import uk.co.appoly.droid.s3upload.multipart.config.UploadConstraints
+import uk.co.appoly.droid.s3upload.multipart.config.UploadNetworkType
 import uk.co.appoly.droid.s3upload.multipart.database.S3UploaderDatabase
 import uk.co.appoly.droid.s3upload.multipart.database.dao.MultipartUploadDao
 import uk.co.appoly.droid.s3upload.multipart.database.entity.PartUploadStatus
@@ -184,5 +186,42 @@ class MultipartUploadManagerTest {
 		seedSession("s1", UploadSessionStatus.IN_PROGRESS)
 		val recovered = manager.recoverInterruptedUploads()
 		assertTrue(recovered.contains("s1"))
+	}
+
+	@Test
+	fun `getConstraintViolatedUploads returns only constraint-paused sessions`() = runTest {
+		seedSession("violated", UploadSessionStatus.PAUSED_CONSTRAINT_VIOLATION)
+		seedSession("paused", UploadSessionStatus.PAUSED)
+		assertEquals(listOf("violated"), manager.getConstraintViolatedUploads().map { it.sessionId })
+	}
+
+	@Test
+	fun `resumeConstraintViolatedUpload clears the violation and resumes`() = runTest {
+		seedSession("s1", UploadSessionStatus.PAUSED_CONSTRAINT_VIOLATION)
+		assertTrue(manager.resumeConstraintViolatedUpload("s1").isSuccess)
+		assertNull(dao.getSession("s1")?.pauseReason)
+	}
+
+	@Test
+	fun `resumeConstraintViolatedUpload fails when not constraint-violated`() = runTest {
+		seedSession("s1", UploadSessionStatus.PAUSED)
+		assertTrue(manager.resumeConstraintViolatedUpload("s1").isFailure)
+	}
+
+	@Test
+	fun `updateConstraints updates the default and re-enqueues active sessions`() = runTest {
+		seedSession("s1", UploadSessionStatus.IN_PROGRESS)
+		manager.updateConstraints(UploadConstraints.wifiOnly())
+		assertEquals(UploadNetworkType.UNMETERED, manager.getDefaultConstraints().networkType)
+		// An in-progress session is paused and re-enqueued under the new constraints.
+		assertEquals(UploadSessionStatus.PAUSED, dao.getSession("s1")?.status)
+	}
+
+	@Test
+	fun `setAllowCellularUploads toggles the default network type`() = runTest {
+		manager.setAllowCellularUploads(false)
+		assertEquals(UploadNetworkType.UNMETERED, manager.getDefaultConstraints().networkType)
+		manager.setAllowCellularUploads(true)
+		assertEquals(UploadNetworkType.CONNECTED, manager.getDefaultConstraints().networkType)
 	}
 }
