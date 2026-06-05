@@ -24,14 +24,14 @@ kover {
 	reports {
 		// The demo app is scaffolding — measure the published libraries only.
 		excludedProjects.add(":app")
-		// Coverage floor for the gate. Measured aggregate is ~48% (Pass 2); 45 leaves a
-		// little headroom. Raise as the remaining integration core (MultipartUploadManager,
-		// WorkManager workers, Retrofit/Sandwich network layer, ConnectivityMonitorApplication)
-		// gets covered.
+		// Coverage floor for the gate. Measured aggregate is ~77% (Pass 3). The remaining
+		// uncovered surface is the hard integration tail: scroll-triggered append/prepend
+		// paging states, the executeUpload/worker network pipeline branches, Room-generated
+		// schema SQL, and Compose gesture pointer-input internals.
 		verify {
 			rule {
 				bound {
-					minValue = 64
+					minValue = 76
 				}
 			}
 		}
