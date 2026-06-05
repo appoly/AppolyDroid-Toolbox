@@ -32,10 +32,9 @@ jobs:
 
       # `test` runs unit tests across every module; the kover.aggregation settings plugin
       # (see settings.gradle.kts) aggregates ALL modules (Android + pure-JVM) into one root
-      # report. Pass 2 (WIP) reports coverage; koverVerify with a floor is added before the
-      # final push.
-      - name: Run tests and generate coverage report
-        run: ./gradlew test koverXmlReport koverHtmlReport
+      # report. koverVerify enforces the coverage floor (~45%).
+      - name: Run tests and verify coverage
+        run: ./gradlew test koverXmlReport koverHtmlReport koverVerify
 
       - name: Upload Kover coverage report
         if: always()

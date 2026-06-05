@@ -24,6 +24,17 @@ kover {
 	reports {
 		// The demo app is scaffolding — measure the published libraries only.
 		excludedProjects.add(":app")
+		// Coverage floor for the gate. Measured aggregate is ~48% (Pass 2); 45 leaves a
+		// little headroom. Raise as the remaining integration core (MultipartUploadManager,
+		// WorkManager workers, Retrofit/Sandwich network layer, ConnectivityMonitorApplication)
+		// gets covered.
+		verify {
+			rule {
+				bound {
+					minValue = 45
+				}
+			}
+		}
 	}
 }
 
