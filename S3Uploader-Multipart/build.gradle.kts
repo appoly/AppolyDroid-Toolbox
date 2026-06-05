@@ -95,6 +95,7 @@ dependencies {
     // Multipart network tests: drive the Retrofit API against MockWebServer.
     testImplementation(libs.okhttp.mockwebserver)
     testImplementation(libs.retrofit)
+    testImplementation(libs.androidx.work.testing)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(libs.androidx.room.testing)
