@@ -43,6 +43,11 @@ configure<LibraryExtension> {
 	buildFeatures {
 		compose = true
 	}
+	testOptions {
+		unitTests {
+			isIncludeAndroidResources = true
+		}
+	}
 }
 
 kotlin {
@@ -71,6 +76,10 @@ dependencies {
 
 	testImplementation(libs.junit)
 	testImplementation(libs.kotlinx.coroutines.test)
+	testImplementation(libs.robolectric)
+	testImplementation(libs.androidx.junit)
+	testImplementation(libs.androidx.ui.test.junit4)
+	testImplementation(libs.androidx.ui.test.manifest)
 	androidTestImplementation(libs.androidx.junit)
 	androidTestImplementation(libs.androidx.espresso.core)
 }
