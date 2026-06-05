@@ -6,8 +6,12 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import uk.co.appoly.droid.data.remote.model.APIResult
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -86,5 +90,18 @@ class APIFlowStateComposablesTest {
 		var value: List<Int> = emptyList()
 		composeRule.setContent { value = state.rememberSuccessList() }
 		composeRule.runOnIdle { assertEquals(listOf(1, 2), value) }
+	}
+
+	@Test
+	fun `RefreshableAPIFlow collectAsState reflects the fetched success`() {
+		val flow = RefreshableAPIFlow(
+			apiCall = { APIResult.Success("collected") },
+			scope = CoroutineScope(Dispatchers.Default)
+		)
+		lateinit var state: State<APIFlowState<String>>
+		composeRule.setContent { state = flow.collectAsState() }
+		composeRule.waitUntil(5_000) { state.value is APIFlowState.Success }
+		assertTrue(state.value is APIFlowState.Success)
+		assertEquals("collected", state.value.successData())
 	}
 }

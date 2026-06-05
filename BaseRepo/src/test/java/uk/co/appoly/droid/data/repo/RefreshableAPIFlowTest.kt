@@ -27,6 +27,10 @@ class RefreshableAPIFlowTest {
 	) {
 		override fun extractErrorMessage(response: ApiResponse.Failure.Error): String? = null
 		fun <T : Any> exposeFlow(call: suspend () -> APIResult<T>) = callApiAsFlow(call)
+		fun <T : Any> exposeRefreshable(
+			scope: kotlinx.coroutines.CoroutineScope,
+			call: suspend () -> APIResult<T>
+		) = callApiAsRefreshableFlow(scope = scope, apiCall = call)
 	}
 
 	@Test
@@ -118,5 +122,21 @@ class RefreshableAPIFlowTest {
 
 		flow.updateState { APIFlowState.Error(1, "forced") }
 		assertTrue(flow.first { it is APIFlowState.Error }.isError())
+	}
+
+	@Test
+	fun `callApiAsRefreshableFlow produces a flow that fetches success`() = runTest {
+		val flow = FlowRepo().exposeRefreshable(scope = backgroundScope) { APIResult.Success("repo-data") }
+		assertEquals("repo-data", flow.first { it is APIFlowState.Success }.successData())
+	}
+
+	@Test
+	fun `RefreshableAPIFlow stateIn exposes the latest state`() = runTest {
+		val flow = RefreshableAPIFlow(
+			apiCall = { APIResult.Success("via-stateIn") },
+			scope = backgroundScope
+		)
+		val stateFlow = flow.stateIn(scope = backgroundScope)
+		assertEquals("via-stateIn", stateFlow.first { it is APIFlowState.Success }.successData())
 	}
 }
