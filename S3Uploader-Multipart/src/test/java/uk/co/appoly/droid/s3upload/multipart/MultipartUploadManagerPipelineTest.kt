@@ -49,8 +49,8 @@ class MultipartUploadManagerPipelineTest {
 		val config = Configuration.Builder()
 			.setExecutor(SynchronousExecutor())
 			.setWorkerFactory(object : WorkerFactory() {
-				override fun createWorker(a: Context, n: String, p: WorkerParameters): ListenableWorker =
-					object : Worker(a, p) { override fun doWork(): Result = Result.success() }
+				override fun createWorker(appContext: Context, workerClassName: String, workerParameters: WorkerParameters): ListenableWorker =
+					object : Worker(appContext, workerParameters) { override fun doWork(): Result = Result.success() }
 			})
 			.build()
 		WorkManagerTestInitHelper.initializeTestWorkManager(context, config)

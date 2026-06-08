@@ -99,6 +99,9 @@ class ConnectivityMonitorApplicationTest {
 	 * This drives the real `recomputeConnectivity()` / `recomputeNetworkType()` code paths exactly
 	 * as the registered NetworkCallback would.
 	 */
+	// Legacy NetworkInfo / TYPE_WIFI are deprecated in the framework but are the only way to seed
+	// Robolectric's ShadowConnectivityManager active-network lookup.
+	@Suppress("DEPRECATION")
 	private fun seedActiveValidatedNetwork(caps: NetworkCapabilities): Network {
 		// getActiveNetwork() looks up netIdToNetwork by activeNetworkInfo.getType(), so the
 		// registered Network's netId must equal that type for the lookup to resolve.

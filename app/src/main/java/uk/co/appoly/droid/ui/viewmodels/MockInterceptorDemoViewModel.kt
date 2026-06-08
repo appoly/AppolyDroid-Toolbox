@@ -163,7 +163,7 @@ class MockInterceptorDemoViewModel : ViewModel() {
 					method = request.method,
 					url = request.url.toString(),
 					statusCode = response.code,
-					responseBody = response.body?.string() ?: "",
+					responseBody = response.body.string(),
 				)
 			}
 			_results.update { listOf(result) + it }

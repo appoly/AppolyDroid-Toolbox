@@ -13,6 +13,9 @@ import java.time.LocalDateTime
  * Tests for the less-exercised [DateHelper] helpers: JSON string round-trips, the file-safe
  * string, nowAsUTC, and the format/parse helpers' null handling.
  */
+// formatLocalDateTime/parseLocalDateTime are deprecated but still part of the public API, so we
+// keep exercising them deliberately.
+@Suppress("DEPRECATION")
 class DateHelperExtrasTest {
 
 	@Before

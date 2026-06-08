@@ -2,6 +2,7 @@ package uk.co.appoly.droid.data.repo
 
 import com.duck.flexilogger.LoggingLevel
 import com.skydoves.sandwich.ApiResponse
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.test.advanceUntilIdle
@@ -17,6 +18,7 @@ import org.junit.Test
  * the test scheduler via [runTest]'s backgroundScope; library logging is inert in JVM tests
  * (isReturnDefaultValues).
  */
+@OptIn(ExperimentalCoroutinesApi::class) // advanceUntilIdle is experimental
 class RefreshableAPIFlowTest {
 
 	/** Minimal repo exposing the protected callApiAsFlow helper. */
