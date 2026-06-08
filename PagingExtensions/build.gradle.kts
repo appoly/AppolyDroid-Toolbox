@@ -42,13 +42,6 @@ configure<LibraryExtension> {
 	buildFeatures {
 		compose = true
 	}
-	testOptions {
-		unitTests {
-			// Robolectric + Compose UI tests need the merged manifest/resources on the JVM
-			// unit-test classpath (e.g. the retry string in ErrorState).
-			isIncludeAndroidResources = true
-		}
-	}
 }
 
 kotlin {

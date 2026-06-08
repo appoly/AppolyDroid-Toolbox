@@ -45,13 +45,6 @@ configure<LibraryExtension> {
         // Adds exported schema location as test app assets for migration testing
         getByName("androidTest").assets.directories.add("$projectDir/schemas")
     }
-
-    testOptions {
-        unitTests {
-            // Required for the Robolectric in-memory Room DAO tests.
-            isIncludeAndroidResources = true
-        }
-    }
 }
 
 room {

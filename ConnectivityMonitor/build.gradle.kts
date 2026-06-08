@@ -36,13 +36,6 @@ configure<LibraryExtension> {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
     }
-    testOptions {
-        unitTests {
-            // Robolectric tests for ConnectivityMonitorApplication need the merged
-            // manifest/resources on the JVM unit-test classpath.
-            isIncludeAndroidResources = true
-        }
-    }
 }
 
 kotlin {

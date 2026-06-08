@@ -8,6 +8,25 @@ plugins {
 	alias(libs.plugins.kotlinxSerialization) apply false
 }
 
+// Centralised Android unit-test configuration, applied to every Android library module so the
+// Robolectric/Compose test setup stays consistent and new modules inherit it automatically:
+//  - isIncludeAndroidResources: lets Robolectric load the merged manifest/resources on the JVM
+//    unit-test classpath (Compose UI tests, in-memory Room DAO tests, etc.).
+//  - isReturnDefaultValues: makes un-mocked android.* calls return defaults in plain JVM tests;
+//    a no-op for Robolectric tests, which get real shadow implementations regardless.
+subprojects {
+	plugins.withId("com.android.library") {
+		extensions.configure<com.android.build.api.dsl.LibraryExtension> {
+			testOptions {
+				unitTests {
+					isIncludeAndroidResources = true
+					isReturnDefaultValues = true
+				}
+			}
+		}
+	}
+}
+
 tasks.wrapper {
 	gradleVersion = "8.11.1"
 	distributionType = Wrapper.DistributionType.ALL
