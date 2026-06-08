@@ -8,6 +8,25 @@ plugins {
 	alias(libs.plugins.kotlinxSerialization) apply false
 }
 
+// Centralised Android unit-test configuration, applied to every Android library module so the
+// Robolectric/Compose test setup stays consistent and new modules inherit it automatically:
+//  - isIncludeAndroidResources: lets Robolectric load the merged manifest/resources on the JVM
+//    unit-test classpath (Compose UI tests, in-memory Room DAO tests, etc.).
+//  - isReturnDefaultValues: makes un-mocked android.* calls return defaults in plain JVM tests;
+//    a no-op for Robolectric tests, which get real shadow implementations regardless.
+subprojects {
+	plugins.withId("com.android.library") {
+		extensions.configure<com.android.build.api.dsl.LibraryExtension> {
+			testOptions {
+				unitTests {
+					isIncludeAndroidResources = true
+					isReturnDefaultValues = true
+				}
+			}
+		}
+	}
+}
+
 tasks.wrapper {
 	gradleVersion = "8.11.1"
 	distributionType = Wrapper.DistributionType.ALL
@@ -31,6 +50,19 @@ tasks.register("prepareRelease") {
 gradle.projectsEvaluated {
     rootProject.tasks.named("updateReadmeVersions").get().actions.forEach { action ->
         action.execute(rootProject.tasks.named("updateReadmeVersions").get())
+    }
+}
+
+// The Kover aggregation (settings plugin) report tasks read coverage emitted by each module's
+// unit-test run, but don't auto-depend on those test tasks. Without this wiring a standalone
+// `./gradlew koverHtmlReport` (no `test` in the same invocation) reports "no coverage information
+// was found". Make the root report tasks depend on every module's `test` so they always run
+// against fresh coverage. CI still passes `test` explicitly; Gradle de-duplicates, so this only
+// makes local standalone report runs work.
+gradle.projectsEvaluated {
+    val testTasks = subprojects.flatMap { sp -> sp.tasks.matching { it.name == "test" } }
+    listOf("koverHtmlReport", "koverXmlReport", "koverVerify").forEach { reportName ->
+        rootProject.tasks.findByName(reportName)?.dependsOn(testTasks)
     }
 }
 

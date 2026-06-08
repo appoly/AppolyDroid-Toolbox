@@ -19,3 +19,6 @@ local.properties
 /build.log.txt
 /AppolyDroid-Toolbox-1.1.8.pom.xml
 .claude/settings.local.json
+
+# Claude Code agent worktrees
+.claude/worktrees/

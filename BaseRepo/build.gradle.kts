@@ -70,6 +70,12 @@ dependencies {
 	api(libs.sandwich.retrofit)
 
 	testImplementation(libs.junit)
+	testImplementation(libs.retrofit)
+	testImplementation(libs.kotlinx.coroutines.test)
+	testImplementation(libs.robolectric)
+	testImplementation(libs.androidx.junit)
+	testImplementation(libs.androidx.ui.test.junit4)
+	testImplementation(libs.androidx.ui.test.manifest)
 	androidTestImplementation(libs.androidx.junit)
 	androidTestImplementation(libs.androidx.espresso.core)
 }

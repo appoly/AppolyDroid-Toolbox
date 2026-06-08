@@ -72,6 +72,9 @@ dependencies {
     api(libs.flexiLogger.okhttp)
 
     testImplementation(libs.junit)
+    testImplementation(libs.kotlinx.coroutines.test)
+    // Upload-flow tests drive the real Retrofit/OkHttp stack against MockWebServer.
+    testImplementation(libs.okhttp.mockwebserver)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
 }

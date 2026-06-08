@@ -44,6 +44,10 @@ kotlin {
 	}
 }
 
+// Coverage is aggregated across the whole build by the kover.aggregation settings plugin
+// (see settings.gradle.kts) — no per-project Kover config needed here. The demo app is
+// excluded there via excludedProjects.
+
 dependencies {
 
 	implementation(libs.androidx.core.ktx)

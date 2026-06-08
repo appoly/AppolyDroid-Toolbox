@@ -11,6 +11,33 @@ pluginManagement {
 		gradlePluginPortal()
 	}
 }
+
+// Kover coverage aggregation across the whole build (Android + pure-JVM modules) into a
+// single root report. Version kept in sync with `kover` in gradle/libs.versions.toml (the
+// settings plugins block can't read the version catalog).
+plugins {
+	id("org.jetbrains.kotlinx.kover.aggregation") version "0.9.8"
+}
+
+kover {
+	enableCoverage()
+	reports {
+		// The demo app is scaffolding — measure the published libraries only.
+		excludedProjects.add(":app")
+		// Coverage floor for the gate. Measured aggregate is ~77% (Pass 3). The remaining
+		// uncovered surface is the hard integration tail: scroll-triggered append/prepend
+		// paging states, the executeUpload/worker network pipeline branches, Room-generated
+		// schema SQL, and Compose gesture pointer-input internals.
+		verify {
+			rule {
+				bound {
+					minValue = 76
+				}
+			}
+		}
+	}
+}
+
 dependencyResolutionManagement {
 	repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
 	repositories {

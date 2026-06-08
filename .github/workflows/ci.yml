@@ -1,0 +1,56 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [ main ]
+  push:
+    branches: [ main ]
+
+# Cancel superseded runs on the same branch/PR.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Tests & coverage gate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          # Runs Gradle/AGP; the libraries still compile to JVM 11. Must be >= 24:
+          # FlexiLogger's published *-jvm artifacts are Java 24 bytecode (class-file v68),
+          # which the pure-Kotlin (java-library) modules load at test time.
+          java-version: '24'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      # `test` runs unit tests across every module; the kover.aggregation settings plugin
+      # (see settings.gradle.kts) aggregates ALL modules (Android + pure-JVM) into one root
+      # report. koverVerify enforces the coverage floor (minValue is set in settings.gradle.kts;
+      # currently 76%, measured ~77%). The bound is intentionally high — the remaining uncovered
+      # surface (scroll-triggered paging states, the executeUpload/worker network pipeline,
+      # Room-generated schema SQL, Compose gesture internals) is accepted as the hard tail.
+      - name: Run tests and verify coverage
+        run: ./gradlew test koverXmlReport koverHtmlReport koverVerify
+
+      - name: Upload Kover coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: kover-report
+          path: build/reports/kover/
+          if-no-files-found: ignore
+
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-reports
+          path: '**/build/reports/tests/'
+          if-no-files-found: ignore
