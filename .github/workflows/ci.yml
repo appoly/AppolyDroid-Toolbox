@@ -32,7 +32,10 @@ jobs:
 
       # `test` runs unit tests across every module; the kover.aggregation settings plugin
       # (see settings.gradle.kts) aggregates ALL modules (Android + pure-JVM) into one root
-      # report. koverVerify enforces the coverage floor (~45%).
+      # report. koverVerify enforces the coverage floor (minValue is set in settings.gradle.kts;
+      # currently 76%, measured ~77%). The bound is intentionally high — the remaining uncovered
+      # surface (scroll-triggered paging states, the executeUpload/worker network pipeline,
+      # Room-generated schema SQL, Compose gesture internals) is accepted as the hard tail.
       - name: Run tests and verify coverage
         run: ./gradlew test koverXmlReport koverHtmlReport koverVerify
 
