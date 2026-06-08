@@ -53,6 +53,19 @@ gradle.projectsEvaluated {
     }
 }
 
+// The Kover aggregation (settings plugin) report tasks read coverage emitted by each module's
+// unit-test run, but don't auto-depend on those test tasks. Without this wiring a standalone
+// `./gradlew koverHtmlReport` (no `test` in the same invocation) reports "no coverage information
+// was found". Make the root report tasks depend on every module's `test` so they always run
+// against fresh coverage. CI still passes `test` explicitly; Gradle de-duplicates, so this only
+// makes local standalone report runs work.
+gradle.projectsEvaluated {
+    val testTasks = subprojects.flatMap { sp -> sp.tasks.matching { it.name == "test" } }
+    listOf("koverHtmlReport", "koverXmlReport", "koverVerify").forEach { reportName ->
+        rootProject.tasks.findByName(reportName)?.dependsOn(testTasks)
+    }
+}
+
 // Create a task to check if README versions are up to date
 tasks.register("checkReadmeVersions") {
     group = "verification"
