@@ -39,6 +39,11 @@ jobs:
       - name: Run tests and verify coverage
         run: ./gradlew test koverXmlReport koverHtmlReport koverVerify
 
+      # Minifies the demo app with R8 and asserts every module's consumer keep rule survived
+      # (reads R8's seeds.txt). Device-free guard against a consumer-rules.pro regression.
+      - name: Verify consumer R8 keep rules
+        run: ./gradlew :app:verifyConsumerKeepRules
+
       - name: Upload Kover coverage report
         if: always()
         uses: actions/upload-artifact@v4

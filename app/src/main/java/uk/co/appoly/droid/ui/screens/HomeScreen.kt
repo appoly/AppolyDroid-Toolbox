@@ -88,6 +88,18 @@ fun HomeScreen(navController: NavController) {
 			)
 
 			FeatureButton(
+				title = "Appoly JSON Responses",
+				description = "Parse GenericResponse / nested-paged envelopes via AppolyBaseRepo",
+				onClick = { navController.navigate("appoly_json") }
+			)
+
+			FeatureButton(
+				title = "Date Serialization & Room",
+				description = "kotlinx date serializers and Room TypeConverters for java.time",
+				onClick = { navController.navigate("date_serialization_room") }
+			)
+
+			FeatureButton(
 				title = "Paging Extensions",
 				description = "LazyList and LazyGrid with paging support",
 				onClick = { navController.navigate("paging") }

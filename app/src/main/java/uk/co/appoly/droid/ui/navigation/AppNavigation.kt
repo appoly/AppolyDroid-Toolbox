@@ -4,8 +4,10 @@ import androidx.compose.runtime.Composable
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import uk.co.appoly.droid.ui.screens.AppolyJsonDemoScreen
 import uk.co.appoly.droid.ui.screens.BaseRepoDemoScreen
 import uk.co.appoly.droid.ui.screens.DateHelperDemoScreen
+import uk.co.appoly.droid.ui.screens.DateSerializationRoomDemoScreen
 import uk.co.appoly.droid.ui.screens.HomeScreen
 import uk.co.appoly.droid.ui.screens.MultipartUploadDemoScreen
 import uk.co.appoly.droid.ui.screens.PagingDemoScreen
@@ -37,6 +39,12 @@ fun AppNavigation() {
 		}
 		composable("base_repo") {
 			BaseRepoDemoScreen(navController = navController)
+		}
+		composable("appoly_json") {
+			AppolyJsonDemoScreen(navController = navController)
+		}
+		composable("date_serialization_room") {
+			DateSerializationRoomDemoScreen(navController = navController)
 		}
 		composable("paging") {
 			PagingDemoScreen(navController = navController)
