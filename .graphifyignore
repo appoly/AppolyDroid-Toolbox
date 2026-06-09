@@ -1,0 +1,18 @@
+# .graphifyignore — files for graphify to skip
+# Note: build/, .gradle/, .git/, node_modules/, graphify-out/ are auto-skipped
+
+# IDE & local state
+.idea/
+.kotlin/
+.claude/
+local.properties
+
+# Resource folders graphify can't parse (XML) or that burn vision tokens (drawable/mipmap)
+**/src/**/res/drawable*/
+**/src/**/res/mipmap*/
+
+# Gradle wrapper binary
+gradle/wrapper/gradle-wrapper.jar
+
+# Room exported schemas (JSON, regenerable)
+**/schemas/

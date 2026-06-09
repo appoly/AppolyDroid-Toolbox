@@ -104,3 +104,20 @@ Published to JitPack via `com.github.appoly`. Each module has:
 - Maven publication configuration
 - Sources JAR
 - Consumer ProGuard rules (`consumer-rules.pro`)
+
+## Knowledge Graph (graphify)
+
+This repo can be analysed with `/graphify` — it builds a navigable knowledge graph of the
+modules, their cross-dependencies, and architectural relationships.
+
+- **Regenerate before relying on it:** run `/graphify .` from the repo root. The graph reflects
+  the code at build time, so rebuild after significant changes rather than trusting an old run.
+- **`graphify-out/memory/`** holds saved Q&A from prior `/graphify query` runs — durable
+  architectural decisions (e.g. why `UploadResult`/`APIResult` are deliberately separate, why
+  the LazyGrid/LazyList paging modules are mirrored rather than DRYed up). These are checked in
+  and stay valid across code churn; read them before re-investigating the same questions.
+- **`graphify-out/GRAPH_REPORT.md`** is a checked-in audit snapshot (god nodes, communities,
+  surprising connections). Useful for onboarding; may lag the current code.
+- The bulky regenerable artifacts (`graph.json`, `graph.html`, `manifest.json`) are git-ignored
+  on purpose — a stale committed graph misleads, and they bloat the published-library history.
+  `.graphifyignore` keeps resource XML and drawables out of the graph.
