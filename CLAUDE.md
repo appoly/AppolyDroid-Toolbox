@@ -34,7 +34,7 @@ The library uses a layered module structure:
 
 **Core Foundation:**
 - `BaseRepo` - Repository pattern with Retrofit/Sandwich integration, `APIResult<T>` and `APIFlowState<T>` sealed classes
-- `BOM` - Bill of Materials providing version constraints (current: 1.2.5)
+- `BOM` - Bill of Materials providing version constraints (version matches `TOOLBOX_VERSION`, currently 1.5.1)
 
 **BaseRepo Extensions:**
 - `BaseRepo-AppolyJson` - Appoly's standard JSON response format
@@ -90,13 +90,13 @@ flow.collect { state ->
 
 ## Tech Stack
 
-- Kotlin 2.3.10, AGP 9.0.1, Gradle 9.2.1
-- Target/Compile SDK 36, Java 11
-- Jetpack Compose BOM 2026.02.00
-- OkHttp 5.3.2, Retrofit 3.0.0
-- Sandwich 2.2.1 (API response handling)
-- Jetpack Paging 3.4.1, Room 2.8.4
-- kotlinx-serialization 1.10.0
+- Kotlin 2.4.0, AGP 9.2.1, Gradle 9.5.0
+- Target/Compile SDK 37, Java 11
+- Jetpack Compose BOM 2026.05.01
+- OkHttp 5.4.0, Retrofit 3.0.0
+- Sandwich 2.2.2 (API response handling)
+- Jetpack Paging 3.5.0, Room 2.8.4
+- kotlinx-serialization 1.11.0
 
 ## Publishing
 
@@ -104,3 +104,20 @@ Published to JitPack via `com.github.appoly`. Each module has:
 - Maven publication configuration
 - Sources JAR
 - Consumer ProGuard rules (`consumer-rules.pro`)
+
+## Knowledge Graph (graphify)
+
+This repo can be analysed with `/graphify` — it builds a navigable knowledge graph of the
+modules, their cross-dependencies, and architectural relationships.
+
+- **Regenerate before relying on it:** run `/graphify .` from the repo root. The graph reflects
+  the code at build time, so rebuild after significant changes rather than trusting an old run.
+- **`graphify-out/memory/`** holds saved Q&A from prior `/graphify query` runs — durable
+  architectural decisions (e.g. why `UploadResult`/`APIResult` are deliberately separate, why
+  the LazyGrid/LazyList paging modules are mirrored rather than DRYed up). These are checked in
+  and stay valid across code churn; read them before re-investigating the same questions.
+- **`graphify-out/GRAPH_REPORT.md`** is a checked-in audit snapshot (god nodes, communities,
+  surprising connections). Useful for onboarding; may lag the current code.
+- The bulky regenerable artifacts (`graph.json`, `graph.html`, `manifest.json`) are git-ignored
+  on purpose — a stale committed graph misleads, and they bloat the published-library history.
+  `.graphifyignore` keeps resource XML and drawables out of the graph.

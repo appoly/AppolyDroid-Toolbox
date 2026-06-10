@@ -53,7 +53,7 @@ In your `libs.versions.toml` file:
 
 ```toml
 [versions]
-appolydroidToolbox = "1.5.0" # Replace with the latest version
+appolydroidToolbox = "1.5.1" # Replace with the latest version
 
 [libraries]
 appolydroid-toolbox-bom = { group = "com.github.appoly.AppolyDroid-Toolbox", name = "AppolyDroid-Toolbox-bom", version.ref = "appolydroidToolbox" }
@@ -126,7 +126,7 @@ In your module's `build.gradle.kts`:
 ```gradle.kts
 dependencies {
     // Import the BOM
-    implementation(platform("com.github.appoly.AppolyDroid-Toolbox:AppolyDroid-Toolbox-bom:1.5.0"))
+    implementation(platform("com.github.appoly.AppolyDroid-Toolbox:AppolyDroid-Toolbox-bom:1.5.1"))
 
     // Now you can use AppolyDroid modules without specifying versions
     implementation("com.github.appoly.AppolyDroid-Toolbox:BaseRepo")
@@ -162,7 +162,7 @@ In your `libs.versions.toml` file:
 
 ```toml
 [versions]
-appolydroidToolbox = "1.5.0" # Replace with the latest version
+appolydroidToolbox = "1.5.1" # Replace with the latest version
 
 [libraries]
 #AppolyDroid-Toolbox
@@ -228,7 +228,7 @@ In your module's `build.gradle.kts`:
 
 ```gradle.kts
 dependencies {
-    val appolydroidToolbox = "1.5.0" // Replace with the latest version
+    val appolydroidToolbox = "1.5.1" // Replace with the latest version
     // Add only the modules you need
     implementation("com.github.appoly.AppolyDroid-Toolbox:BaseRepo:$appolydroidToolbox")
     implementation("com.github.appoly.AppolyDroid-Toolbox:BaseRepo-AppolyJson:$appolydroidToolbox")
@@ -338,6 +338,48 @@ Appoly JSON envelope helpers (`successBody`, `errorBody`, `pagedBody`) for mocki
 ## Dependencies
 
 Some modules depend on [FlexiLogger](https://github.com/projectdelta6/FlexiLogger) for logging capabilities.
+
+## R8 / ProGuard
+
+**You don't need to author any keep rules for AppolyDroid internals.** Every module ships its
+own [consumer ProGuard rules](https://developer.android.com/build/shrink-code#configuration-files)
+inside its AAR, so the keeps for serializable response models, custom `KSerializer`s, Room
+converters/entities, and WorkManager workers are merged into your app's R8 configuration
+automatically when you depend on the module. This holds in R8 full mode.
+
+This includes the `-keepattributes Signature,InnerClasses` that the generic response models
+(`PageData<T>`, `GenericResponse<T>`, `GenericNestedPagedResponse<T>`) need for runtime type
+reconstruction — each is shipped by the module that declares those models, so you don't add it
+yourself. The rules deliberately **do not** keep `*Annotation*`: the library uses no polymorphic
+serialization, so no runtime-annotation attributes are required, and keeping `*Annotation*` in a
+library's consumer rules would disable annotation-related optimizations across the whole consuming
+app (R8 warns about exactly this).
+
+**Enum serializer base classes.** If you subclass any of these (shipped by `BaseRepo`) for your
+own `@Serializable` enums, your generated subclasses are kept automatically — the rule keeps
+`* extends` each base:
+
+- `uk.co.appoly.droid.util.EnumAsStringSerializer`
+- `uk.co.appoly.droid.util.NullableEnumAsStringSerializer`
+- `uk.co.appoly.droid.util.EnumAsIntSerializer`
+- `uk.co.appoly.droid.util.NullableEnumAsIntSerializer`
+
+**Regression test.** These rules are guarded by the `verifyConsumerKeepRules` Gradle task in the
+`app` module. The demo app depends on every module and is minified (`isMinifyEnabled = true`), so
+R8 applies all of their `consumer-rules.pro`. The task reads R8's `seeds.txt` — the exact set of
+classes its keep rules matched — and asserts every serializer / converter the consumer rules
+protect is present. If a module's rule regresses, the class drops out of `seeds.txt` and the task
+fails. It runs in CI (no device needed) and via the **"Verify Consumer R8 Rules"** IDE run config:
+
+```bash
+./gradlew :app:verifyConsumerKeepRules
+```
+
+> An earlier version used an instrumented test (`testBuildType = "release"`) that round-tripped the
+> serializers on a device. It was dropped: minifying the *test* APK strips the test runner's own
+> transitive dependencies (`androidx.tracing`, Kotlin stdlib facades, …), which is plumbing
+> unrelated to the library. The static `seeds.txt` check gives the same regression guarantee with
+> no device and no test-harness R8 fight.
 
 ## License
 

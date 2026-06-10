@@ -22,3 +22,8 @@ local.properties
 
 # Claude Code agent worktrees
 .claude/worktrees/
+
+# graphify — ignore generated artifacts, keep saved Q&A + audit report
+graphify-out/*
+!graphify-out/memory/
+!graphify-out/GRAPH_REPORT.md
