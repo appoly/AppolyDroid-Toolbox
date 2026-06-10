@@ -34,7 +34,7 @@ The library uses a layered module structure:
 
 **Core Foundation:**
 - `BaseRepo` - Repository pattern with Retrofit/Sandwich integration, `APIResult<T>` and `APIFlowState<T>` sealed classes
-- `BOM` - Bill of Materials providing version constraints (current: 1.2.5)
+- `BOM` - Bill of Materials providing version constraints (version matches `TOOLBOX_VERSION`, currently 1.5.1)
 
 **BaseRepo Extensions:**
 - `BaseRepo-AppolyJson` - Appoly's standard JSON response format
@@ -90,13 +90,13 @@ flow.collect { state ->
 
 ## Tech Stack
 
-- Kotlin 2.3.10, AGP 9.0.1, Gradle 9.2.1
-- Target/Compile SDK 36, Java 11
-- Jetpack Compose BOM 2026.02.00
-- OkHttp 5.3.2, Retrofit 3.0.0
-- Sandwich 2.2.1 (API response handling)
-- Jetpack Paging 3.4.1, Room 2.8.4
-- kotlinx-serialization 1.10.0
+- Kotlin 2.4.0, AGP 9.2.1, Gradle 9.5.0
+- Target/Compile SDK 37, Java 11
+- Jetpack Compose BOM 2026.05.01
+- OkHttp 5.4.0, Retrofit 3.0.0
+- Sandwich 2.2.2 (API response handling)
+- Jetpack Paging 3.5.0, Room 2.8.4
+- kotlinx-serialization 1.11.0
 
 ## Publishing
 
