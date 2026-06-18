@@ -18,7 +18,8 @@ import uk.co.appoly.droid.data.remote.model.APIResult
 import uk.co.appoly.droid.data.remote.model.response.RootJson
 import uk.co.appoly.droid.data.remote.model.response.RootJsonWithData
 import uk.co.appoly.droid.util.NoConnectivityException
-import uk.co.appoly.droid.util.asNoConnectivityException
+import uk.co.appoly.droid.util.asServerTimeoutException
+import uk.co.appoly.droid.util.asServerUnreachableException
 import uk.co.appoly.droid.util.firstNotNullOrBlank
 import uk.co.appoly.droid.util.ifNullOrBlank
 import java.net.ConnectException
@@ -248,36 +249,55 @@ abstract class GenericBaseRepo(
 	}
 
 	fun handleFailureException(response: ApiResponse.Failure.Exception, logDescription: String): APIResult.Error {
-		return when (response.throwable) {
-			is NoConnectivityException,
-			is UnknownHostException,
-			is ConnectException,
-			is SocketException,
-			is SocketTimeoutException -> {
+		return when (val throwable = response.throwable) {
+			// Already a connectivity exception: either the genuinely-offline NoConnectivityException
+			// thrown pre-flight by NetworkConnectionInterceptor (cause == null), or a Server* type we
+			// produced upstream. Preserve its own (accurate) message.
+			is NoConnectivityException -> {
 				BaseRepoLog.w(
 					this,
-					"$logDescription failed Due to No Internet Connection!",
-					response.throwable
+					"$logDescription failed: ${throwable.message}",
+					throwable
 				)
-				APIResult.Error(
-					RESPONSE_EXCEPTION_CODE,
-					"No Internet Connection",
-					response.throwable.asNoConnectivityException()
+				APIResult.Error(RESPONSE_EXCEPTION_CODE, throwable.message, throwable)
+			}
+
+			// Device is online but the server didn't respond in time.
+			is SocketTimeoutException -> {
+				val exception = throwable.asServerTimeoutException()
+				BaseRepoLog.w(
+					this,
+					"$logDescription failed: ${exception.message}",
+					throwable
 				)
+				APIResult.Error(RESPONSE_EXCEPTION_CODE, exception.message, exception)
+			}
+
+			// Device is online but the server host couldn't be resolved/reached.
+			is UnknownHostException,
+			is ConnectException,
+			is SocketException -> {
+				val exception = throwable.asServerUnreachableException()
+				BaseRepoLog.w(
+					this,
+					"$logDescription failed: ${exception.message}",
+					throwable
+				)
+				APIResult.Error(RESPONSE_EXCEPTION_CODE, exception.message, exception)
 			}
 
 			else -> {
 				val message = firstNotNullOrBlank(
-					{ response.throwable.message },
+					{ throwable.message },
 					{ response.message() },
 					fallback = { "Unknown error" }
 				)
 				BaseRepoLog.e(
 					this,
 					"$logDescription failed with exception! message:\"$message\"",
-					response.throwable
+					throwable
 				)
-				APIResult.Error(RESPONSE_EXCEPTION_CODE, message, response.throwable)
+				APIResult.Error(RESPONSE_EXCEPTION_CODE, message, throwable)
 			}
 		}
 	}
