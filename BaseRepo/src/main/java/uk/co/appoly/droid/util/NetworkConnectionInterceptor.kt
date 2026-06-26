@@ -42,9 +42,14 @@ class NetworkConnectionInterceptor(
 /**
  * No connectivity exception
  *
- * Thrown by [NetworkConnectionInterceptor] when there is no internet connection
+ * Thrown by [NetworkConnectionInterceptor] when the device is genuinely offline (the connectivity
+ * check fails pre-flight, so [cause] is `null`).
+ *
+ * Open so that the "online but the server couldn't be reached" case can be represented by the
+ * [ServerUnreachableException] subclass while still satisfying `is NoConnectivityException` checks
+ * (e.g. [uk.co.appoly.droid.data.remote.model.APIResult.Error.isNetworkError]).
  */
-class NoConnectivityException : IOException {
+open class NoConnectivityException : IOException {
 	constructor() : super()
 	constructor(cause: Throwable) : super(cause)
 
@@ -52,6 +57,40 @@ class NoConnectivityException : IOException {
 		get() = "No Internet Connection"
 }
 
+/**
+ * Server unreachable exception
+ *
+ * Represents the case where the device *does* have connectivity but the request still failed to
+ * reach the server (e.g. DNS resolution failed, connection refused) — typically wrapping an
+ * [java.net.UnknownHostException], [java.net.ConnectException] or [java.net.SocketException].
+ *
+ * Subclasses [NoConnectivityException] deliberately so existing network-error checks keep working,
+ * while exposing a more accurate [message] and type for consumers that want to distinguish it.
+ */
+open class ServerUnreachableException(cause: Throwable) : NoConnectivityException(cause) {
+	override val message: String
+		get() = "Couldn't reach the server"
+}
+
+/**
+ * Server timeout exception
+ *
+ * A more specific [ServerUnreachableException] for the case where the server was reachable but did
+ * not respond in time — typically wrapping a [java.net.SocketTimeoutException].
+ */
+class ServerTimeoutException(cause: Throwable) : ServerUnreachableException(cause) {
+	override val message: String
+		get() = "Server took too long to respond"
+}
+
 fun Throwable.asNoConnectivityException(): NoConnectivityException {
 	return this as? NoConnectivityException ?: NoConnectivityException(this)
+}
+
+fun Throwable.asServerUnreachableException(): ServerUnreachableException {
+	return this as? ServerUnreachableException ?: ServerUnreachableException(this)
+}
+
+fun Throwable.asServerTimeoutException(): ServerTimeoutException {
+	return this as? ServerTimeoutException ?: ServerTimeoutException(this)
 }
