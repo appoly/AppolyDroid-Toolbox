@@ -121,9 +121,10 @@ object DateHelper {
 	 * instead, which returns an [Instant] that carries UTC at the type level.
 	 *
 	 * Tolerant input: accepts the new [NAIVE_PATTERN_FULL] format (no zone marker), the
-	 * legacy literal-`Z` format and any explicit ISO-8601 offset (via [SERVER_PATTERN_FULL_OFFSET]
-	 * — the offset is dropped, returning the wall-clock digits at that offset), and the
-	 * [SERVER_PATTERN_SHORT] format. This makes the parser strictly more lenient than its
+	 * legacy literal-`Z` format and any explicit ISO-8601 offset (the offset is dropped,
+	 * returning the wall-clock digits at that offset), and the [SERVER_PATTERN_SHORT] format.
+	 * Fractional seconds are **optional** in the ISO forms (0–9 digits, 1.6.1+) — Carbon's
+	 * `toIso8601String()` output parses. This makes the parser strictly more lenient than its
 	 * pre-1.4 behaviour: anything that used to parse, still parses to the same value.
 	 *
 	 * @param dateTime String representation of date-time to parse (e.g., "2023-12-01T10:38:29.000000")
@@ -148,19 +149,35 @@ object DateHelper {
 		try {
 			return LocalDateTime.parse(dateTime, DateTimeFormatter.ofPattern(NAIVE_PATTERN_FULL))
 		} catch (e: Exception) {
-			DateHelperLog.d(this, "$logTag: \"$dateTime\" not in NAIVE_PATTERN_FULL, trying SERVER_PATTERN_FULL_OFFSET", e)
+			DateHelperLog.d(this, "$logTag: \"$dateTime\" not in NAIVE_PATTERN_FULL, trying ISO_LOCAL_DATE_TIME", e)
 		}
 
-		// 2. Any explicit offset (legacy "Z", "+00:00", "+01:00", etc.) — offset stripped
+		// 2. Any other naive ISO-8601 form — fractional seconds optional (0–9 digits).
+		try {
+			return LocalDateTime.parse(dateTime, DateTimeFormatter.ISO_LOCAL_DATE_TIME)
+		} catch (e: Exception) {
+			DateHelperLog.d(this, "$logTag: \"$dateTime\" not in ISO_LOCAL_DATE_TIME, trying SERVER_PATTERN_FULL_OFFSET", e)
+		}
+
+		// 3. Any explicit offset (legacy "Z", "+00:00", "+01:00", etc.) — offset stripped
 		try {
 			return OffsetDateTime
 				.parse(dateTime, DateTimeFormatter.ofPattern(SERVER_PATTERN_FULL_OFFSET))
 				.toLocalDateTime()
 		} catch (e: Exception) {
-			DateHelperLog.d(this, "$logTag: \"$dateTime\" not in SERVER_PATTERN_FULL_OFFSET, trying SERVER_PATTERN_SHORT", e)
+			DateHelperLog.d(this, "$logTag: \"$dateTime\" not in SERVER_PATTERN_FULL_OFFSET, trying ISO_OFFSET_DATE_TIME", e)
 		}
 
-		// 3. Short format ("yyyy-MM-dd HH:mm:ss")
+		// 4. Any other valid ISO-8601 offset form — fractional seconds optional, offset stripped.
+		try {
+			return OffsetDateTime
+				.parse(dateTime, DateTimeFormatter.ISO_OFFSET_DATE_TIME)
+				.toLocalDateTime()
+		} catch (e: Exception) {
+			DateHelperLog.d(this, "$logTag: \"$dateTime\" not in ISO_OFFSET_DATE_TIME, trying SERVER_PATTERN_SHORT", e)
+		}
+
+		// 5. Short format ("yyyy-MM-dd HH:mm:ss")
 		return try {
 			LocalDateTime.parse(dateTime, DateTimeFormatter.ofPattern(SERVER_PATTERN_SHORT))
 		} catch (e: Exception) {
@@ -405,11 +422,14 @@ object DateHelper {
 	 * `created_at` / `updated_at` etc.) parseable without forcing a server-side change.
 	 *
 	 * Backward compatibility: `Z` was the only accepted suffix pre-1.4; it still parses. Any
-	 * explicit ISO-8601 offset parses. The short Carbon format now also parses (1.4.1+) — this
-	 * restores the pre-1.4 `ZonedDateTimeSerializer.deserialize` tolerance that 1.4.0 lost.
+	 * explicit ISO-8601 offset parses — and fractional seconds are **optional** (0–9 digits,
+	 * 1.6.1+): Carbon's `toIso8601String()` output (`"2025-12-01T10:38:29+00:00"`, no fraction)
+	 * parses, where previously only the exact 6-digit-microsecond form did. The short Carbon
+	 * format also parses (1.4.1+) — this restores the pre-1.4
+	 * `ZonedDateTimeSerializer.deserialize` tolerance that 1.4.0 lost.
 	 *
-	 * @param text String representation of the server timestamp (e.g., "2023-12-01T10:38:29.000000Z"
-	 *   or the Carbon-style "2023-12-01 10:38:29")
+	 * @param text String representation of the server timestamp (e.g., "2023-12-01T10:38:29.000000Z",
+	 *   "2023-12-01T10:38:29+00:00", or the Carbon-style "2023-12-01 10:38:29")
 	 * @return Parsed [Instant], or null if the input is null, blank, or cannot be parsed
 	 */
 	fun parseServerInstant(text: String?): Instant? {
@@ -419,10 +439,19 @@ object DateHelper {
 		try {
 			return OffsetDateTime.parse(text, serverParserOffset).toInstant()
 		} catch (e: Exception) {
-			DateHelperLog.d(this, "parseServerInstant: \"$text\" not in SERVER_PATTERN_FULL_OFFSET, trying SERVER_PATTERN_SHORT (as UTC)", e)
+			DateHelperLog.d(this, "parseServerInstant: \"$text\" not in SERVER_PATTERN_FULL_OFFSET, trying ISO_OFFSET_DATE_TIME", e)
 		}
 
-		// 2. Carbon/Laravel short format ("yyyy-MM-dd HH:mm:ss") — treat as UTC.
+		// 2. Any other valid ISO-8601 offset form — fractional seconds optional (0–9 digits).
+		//    Catches Carbon's toIso8601String() output ("2025-12-01T10:38:29+00:00", no fraction),
+		//    which the strict 6-digit-microsecond pattern above rejects.
+		try {
+			return OffsetDateTime.parse(text, DateTimeFormatter.ISO_OFFSET_DATE_TIME).toInstant()
+		} catch (e: Exception) {
+			DateHelperLog.d(this, "parseServerInstant: \"$text\" not in ISO_OFFSET_DATE_TIME, trying SERVER_PATTERN_SHORT (as UTC)", e)
+		}
+
+		// 3. Carbon/Laravel short format ("yyyy-MM-dd HH:mm:ss") — treat as UTC.
 		//    Restores pre-1.4 ZonedDateTimeSerializer tolerance for naive server timestamps.
 		return try {
 			LocalDateTime
