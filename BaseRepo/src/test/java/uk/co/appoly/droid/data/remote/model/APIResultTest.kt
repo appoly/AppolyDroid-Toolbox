@@ -1,6 +1,7 @@
 package uk.co.appoly.droid.data.remote.model
 
 import uk.co.appoly.droid.util.NoConnectivityException
+import uk.co.appoly.droid.util.ServerUnreachableException
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -79,6 +80,26 @@ class APIResultTest {
 
 		assertFalse(success.isNetworkError())
 		assertFalse((null as APIResult<Int>?).isNetworkError())
+	}
+
+	@Test
+	fun `isServerUnreachable true only for Error wrapping ServerUnreachableException`() {
+		val unreachable: APIResult<Int> =
+			APIResult.Error(-1, "unreachable", ServerUnreachableException(RuntimeException("no dns")))
+		assertTrue(unreachable.isServerUnreachable())
+		// It is still a network error, since ServerUnreachableException is a NoConnectivityException.
+		assertTrue(unreachable.isNetworkError())
+
+		// A plain (offline) NoConnectivityException is a network error but NOT server-unreachable.
+		val offline: APIResult<Int> = APIResult.Error(-1, "offline", NoConnectivityException())
+		assertTrue(offline.isNetworkError())
+		assertFalse(offline.isServerUnreachable())
+
+		val otherError: APIResult<Int> = APIResult.Error(500, "server", RuntimeException())
+		assertFalse(otherError.isServerUnreachable())
+
+		assertFalse(success.isServerUnreachable())
+		assertFalse((null as APIResult<Int>?).isServerUnreachable())
 	}
 
 	@Test

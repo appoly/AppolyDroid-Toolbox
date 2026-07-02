@@ -14,6 +14,13 @@ import uk.co.appoly.droid.data.remote.model.APIResult
 import uk.co.appoly.droid.data.remote.model.response.RootJson
 import uk.co.appoly.droid.data.remote.model.response.RootJsonWithData
 import uk.co.appoly.droid.util.NoConnectivityException
+import uk.co.appoly.droid.util.ServerTimeoutException
+import uk.co.appoly.droid.util.ServerUnreachableException
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
+import java.net.ConnectException
+import java.net.SocketException
+import java.net.SocketTimeoutException
 import java.net.UnknownHostException
 
 /**
@@ -170,16 +177,108 @@ class GenericBaseRepoTest {
 	}
 
 	@Test
-	fun `doAPICall maps connectivity exception to network Error`() {
+	fun `doAPICall maps UnknownHostException while online to server-unreachable Error`() {
 		val result = repo.callWithData<String> {
 			ApiResponse.exception(UnknownHostException("no dns"))
 		}
 
 		result as APIResult.Error
 		assertEquals(GenericBaseRepo.RESPONSE_EXCEPTION_CODE, result.responseCode)
-		assertEquals("No Internet Connection", result.message)
-		assertTrue("Expected NoConnectivityException", result.throwable is NoConnectivityException)
+		assertEquals("Couldn't reach the server", result.message)
+		assertTrue("Expected ServerUnreachableException", result.throwable is ServerUnreachableException)
+		// ServerUnreachableException is a NoConnectivityException, so isNetworkError() stays true.
 		assertTrue(result.isNetworkError())
+		assertTrue(result.isServerUnreachable())
+	}
+
+	// --- offline vs server-unreachable distinction ---------------------------
+
+	@Test
+	fun `handleFailureException maps offline NoConnectivityException to No Internet Connection`() {
+		// The genuinely-offline case: NetworkConnectionInterceptor throws the no-arg
+		// NoConnectivityException pre-flight (cause == null).
+		val error = repo.handleFailureException(
+			response = ApiResponse.Failure.Exception(NoConnectivityException()),
+			logDescription = "offline"
+		)
+
+		assertEquals(GenericBaseRepo.RESPONSE_EXCEPTION_CODE, error.responseCode)
+		assertEquals("No Internet Connection", error.message)
+		assertTrue("Expected NoConnectivityException", error.throwable is NoConnectivityException)
+		assertFalse("Offline should not be a server-unreachable error", error.throwable is ServerUnreachableException)
+		assertTrue(error.isNetworkError())
+		assertFalse(error.isServerUnreachable())
+	}
+
+	@Test
+	fun `handleFailureException maps UnknownHostException to ServerUnreachableException preserving cause`() {
+		val host = UnknownHostException("no dns")
+
+		val error = repo.handleFailureException(
+			response = ApiResponse.Failure.Exception(host),
+			logDescription = "unreachable"
+		)
+
+		assertEquals(GenericBaseRepo.RESPONSE_EXCEPTION_CODE, error.responseCode)
+		assertEquals("Couldn't reach the server", error.message)
+		assertTrue("Expected ServerUnreachableException", error.throwable is ServerUnreachableException)
+		assertSame("Original exception should be preserved as the cause", host, error.throwable?.cause)
+		assertTrue(error.isNetworkError())
+		assertTrue(error.isServerUnreachable())
+	}
+
+	@Test
+	fun `handleFailureException maps ConnectException to ServerUnreachableException`() {
+		val connect = ConnectException("connection refused")
+
+		val error = repo.handleFailureException(
+			response = ApiResponse.Failure.Exception(connect),
+			logDescription = "connect-refused"
+		)
+
+		assertEquals(GenericBaseRepo.RESPONSE_EXCEPTION_CODE, error.responseCode)
+		assertEquals("Couldn't reach the server", error.message)
+		assertTrue("Expected ServerUnreachableException", error.throwable is ServerUnreachableException)
+		// A ConnectException is not a timeout, so it must NOT be the more specific ServerTimeoutException.
+		assertFalse("ConnectException should not map to a timeout", error.throwable is ServerTimeoutException)
+		assertSame("Original exception should be preserved as the cause", connect, error.throwable?.cause)
+		assertTrue(error.isServerUnreachable())
+		assertTrue(error.isNetworkError())
+	}
+
+	@Test
+	fun `handleFailureException maps bare SocketException to ServerUnreachableException`() {
+		val socket = SocketException("socket closed")
+
+		val error = repo.handleFailureException(
+			response = ApiResponse.Failure.Exception(socket),
+			logDescription = "socket"
+		)
+
+		assertEquals(GenericBaseRepo.RESPONSE_EXCEPTION_CODE, error.responseCode)
+		assertEquals("Couldn't reach the server", error.message)
+		assertTrue("Expected ServerUnreachableException", error.throwable is ServerUnreachableException)
+		assertSame("Original exception should be preserved as the cause", socket, error.throwable?.cause)
+		assertTrue(error.isServerUnreachable())
+	}
+
+	@Test
+	fun `handleFailureException maps SocketTimeoutException to ServerTimeoutException`() {
+		val timeout = SocketTimeoutException("timed out")
+
+		val error = repo.handleFailureException(
+			response = ApiResponse.Failure.Exception(timeout),
+			logDescription = "timeout"
+		)
+
+		assertEquals(GenericBaseRepo.RESPONSE_EXCEPTION_CODE, error.responseCode)
+		assertEquals("Server took too long to respond", error.message)
+		assertTrue("Expected ServerTimeoutException", error.throwable is ServerTimeoutException)
+		assertSame("Original exception should be preserved as the cause", timeout, error.throwable?.cause)
+		// A timeout is a kind of server-unreachable error, which is a kind of network error.
+		assertTrue(error.isServerUnreachable())
+		assertTrue(error.isNetworkError())
+		assertNotNull(error.throwable)
 	}
 
 	// --- doAPICallWithRootJson ----------------------------------------------

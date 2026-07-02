@@ -1,6 +1,7 @@
 package uk.co.appoly.droid.data.remote.model
 
 import uk.co.appoly.droid.util.NoConnectivityException
+import uk.co.appoly.droid.util.ServerUnreachableException
 import kotlin.contracts.ExperimentalContracts
 import kotlin.contracts.InvocationKind
 import kotlin.contracts.contract
@@ -21,6 +22,10 @@ sealed class APIResult<out T : Any> {
 
 		fun isNetworkError(): Boolean {
 			return throwable is NoConnectivityException
+		}
+
+		fun isServerUnreachable(): Boolean {
+			return throwable is ServerUnreachableException
 		}
 	}
 
@@ -101,6 +106,26 @@ fun <T : Any> APIResult<T>?.isNetworkError(): Boolean {
 		returns(true) implies (this@isNetworkError is APIResult.Error)
 	}
 	return isError() && this.isNetworkError()
+}
+
+/**
+ * Returns true if the [APIResult] is [APIResult.Error] and the device is online but the server could
+ * not be reached (e.g. DNS failure, connection refused, timeout).
+ *
+ * Note: a [ServerUnreachableException] is also a [NoConnectivityException], so [isNetworkError] also
+ * returns true for these errors — use this when you need to distinguish "no internet" from
+ * "couldn't reach the server".
+ *
+ * @return true if the [APIResult] is [APIResult.Error] and the error is a server-unreachable error.
+ *
+ * @see APIResult.Error and [ServerUnreachableException]
+ */
+@OptIn(ExperimentalContracts::class)
+fun <T : Any> APIResult<T>?.isServerUnreachable(): Boolean {
+	contract {
+		returns(true) implies (this@isServerUnreachable is APIResult.Error)
+	}
+	return isError() && this.isServerUnreachable()
 }
 
 @OptIn(ExperimentalContracts::class)
