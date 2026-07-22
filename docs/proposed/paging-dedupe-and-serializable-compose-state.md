@@ -1,16 +1,20 @@
-# Proposed: paging de-dupe + serialization-safe Compose state
+# Proposed: paging de-dupe + serialization-safe Compose state + clipboard copier
 
 **Status:** TODO / proposed — not yet implemented.
-**Origin:** WenWe Android, July 2026. Both utilities were written to fix production crashes
-(Sentry `WENWE-ANDROID-5H` and `WENWE-ANDROID-5G`) and are fully generic — nothing WenWe-specific —
-so they belong in the toolbox. This doc captures them ready to lift in.
+**Origin:** WenWe Android (#1, #2) and Accelerate Android (#3), July 2026. The WenWe utilities were
+written to fix production crashes (Sentry `WENWE-ANDROID-5H` and `WENWE-ANDROID-5G`); the clipboard
+copier came out of the Accelerate migration off the deprecated `LocalClipboardManager`. All are
+fully generic — nothing app-specific — so they belong in the toolbox. This doc captures them ready
+to lift in.
 
-Two independent additions:
+Three independent additions:
 1. `Flow<PagingData<T>>.distinctBy { }` → **PagingExtensions** module.
 2. `SerializableMutableState` / `TransientMutableState` (+ factories) → **ComposeExtensions** module.
+3. `ClipboardCopier` + `rememberClipboardCopier()` + `copyX` extensions → **ComposeExtensions** module.
 
-Once released, update WenWe to depend on the library versions and delete its local copies (see
-[Migrate WenWe once released](#migrate-wenwe-once-released)).
+Once released, update the originating apps to depend on the library versions and delete their local
+copies (see [Migrate WenWe once released](#migrate-wenwe-once-released) and
+[Migrate Accelerate once released](#migrate-accelerate-once-released)).
 
 ---
 
@@ -205,6 +209,182 @@ fun <T> transientMutableStateOf(initial: T): TransientMutableState<T> = Transien
 
 ---
 
+## 3. Clipboard copier — ComposeExtensions
+
+**Module:** `:ComposeExtensions`  ·  **Package:** `uk.co.appoly.droid.compose.extensions`
+(deps: compose runtime + compose ui + coroutines; all already on the module.)
+
+### Why
+
+`androidx.compose.ui.platform.LocalClipboardManager` is deprecated in favour of `LocalClipboard`,
+whose `Clipboard.setClipEntry(…)` is a **suspend** function. That turns a one-line copy into a small
+pile of plumbing every call site has to repeat correctly: grab `LocalClipboard` + a
+`rememberCoroutineScope()`, `launch`, build a `ClipEntry`, and — because a "copied!" confirmation
+should only fire once the write actually returns — order the toast after the await. There's also an
+Android-13 wrinkle: API 33+ shows its own clipboard confirmation, so an app's own toast must be
+gated to `< TIRAMISU` to avoid a double confirmation. This centralises all of it.
+
+`ClipboardCopier` takes a raw `ClipEntry`, so it handles any payload (text, HTML, URIs, intents,
+multi-item); the `copyX` extensions mirror the `ClipData.newX` factories for ergonomics. `label` is
+kept **required** to match `ClipData.newX` exactly (it's read by clipboard managers / a11y even
+though it isn't shown in the modern paste UI); `confirmationMessage` is the library's own addition
+and defaults to `null` (no toast).
+
+### Source (repackaged)
+
+```kotlin
+package uk.co.appoly.droid.compose.extensions
+
+import android.content.ClipData
+import android.content.ContentResolver
+import android.content.Intent
+import android.net.Uri
+import android.os.Build
+import android.widget.Toast
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.platform.ClipEntry
+import androidx.compose.ui.platform.LocalClipboard
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.toClipEntry
+import kotlinx.coroutines.launch
+
+/**
+ * Copies a [ClipEntry] to the system clipboard and, on Android < 13, shows a confirmation Toast.
+ * Android 13+ surfaces its own clipboard confirmation, so we suppress ours to avoid a double toast.
+ *
+ * Obtain one with [rememberClipboardCopier]. It centralises the [LocalClipboard] plumbing:
+ * `setClipEntry` is a suspend function, so each copy runs on a remembered scope and the confirmation
+ * only fires once the write has returned. The payload is a raw [ClipEntry], so it handles text, a
+ * URI, multiple items, etc.; use [copyPlainText] for the common plain-text case.
+ */
+fun interface ClipboardCopier {
+	/**
+	 * @param clipEntry the payload to copy.
+	 * @param confirmationMessage pre-Android-13 Toast text; pass `null` to skip it. Resolve it in
+	 *   composition (e.g. `stringResource`) so a configuration change re-reads it.
+	 */
+	fun copy(clipEntry: ClipEntry, confirmationMessage: String?)
+}
+
+/**
+ * Copies plain [text] to the clipboard — the common case (wraps [ClipData.newPlainText]).
+ *
+ * @param text the text to copy.
+ * @param label human-readable [ClipData] label (required, mirroring `ClipData.newX`); read by
+ *   clipboard managers and accessibility services, though not shown in the modern paste UI.
+ * @param confirmationMessage pre-Android-13 Toast text; pass `null` to skip it. Resolve it in
+ *   composition (e.g. `stringResource`) so a configuration change re-reads it.
+ */
+fun ClipboardCopier.copyPlainText(
+	text: CharSequence,
+	label: CharSequence,
+	confirmationMessage: String? = null,
+) = copy(ClipData.newPlainText(label, text).toClipEntry(), confirmationMessage)
+
+/**
+ * Copies styled [htmlText] to the clipboard, with [text] as the plain-text fallback for consumers
+ * that can't render HTML (wraps [ClipData.newHtmlText]).
+ *
+ * @param text the plain-text representation.
+ * @param htmlText the HTML-markup representation.
+ * @param label human-readable [ClipData] label (required, mirroring `ClipData.newX`); read by
+ *   clipboard managers and accessibility services, though not shown in the modern paste UI.
+ * @param confirmationMessage pre-Android-13 Toast text; pass `null` to skip it. Resolve it in
+ *   composition (e.g. `stringResource`) so a configuration change re-reads it.
+ */
+fun ClipboardCopier.copyHtmlText(
+	text: CharSequence,
+	htmlText: String,
+	label: CharSequence,
+	confirmationMessage: String? = null,
+) = copy(ClipData.newHtmlText(label, text, htmlText).toClipEntry(), confirmationMessage)
+
+/**
+ * Copies a raw [uri] to the clipboard without resolving it through a [ContentResolver]
+ * (wraps [ClipData.newRawUri]). Use for URIs that aren't `content://` provider URIs — e.g. an
+ * `http`/`https` link or a `mailto:` address; for content URIs use [copyUri] instead.
+ *
+ * @param uri the URI to copy verbatim.
+ * @param label human-readable [ClipData] label (required, mirroring `ClipData.newX`); read by
+ *   clipboard managers and accessibility services, though not shown in the modern paste UI.
+ * @param confirmationMessage pre-Android-13 Toast text; pass `null` to skip it. Resolve it in
+ *   composition (e.g. `stringResource`) so a configuration change re-reads it.
+ */
+fun ClipboardCopier.copyRawUri(
+	uri: Uri,
+	label: CharSequence,
+	confirmationMessage: String? = null,
+) = copy(ClipData.newRawUri(label, uri).toClipEntry(), confirmationMessage)
+
+/**
+ * Copies a `content://` [uri] to the clipboard, querying its available MIME types from [resolver]
+ * so pasting apps receive the right type (wraps [ClipData.newUri]). For plain web/mail URIs prefer
+ * [copyRawUri].
+ *
+ * @param resolver resolves the URI's MIME types.
+ * @param uri the content URI to copy.
+ * @param label human-readable [ClipData] label (required, mirroring `ClipData.newX`); read by
+ *   clipboard managers and accessibility services, though not shown in the modern paste UI.
+ * @param confirmationMessage pre-Android-13 Toast text; pass `null` to skip it. Resolve it in
+ *   composition (e.g. `stringResource`) so a configuration change re-reads it.
+ */
+fun ClipboardCopier.copyUri(
+	resolver: ContentResolver,
+	uri: Uri,
+	label: CharSequence,
+	confirmationMessage: String? = null,
+) = copy(ClipData.newUri(resolver, label, uri).toClipEntry(), confirmationMessage)
+
+/**
+ * Copies an [intent] to the clipboard (wraps [ClipData.newIntent]) — e.g. a launcher shortcut.
+ *
+ * @param intent the Intent to copy.
+ * @param label human-readable [ClipData] label (required, mirroring `ClipData.newX`); read by
+ *   clipboard managers and accessibility services, though not shown in the modern paste UI.
+ * @param confirmationMessage pre-Android-13 Toast text; pass `null` to skip it. Resolve it in
+ *   composition (e.g. `stringResource`) so a configuration change re-reads it.
+ */
+fun ClipboardCopier.copyIntent(
+	intent: Intent,
+	label: CharSequence,
+	confirmationMessage: String? = null,
+) = copy(ClipData.newIntent(label, intent).toClipEntry(), confirmationMessage)
+
+/**
+ * Remembers a [ClipboardCopier] bound to the current [LocalClipboard] / [LocalContext] and a
+ * composition-scoped coroutine scope. Call one of the `copyX` extensions (e.g. [copyPlainText]) on
+ * the result to copy — see [ClipboardCopier] for the confirmation-Toast behaviour.
+ */
+@Composable
+fun rememberClipboardCopier(): ClipboardCopier {
+	val clipboard = LocalClipboard.current
+	val context = LocalContext.current
+	val scope = rememberCoroutineScope()
+	return remember(clipboard, context, scope) {
+		ClipboardCopier { clipEntry, confirmationMessage ->
+			scope.launch {
+				clipboard.setClipEntry(clipEntry)
+				if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU && confirmationMessage != null) {
+					Toast.makeText(context, confirmationMessage, Toast.LENGTH_SHORT).show()
+				}
+			}
+		}
+	}
+}
+```
+
+### Tests to add
+
+- `copyPlainText` builds a plain-text `ClipEntry` and calls `copy` with the given confirmation.
+- Android < 13 shows the toast; API 33+ suppresses it (Robolectric `@Config(sdk = …)` on both sides
+  of `TIRAMISU`).
+- Confirmation fires only after `setClipEntry` returns (ordering), and not at all when `null`.
+- Consider a Compose test that `rememberClipboardCopier()` copies via `LocalClipboard`.
+
+---
+
 ## Migrate WenWe once released
 
 Once these ship in a toolbox release and WenWe bumps to it:
@@ -222,3 +402,20 @@ Once these ship in a toolbox release and WenWe bumps to it:
    swept in the WENWE-76 line (grep `serializableMutableStateOf` / `transientMutableStateOf`).
 5. Rebuild + the same on-device process-death smoke test (Developer Options → "Don't keep
    activities", background/foreground a Screen, confirm no NPE).
+
+---
+
+## Migrate Accelerate once released
+
+Once the clipboard copier (#3) ships in a toolbox release and Accelerate bumps to it:
+
+1. Bump the AppolyDroid dependency in Accelerate.
+2. Delete the local copy:
+    - `app/src/main/java/uk/co/accelerate/ui/extensions/ClipboardCopy.kt`
+3. Repoint imports:
+    - `uk.co.accelerate.ui.extensions.{rememberClipboardCopier, copyPlainText, …}` →
+      `uk.co.appoly.droid.compose.extensions.*`
+4. Call sites (grep `rememberClipboardCopier` / `copyPlainText`): `KerbsideScreen` (perk promo-code
+   redeem) and `WalletCodeScreen` (gift-card code copy).
+5. Rebuild + tap-to-copy smoke test on an Android < 13 device/emulator (confirm the toast) and on
+   API 33+ (confirm the single system confirmation, no double toast).
