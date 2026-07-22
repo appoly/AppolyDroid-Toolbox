@@ -14,7 +14,7 @@ A utility module for standardized date and time operations in Android applicatio
 ## Installation
 
 ```gradle.kts
-implementation("com.github.appoly.AppolyDroid-Toolbox:DateHelperUtil:1.6.2")
+implementation("com.github.appoly.AppolyDroid-Toolbox:DateHelperUtil:1.6.3")
 ```
 
 ## 1.4.1 patch note

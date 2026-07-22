@@ -1,6 +1,9 @@
 # Proposed: paging de-dupe + serialization-safe Compose state + clipboard copier
 
-**Status:** TODO / proposed — not yet implemented.
+**Status:** ✅ Implemented in AppolyDroid Toolbox 1.6.3. All three additions shipped with unit +
+Robolectric tests and consumer ProGuard rules (guarded by `:app:verifyConsumerKeepRules`). The
+app-side migrations remain TODO — see [Migrate WenWe once released](#migrate-wenwe-once-released)
+and [Migrate Accelerate once released](#migrate-accelerate-once-released).
 **Origin:** WenWe Android (#1, #2) and Accelerate Android (#3), July 2026. The WenWe utilities were
 written to fix production crashes (Sentry `WENWE-ANDROID-5H` and `WENWE-ANDROID-5G`); the clipboard
 copier came out of the Accelerate migration off the deprecated `LocalClipboardManager`. All are

@@ -122,6 +122,12 @@ fun HomeScreen(navController: NavController) {
 				description = "OkHttp interceptor DSL for mocking API responses with typed bodies and pagination",
 				onClick = { navController.navigate("mock_interceptor") }
 			)
+
+			FeatureButton(
+				title = "Compose Extensions",
+				description = "Serialization-safe MutableState holders and the clipboard copier",
+				onClick = { navController.navigate("compose_extensions") }
+			)
 		}
 	}
 }

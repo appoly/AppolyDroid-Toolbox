@@ -6,6 +6,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import uk.co.appoly.droid.ui.screens.AppolyJsonDemoScreen
 import uk.co.appoly.droid.ui.screens.BaseRepoDemoScreen
+import uk.co.appoly.droid.ui.screens.ComposeExtensionsDemoScreen
 import uk.co.appoly.droid.ui.screens.DateHelperDemoScreen
 import uk.co.appoly.droid.ui.screens.DateSerializationRoomDemoScreen
 import uk.co.appoly.droid.ui.screens.HomeScreen
@@ -57,6 +58,9 @@ fun AppNavigation() {
 		}
 		composable("mock_interceptor") {
 			MockInterceptorDemoScreen(navController = navController)
+		}
+		composable("compose_extensions") {
+			ComposeExtensionsDemoScreen(navController = navController)
 		}
 	}
 }

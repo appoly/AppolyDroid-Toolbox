@@ -60,12 +60,15 @@ dependencies {
 	implementation(libs.androidx.ui)
 	implementation(libs.androidx.material3)
 
+	implementation(libs.kotlinx.coroutines.android)
+
 	testImplementation(libs.junit)
 	testImplementation(libs.robolectric)
 	testImplementation(libs.androidx.junit)
 	testImplementation(platform(libs.androidx.compose.bom))
 	testImplementation(libs.androidx.ui.test.junit4)
 	testImplementation(libs.androidx.ui.test.manifest)
+	testImplementation(libs.kotlinx.coroutines.test)
 	androidTestImplementation(libs.androidx.junit)
 	androidTestImplementation(libs.androidx.espresso.core)
 }

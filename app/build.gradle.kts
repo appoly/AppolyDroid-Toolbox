@@ -87,6 +87,7 @@ dependencies {
 	implementation(project(":AppSnackBar"))
 	implementation(project(":AppSnackBar-UiState"))
 	implementation(project(":SegmentedControl"))
+	implementation(project(":ComposeExtensions"))
 	implementation(project(":PagingExtensions"))
 	implementation(project(":LazyListPagingExtensions"))
 	implementation(project(":LazyGridPagingExtensions"))
@@ -175,6 +176,10 @@ val consumerKeepSentinels = listOf(
 	"uk.co.appoly.droid.util.NullableEnumAsIntSerializer",
 	// DateHelperUtil-Room — Room TypeConverter carrier
 	"uk.co.appoly.droid.util.DBDateConverters",
+	// ComposeExtensions — Serializable MutableState holders (writeObject/readObject kept for
+	// process-death restore); demo app uses them via ComposeExtensionsDemoScreen so R8 retains them.
+	"uk.co.appoly.droid.compose.extensions.SerializableMutableState",
+	"uk.co.appoly.droid.compose.extensions.TransientMutableState",
 )
 
 tasks.register("verifyConsumerKeepRules") {
