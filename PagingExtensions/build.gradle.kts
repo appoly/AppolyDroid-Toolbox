@@ -69,6 +69,8 @@ dependencies {
 	testImplementation(platform(libs.androidx.compose.bom))
 	testImplementation(libs.androidx.ui.test.junit4)
 	testImplementation(libs.androidx.ui.test.manifest)
+	testImplementation(libs.paging.testing)
+	testImplementation(libs.kotlinx.coroutines.test)
 	androidTestImplementation(libs.androidx.junit)
 	androidTestImplementation(libs.androidx.espresso.core)
 }

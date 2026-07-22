@@ -12,10 +12,25 @@ Core utilities and extensions for Jetpack Paging 3 integration, providing the fo
 ## Installation
 
 ```gradle.kts
-implementation("com.github.appoly.AppolyDroid-Toolbox:PagingExtensions:1.6.2")
+implementation("com.github.appoly.AppolyDroid-Toolbox:PagingExtensions:1.6.3")
 ```
 
 ## Usage
+
+### De-duplicating paging streams
+
+Offset pagination over data that can change between page loads can return the **same item id on more
+than one page**. With `itemKey = { it.id }` on a `LazyColumn`/`LazyRow`, the second occurrence throws
+`IllegalArgumentException: Key "…" was already used`. Guard against that by de-duping the stream:
+
+```kotlin
+val items: Flow<PagingData<User>> = repo.pagedUsers()
+    .distinctBy { it.id }   // guard against the same id arriving on two pages
+    .cachedIn(viewModelScope)
+```
+
+Keeps the first occurrence of each key per `PagingData` generation (the `seen` set resets on every
+refresh/invalidation). Only safe when the `Pager` does **not** set `maxSize`.
 
 ### Extension Functions
 

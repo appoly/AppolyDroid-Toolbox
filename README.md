@@ -53,7 +53,7 @@ In your `libs.versions.toml` file:
 
 ```toml
 [versions]
-appolydroidToolbox = "1.6.2" # Replace with the latest version
+appolydroidToolbox = "1.6.3" # Replace with the latest version
 
 [libraries]
 appolydroid-toolbox-bom = { group = "com.github.appoly.AppolyDroid-Toolbox", name = "AppolyDroid-Toolbox-bom", version.ref = "appolydroidToolbox" }
@@ -126,7 +126,7 @@ In your module's `build.gradle.kts`:
 ```gradle.kts
 dependencies {
     // Import the BOM
-    implementation(platform("com.github.appoly.AppolyDroid-Toolbox:AppolyDroid-Toolbox-bom:1.6.2"))
+    implementation(platform("com.github.appoly.AppolyDroid-Toolbox:AppolyDroid-Toolbox-bom:1.6.3"))
 
     // Now you can use AppolyDroid modules without specifying versions
     implementation("com.github.appoly.AppolyDroid-Toolbox:BaseRepo")
@@ -162,7 +162,7 @@ In your `libs.versions.toml` file:
 
 ```toml
 [versions]
-appolydroidToolbox = "1.6.2" # Replace with the latest version
+appolydroidToolbox = "1.6.3" # Replace with the latest version
 
 [libraries]
 #AppolyDroid-Toolbox
@@ -228,7 +228,7 @@ In your module's `build.gradle.kts`:
 
 ```gradle.kts
 dependencies {
-    val appolydroidToolbox = "1.6.2" // Replace with the latest version
+    val appolydroidToolbox = "1.6.3" // Replace with the latest version
     // Add only the modules you need
     implementation("com.github.appoly.AppolyDroid-Toolbox:BaseRepo:$appolydroidToolbox")
     implementation("com.github.appoly.AppolyDroid-Toolbox:BaseRepo-AppolyJson:$appolydroidToolbox")
@@ -297,6 +297,12 @@ Integration of AppSnackBar with UiState.
 ### SegmentedControl
 iOS-style segmented control with smooth animations and customizable styling.
 [Learn more](SegmentedControl/README.md)
+### ComposeExtensions
+Compose utilities: insets/IME padding, padding arithmetic, serialization-safe `MutableState` holders for Voyager Screens, and a clipboard copier.
+[Learn more](ComposeExtensions/README.md)
+### PagingExtensions
+Core Jetpack Paging 3 utilities: `LoadState` predicates, paging-stream de-duplication, and shared loading/error/empty state components.
+[Learn more](PagingExtensions/README.md)
 ### LazyListPagingExtensions
 Extensions for Jetpack Compose LazyList with paging support.
 [Learn more](LazyListPagingExtensions/README.md)
