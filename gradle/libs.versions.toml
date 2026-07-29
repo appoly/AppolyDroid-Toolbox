@@ -61,9 +61,10 @@ okhttp-mockwebserver = { module = "com.squareup.okhttp3:mockwebserver", version.
 retrofit = { module = "com.squareup.retrofit2:retrofit", version.ref = "retrofit" }
 retrofit-serializationConverter = { group = "com.squareup.retrofit2", name = "converter-kotlinx-serialization", version.ref = "retrofit" }
 
-#sandwich
-sandwich = { group = "com.github.skydoves", name = "sandwich", version.ref = "sandwichVersion" }
-sandwich-retrofit = { group = "com.github.skydoves", name = "sandwich-retrofit", version.ref = "sandwichVersion" }
+#sandwich (versions aligned by the BOM — import platform(libs.sandwich.bom) alongside these)
+sandwich-bom = { group = "com.github.skydoves", name = "sandwich-bom", version.ref = "sandwichVersion" }
+sandwich = { group = "com.github.skydoves", name = "sandwich" }
+sandwich-retrofit = { group = "com.github.skydoves", name = "sandwich-retrofit" }
 
 #Kotlin
 kotlin-reflect = { group = "org.jetbrains.kotlin", name = "kotlin-reflect", version.ref = "kotlin" }

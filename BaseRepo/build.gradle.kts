@@ -66,6 +66,7 @@ dependencies {
 	api(libs.kotlinx.serialization)
 
 	//sandwich
+	api(platform(libs.sandwich.bom))
 	api(libs.sandwich)
 	api(libs.sandwich.retrofit)
 
