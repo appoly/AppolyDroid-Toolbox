@@ -3,12 +3,16 @@ package uk.co.appoly.droid.data.repo
 import com.duck.flexilogger.FlexiLog
 import com.duck.flexilogger.LoggingLevel
 import com.skydoves.sandwich.ApiResponse
+import com.skydoves.sandwich.exceptions.SandwichNetworkException
+import com.skydoves.sandwich.exceptions.SandwichTimeoutException
 import com.skydoves.sandwich.message
+import com.skydoves.sandwich.retrofit.exceptions.RetrofitExceptionClassifier
 import com.skydoves.sandwich.retrofit.statusCode
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
+import retrofit2.Response
 import uk.co.appoly.droid.BaseRepoLog
 import uk.co.appoly.droid.BaseRepoLogger
 import uk.co.appoly.droid.data.remote.BaseRetrofitClient
@@ -22,10 +26,6 @@ import uk.co.appoly.droid.util.asServerTimeoutException
 import uk.co.appoly.droid.util.asServerUnreachableException
 import uk.co.appoly.droid.util.firstNotNullOrBlank
 import uk.co.appoly.droid.util.ifNullOrBlank
-import java.net.ConnectException
-import java.net.SocketException
-import java.net.SocketTimeoutException
-import java.net.UnknownHostException
 import kotlin.contracts.ExperimentalContracts
 import kotlin.contracts.contract
 
@@ -65,6 +65,17 @@ abstract class GenericBaseRepo(
 		 * Response code used for general exceptions that don't have a specific HTTP status code
 		 */
 		const val RESPONSE_EXCEPTION_CODE = -1
+
+		/**
+		 * Response code used for [ApiResponse.Failure.Error] responses whose payload is not an
+		 * HTTP response, so no HTTP status code is available.
+		 *
+		 * The main source of such errors is Sandwich's `ApiEnvelopeMapper` (registered globally
+		 * by default since Sandwich 2.4.0), which demotes an HTTP 200 response whose body
+		 * implements `ApiEnvelope` and reports a business failure into an
+		 * [ApiResponse.Failure.Error] carrying the envelope's error object as its payload.
+		 */
+		const val RESPONSE_NON_HTTP_ERROR_CODE = -2
 	}
 
 	/**
@@ -232,6 +243,11 @@ abstract class GenericBaseRepo(
 	abstract fun extractErrorMessage(response: ApiResponse.Failure.Error): String?
 
 	fun handleFailureError(response: ApiResponse.Failure.Error, logDescription: String): APIResult.Error {
+		// The payload is only a retrofit2.Response for errors produced by the call adapter.
+		// Errors created elsewhere (e.g. Sandwich's ApiEnvelopeMapper demoting an HTTP 200
+		// business failure) carry an arbitrary payload, on which Sandwich's statusCode/errorBody
+		// accessors throw.
+		val statusCode = (response.payload as? Response<*>)?.code() ?: RESPONSE_NON_HTTP_ERROR_CODE
 		val message = try {
 			firstNotNullOrBlank(
 				{ extractErrorMessage(response) },
@@ -243,27 +259,32 @@ abstract class GenericBaseRepo(
 		}
 		BaseRepoLog.e(
 			this,
-			"$logDescription failed! code:${response.statusCode.code}, message:\"$message\""
+			"$logDescription failed! code:$statusCode, message:\"$message\""
 		)
-		return APIResult.Error(response.statusCode.code, message)
+		return APIResult.Error(statusCode, message)
 	}
 
 	fun handleFailureException(response: ApiResponse.Failure.Exception, logDescription: String): APIResult.Error {
-		return when (val throwable = response.throwable) {
-			// Already a connectivity exception: either the genuinely-offline NoConnectivityException
-			// thrown pre-flight by NetworkConnectionInterceptor (cause == null), or a Server* type we
-			// produced upstream. Preserve its own (accurate) message.
-			is NoConnectivityException -> {
-				BaseRepoLog.w(
-					this,
-					"$logDescription failed: ${throwable.message}",
-					throwable
-				)
-				APIResult.Error(RESPONSE_EXCEPTION_CODE, throwable.message, throwable)
-			}
-
+		val throwable = response.throwable
+		// Already a connectivity exception: either the genuinely-offline NoConnectivityException
+		// thrown pre-flight by NetworkConnectionInterceptor (cause == null), or a Server* type we
+		// produced upstream. Preserve its own (accurate) message. Must be checked before the
+		// classifier, which would report it as a plain network failure (it is an IOException).
+		if (throwable is NoConnectivityException) {
+			BaseRepoLog.w(
+				this,
+				"$logDescription failed: ${throwable.message}",
+				throwable
+			)
+			return APIResult.Error(RESPONSE_EXCEPTION_CODE, throwable.message, throwable)
+		}
+		// Transport-specific sniffing is delegated to Sandwich's classifier, called directly so
+		// the consumer's global SandwichInitializer state is left untouched. It encodes OkHttp
+		// quirks, e.g. a call-level timeout (OkHttpClient.Builder.callTimeout) surfaces as a
+		// plain InterruptedIOException("timeout"), not a SocketTimeoutException.
+		return when (RetrofitExceptionClassifier.classify(throwable)) {
 			// Device is online but the server didn't respond in time.
-			is SocketTimeoutException -> {
+			is SandwichTimeoutException -> {
 				val exception = throwable.asServerTimeoutException()
 				BaseRepoLog.w(
 					this,
@@ -273,10 +294,8 @@ abstract class GenericBaseRepo(
 				APIResult.Error(RESPONSE_EXCEPTION_CODE, exception.message, exception)
 			}
 
-			// Device is online but the server host couldn't be resolved/reached.
-			is UnknownHostException,
-			is ConnectException,
-			is SocketException -> {
+			// Device is online but the server couldn't be resolved/reached.
+			is SandwichNetworkException -> {
 				val exception = throwable.asServerUnreachableException()
 				BaseRepoLog.w(
 					this,
@@ -286,6 +305,7 @@ abstract class GenericBaseRepo(
 				APIResult.Error(RESPONSE_EXCEPTION_CODE, exception.message, exception)
 			}
 
+			// HTTP, serialization and unrecognised exceptions are not connectivity problems.
 			else -> {
 				val message = firstNotNullOrBlank(
 					{ throwable.message },

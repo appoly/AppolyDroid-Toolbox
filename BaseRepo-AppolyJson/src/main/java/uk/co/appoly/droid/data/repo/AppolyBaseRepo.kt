@@ -5,6 +5,7 @@ import com.duck.flexilogger.LoggingLevel
 import com.skydoves.sandwich.ApiResponse
 import com.skydoves.sandwich.retrofit.errorBody
 import com.skydoves.sandwich.retrofit.statusCode
+import retrofit2.Response
 import uk.co.appoly.droid.BaseAppolyRepoLogger
 import uk.co.appoly.droid.data.remote.BaseRetrofitClient
 import uk.co.appoly.droid.data.remote.model.APIResult
@@ -26,6 +27,11 @@ abstract class AppolyBaseRepo(
 	loggingLevel
 ) {
 	override fun extractErrorMessage(response: ApiResponse.Failure.Error): String? {
+		// Only adapter-produced errors carry a retrofit2.Response payload with an HTTP error
+		// body to parse. For anything else (e.g. a business failure demoted by Sandwich's
+		// ApiEnvelopeMapper) return null so handleFailureError falls through to
+		// response.message(), which surfaces the payload itself.
+		if (response.payload !is Response<*>) return null
 		return response.errorBody.parseBody<ErrorBody>(getRetrofitClient())?.message
 	}
 

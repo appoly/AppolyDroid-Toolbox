@@ -66,11 +66,15 @@ dependencies {
 	api(libs.kotlinx.serialization)
 
 	//sandwich
+	api(platform(libs.sandwich.bom))
 	api(libs.sandwich)
 	api(libs.sandwich.retrofit)
 
 	testImplementation(libs.junit)
 	testImplementation(libs.retrofit)
+	testImplementation(libs.retrofit.serializationConverter)
+	testImplementation(libs.okhttp)
+	testImplementation(libs.okhttp.mockwebserver)
 	testImplementation(libs.kotlinx.coroutines.test)
 	testImplementation(libs.robolectric)
 	testImplementation(libs.androidx.junit)

@@ -18,6 +18,7 @@ import uk.co.appoly.droid.util.ServerTimeoutException
 import uk.co.appoly.droid.util.ServerUnreachableException
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
+import java.io.InterruptedIOException
 import java.net.ConnectException
 import java.net.SocketException
 import java.net.SocketTimeoutException
@@ -263,6 +264,73 @@ class GenericBaseRepoTest {
 	}
 
 	@Test
+	fun `handleFailureException maps OkHttp callTimeout InterruptedIOException to ServerTimeoutException`() {
+		// OkHttpClient.Builder.callTimeout() reports the overall call timeout as a plain
+		// InterruptedIOException with the message "timeout" — NOT a SocketTimeoutException.
+		val callTimeout = InterruptedIOException("timeout")
+
+		val error = repo.handleFailureException(
+			response = ApiResponse.Failure.Exception(callTimeout),
+			logDescription = "call-timeout"
+		)
+
+		assertEquals(GenericBaseRepo.RESPONSE_EXCEPTION_CODE, error.responseCode)
+		assertEquals("Server took too long to respond", error.message)
+		assertTrue("Expected ServerTimeoutException", error.throwable is ServerTimeoutException)
+		assertSame("Original exception should be preserved as the cause", callTimeout, error.throwable?.cause)
+		assertTrue(error.isServerUnreachable())
+		assertTrue(error.isNetworkError())
+	}
+
+	@Test
+	fun `handleFailureException maps non-timeout InterruptedIOException to ServerUnreachableException`() {
+		val interrupted = InterruptedIOException("thread interrupted")
+
+		val error = repo.handleFailureException(
+			response = ApiResponse.Failure.Exception(interrupted),
+			logDescription = "interrupted"
+		)
+
+		assertEquals("Couldn't reach the server", error.message)
+		assertTrue("Expected ServerUnreachableException", error.throwable is ServerUnreachableException)
+		assertFalse("A non-timeout interruption is not a timeout", error.throwable is ServerTimeoutException)
+		assertTrue(error.isNetworkError())
+	}
+
+	@Test
+	fun `handleFailureException maps other IOExceptions to ServerUnreachableException`() {
+		val ssl = javax.net.ssl.SSLHandshakeException("handshake failed")
+
+		val error = repo.handleFailureException(
+			response = ApiResponse.Failure.Exception(ssl),
+			logDescription = "ssl"
+		)
+
+		assertEquals("Couldn't reach the server", error.message)
+		assertTrue("Expected ServerUnreachableException", error.throwable is ServerUnreachableException)
+		assertSame("Original exception should be preserved as the cause", ssl, error.throwable?.cause)
+		assertTrue(error.isNetworkError())
+	}
+
+	@Test
+	fun `handleFailureException does NOT map EOFException to a network error`() {
+		// A truncated response body surfaces as an EOFException from the converter — the server
+		// WAS reached, so it must not be classified as a connectivity problem.
+		val eof = java.io.EOFException("unexpected end of stream")
+
+		val error = repo.handleFailureException(
+			response = ApiResponse.Failure.Exception(eof),
+			logDescription = "truncated-body"
+		)
+
+		assertEquals(GenericBaseRepo.RESPONSE_EXCEPTION_CODE, error.responseCode)
+		assertEquals("unexpected end of stream", error.message)
+		assertSame(eof, error.throwable)
+		assertFalse("A parsing failure is not a network error", error.isNetworkError())
+		assertFalse(error.isServerUnreachable())
+	}
+
+	@Test
 	fun `handleFailureException maps SocketTimeoutException to ServerTimeoutException`() {
 		val timeout = SocketTimeoutException("timed out")
 
@@ -352,6 +420,62 @@ class GenericBaseRepoTest {
 
 		assertEquals(404, error.responseCode)
 		assertEquals("extracted-error", error.message)
+	}
+
+	// --- non-HTTP Failure.Error payloads (e.g. Sandwich ApiEnvelopeMapper demotions) ---------
+
+	@Test
+	fun `handleFailureError with non-Response payload uses sentinel code and payload message`() {
+		// Sandwich 2.4.0's ApiEnvelopeMapper (registered globally by default) demotes HTTP 200
+		// business failures to Failure.Error carrying the envelope's error object — not a
+		// retrofit2.Response. This must not throw, and the payload should surface as the message.
+		val nullExtractRepo = TestRepo(extracted = null)
+
+		val error = nullExtractRepo.handleFailureError(
+			response = ApiResponse.Failure.Error("business says no"),
+			logDescription = "envelope-demoted"
+		)
+
+		assertEquals(GenericBaseRepo.RESPONSE_NON_HTTP_ERROR_CODE, error.responseCode)
+		assertEquals(-2, error.responseCode)
+		assertEquals("business says no", error.message)
+	}
+
+	@Test
+	fun `handleFailureError with non-Response payload still prefers extracted message`() {
+		val error = repo.handleFailureError(
+			response = ApiResponse.Failure.Error("business says no"),
+			logDescription = "envelope-demoted-extracted"
+		)
+
+		assertEquals(GenericBaseRepo.RESPONSE_NON_HTTP_ERROR_CODE, error.responseCode)
+		assertEquals("extracted-error", error.message)
+	}
+
+	@Test
+	fun `handleFailureError with null payload does not throw and yields non-blank message`() {
+		val nullExtractRepo = TestRepo(extracted = null)
+
+		val error = nullExtractRepo.handleFailureError(
+			response = ApiResponse.Failure.Error(null),
+			logDescription = "null-payload"
+		)
+
+		assertEquals(GenericBaseRepo.RESPONSE_NON_HTTP_ERROR_CODE, error.responseCode)
+		assertTrue(error.message.isNotBlank())
+	}
+
+	@Test
+	fun `doAPICall maps non-Response Failure Error to Error without throwing`() {
+		val nullExtractRepo = TestRepo(extracted = null)
+
+		val result = nullExtractRepo.callWithData<String> {
+			ApiResponse.Failure.Error("envelope error object")
+		}
+
+		result as APIResult.Error
+		assertEquals(GenericBaseRepo.RESPONSE_NON_HTTP_ERROR_CODE, result.responseCode)
+		assertEquals("envelope error object", result.message)
 	}
 
 	@Test

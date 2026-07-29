@@ -61,6 +61,7 @@ dependencies {
     implementation(libs.retrofit.serializationConverter)
 
     // Sandwich
+    api(platform(libs.sandwich.bom))
     api(libs.sandwich)
     api(libs.sandwich.retrofit)
 
