@@ -72,6 +72,9 @@ dependencies {
 
 	testImplementation(libs.junit)
 	testImplementation(libs.retrofit)
+	testImplementation(libs.retrofit.serializationConverter)
+	testImplementation(libs.okhttp)
+	testImplementation(libs.okhttp.mockwebserver)
 	testImplementation(libs.kotlinx.coroutines.test)
 	testImplementation(libs.robolectric)
 	testImplementation(libs.androidx.junit)
