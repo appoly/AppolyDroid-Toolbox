@@ -3,7 +3,10 @@ package uk.co.appoly.droid.data.repo
 import com.duck.flexilogger.FlexiLog
 import com.duck.flexilogger.LoggingLevel
 import com.skydoves.sandwich.ApiResponse
+import com.skydoves.sandwich.exceptions.SandwichNetworkException
+import com.skydoves.sandwich.exceptions.SandwichTimeoutException
 import com.skydoves.sandwich.message
+import com.skydoves.sandwich.retrofit.exceptions.RetrofitExceptionClassifier
 import com.skydoves.sandwich.retrofit.statusCode
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -23,10 +26,6 @@ import uk.co.appoly.droid.util.asServerTimeoutException
 import uk.co.appoly.droid.util.asServerUnreachableException
 import uk.co.appoly.droid.util.firstNotNullOrBlank
 import uk.co.appoly.droid.util.ifNullOrBlank
-import java.net.ConnectException
-import java.net.SocketException
-import java.net.SocketTimeoutException
-import java.net.UnknownHostException
 import kotlin.contracts.ExperimentalContracts
 import kotlin.contracts.contract
 
@@ -266,21 +265,26 @@ abstract class GenericBaseRepo(
 	}
 
 	fun handleFailureException(response: ApiResponse.Failure.Exception, logDescription: String): APIResult.Error {
-		return when (val throwable = response.throwable) {
-			// Already a connectivity exception: either the genuinely-offline NoConnectivityException
-			// thrown pre-flight by NetworkConnectionInterceptor (cause == null), or a Server* type we
-			// produced upstream. Preserve its own (accurate) message.
-			is NoConnectivityException -> {
-				BaseRepoLog.w(
-					this,
-					"$logDescription failed: ${throwable.message}",
-					throwable
-				)
-				APIResult.Error(RESPONSE_EXCEPTION_CODE, throwable.message, throwable)
-			}
-
+		val throwable = response.throwable
+		// Already a connectivity exception: either the genuinely-offline NoConnectivityException
+		// thrown pre-flight by NetworkConnectionInterceptor (cause == null), or a Server* type we
+		// produced upstream. Preserve its own (accurate) message. Must be checked before the
+		// classifier, which would report it as a plain network failure (it is an IOException).
+		if (throwable is NoConnectivityException) {
+			BaseRepoLog.w(
+				this,
+				"$logDescription failed: ${throwable.message}",
+				throwable
+			)
+			return APIResult.Error(RESPONSE_EXCEPTION_CODE, throwable.message, throwable)
+		}
+		// Transport-specific sniffing is delegated to Sandwich's classifier, called directly so
+		// the consumer's global SandwichInitializer state is left untouched. It encodes OkHttp
+		// quirks, e.g. a call-level timeout (OkHttpClient.Builder.callTimeout) surfaces as a
+		// plain InterruptedIOException("timeout"), not a SocketTimeoutException.
+		return when (RetrofitExceptionClassifier.classify(throwable)) {
 			// Device is online but the server didn't respond in time.
-			is SocketTimeoutException -> {
+			is SandwichTimeoutException -> {
 				val exception = throwable.asServerTimeoutException()
 				BaseRepoLog.w(
 					this,
@@ -290,10 +294,8 @@ abstract class GenericBaseRepo(
 				APIResult.Error(RESPONSE_EXCEPTION_CODE, exception.message, exception)
 			}
 
-			// Device is online but the server host couldn't be resolved/reached.
-			is UnknownHostException,
-			is ConnectException,
-			is SocketException -> {
+			// Device is online but the server couldn't be resolved/reached.
+			is SandwichNetworkException -> {
 				val exception = throwable.asServerUnreachableException()
 				BaseRepoLog.w(
 					this,
@@ -303,6 +305,7 @@ abstract class GenericBaseRepo(
 				APIResult.Error(RESPONSE_EXCEPTION_CODE, exception.message, exception)
 			}
 
+			// HTTP, serialization and unrecognised exceptions are not connectivity problems.
 			else -> {
 				val message = firstNotNullOrBlank(
 					{ throwable.message },
