@@ -354,6 +354,62 @@ class GenericBaseRepoTest {
 		assertEquals("extracted-error", error.message)
 	}
 
+	// --- non-HTTP Failure.Error payloads (e.g. Sandwich ApiEnvelopeMapper demotions) ---------
+
+	@Test
+	fun `handleFailureError with non-Response payload uses sentinel code and payload message`() {
+		// Sandwich 2.4.0's ApiEnvelopeMapper (registered globally by default) demotes HTTP 200
+		// business failures to Failure.Error carrying the envelope's error object — not a
+		// retrofit2.Response. This must not throw, and the payload should surface as the message.
+		val nullExtractRepo = TestRepo(extracted = null)
+
+		val error = nullExtractRepo.handleFailureError(
+			response = ApiResponse.Failure.Error("business says no"),
+			logDescription = "envelope-demoted"
+		)
+
+		assertEquals(GenericBaseRepo.RESPONSE_NON_HTTP_ERROR_CODE, error.responseCode)
+		assertEquals(-2, error.responseCode)
+		assertEquals("business says no", error.message)
+	}
+
+	@Test
+	fun `handleFailureError with non-Response payload still prefers extracted message`() {
+		val error = repo.handleFailureError(
+			response = ApiResponse.Failure.Error("business says no"),
+			logDescription = "envelope-demoted-extracted"
+		)
+
+		assertEquals(GenericBaseRepo.RESPONSE_NON_HTTP_ERROR_CODE, error.responseCode)
+		assertEquals("extracted-error", error.message)
+	}
+
+	@Test
+	fun `handleFailureError with null payload does not throw and yields non-blank message`() {
+		val nullExtractRepo = TestRepo(extracted = null)
+
+		val error = nullExtractRepo.handleFailureError(
+			response = ApiResponse.Failure.Error(null),
+			logDescription = "null-payload"
+		)
+
+		assertEquals(GenericBaseRepo.RESPONSE_NON_HTTP_ERROR_CODE, error.responseCode)
+		assertTrue(error.message.isNotBlank())
+	}
+
+	@Test
+	fun `doAPICall maps non-Response Failure Error to Error without throwing`() {
+		val nullExtractRepo = TestRepo(extracted = null)
+
+		val result = nullExtractRepo.callWithData<String> {
+			ApiResponse.Failure.Error("envelope error object")
+		}
+
+		result as APIResult.Error
+		assertEquals(GenericBaseRepo.RESPONSE_NON_HTTP_ERROR_CODE, result.responseCode)
+		assertEquals("envelope error object", result.message)
+	}
+
 	@Test
 	fun `handleFailureException with null throwable message still yields non-blank message`() {
 		// A throwable with no message exercises the firstNotNullOrBlank fallback path.

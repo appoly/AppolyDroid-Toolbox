@@ -9,6 +9,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
+import retrofit2.Response
 import uk.co.appoly.droid.BaseRepoLog
 import uk.co.appoly.droid.BaseRepoLogger
 import uk.co.appoly.droid.data.remote.BaseRetrofitClient
@@ -65,6 +66,17 @@ abstract class GenericBaseRepo(
 		 * Response code used for general exceptions that don't have a specific HTTP status code
 		 */
 		const val RESPONSE_EXCEPTION_CODE = -1
+
+		/**
+		 * Response code used for [ApiResponse.Failure.Error] responses whose payload is not an
+		 * HTTP response, so no HTTP status code is available.
+		 *
+		 * The main source of such errors is Sandwich's `ApiEnvelopeMapper` (registered globally
+		 * by default since Sandwich 2.4.0), which demotes an HTTP 200 response whose body
+		 * implements `ApiEnvelope` and reports a business failure into an
+		 * [ApiResponse.Failure.Error] carrying the envelope's error object as its payload.
+		 */
+		const val RESPONSE_NON_HTTP_ERROR_CODE = -2
 	}
 
 	/**
@@ -232,6 +244,11 @@ abstract class GenericBaseRepo(
 	abstract fun extractErrorMessage(response: ApiResponse.Failure.Error): String?
 
 	fun handleFailureError(response: ApiResponse.Failure.Error, logDescription: String): APIResult.Error {
+		// The payload is only a retrofit2.Response for errors produced by the call adapter.
+		// Errors created elsewhere (e.g. Sandwich's ApiEnvelopeMapper demoting an HTTP 200
+		// business failure) carry an arbitrary payload, on which Sandwich's statusCode/errorBody
+		// accessors throw.
+		val statusCode = (response.payload as? Response<*>)?.code() ?: RESPONSE_NON_HTTP_ERROR_CODE
 		val message = try {
 			firstNotNullOrBlank(
 				{ extractErrorMessage(response) },
@@ -243,9 +260,9 @@ abstract class GenericBaseRepo(
 		}
 		BaseRepoLog.e(
 			this,
-			"$logDescription failed! code:${response.statusCode.code}, message:\"$message\""
+			"$logDescription failed! code:$statusCode, message:\"$message\""
 		)
-		return APIResult.Error(response.statusCode.code, message)
+		return APIResult.Error(statusCode, message)
 	}
 
 	fun handleFailureException(response: ApiResponse.Failure.Exception, logDescription: String): APIResult.Error {

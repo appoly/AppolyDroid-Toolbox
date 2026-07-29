@@ -107,4 +107,26 @@ class AppolyBaseRepoTest {
 		)
 		assertNull(msg)
 	}
+
+	@Test
+	fun `extractErrorMessage returns null for a non-Response payload without throwing`() {
+		// A Failure.Error demoted by Sandwich's ApiEnvelopeMapper carries the envelope's error
+		// object as its payload, not a retrofit2.Response — parsing an HTTP error body is
+		// impossible, so extraction should decline gracefully.
+		val msg = repo.extractErrorMessage(
+			ApiResponse.Failure.Error("business says no")
+		)
+		assertNull(msg)
+	}
+
+	@Test
+	fun `doAPICallWithBaseResponse maps non-Response Failure Error to Error with payload message`() {
+		val result = repo.callBase {
+			ApiResponse.Failure.Error("business says no")
+		}
+
+		result as APIResult.Error
+		assertEquals(GenericBaseRepo.RESPONSE_NON_HTTP_ERROR_CODE, result.responseCode)
+		assertEquals("business says no", result.message)
+	}
 }
