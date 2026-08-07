@@ -62,9 +62,15 @@ dependencies {
 	api(libs.androidx.navigation3.runtime)
 	api(libs.androidx.navigation3.ui)
 	api(libs.androidx.lifecycle.viewmodel.navigation3)
+	// api: ViewModelStoreOwner is the return type of nav3HostViewModelStoreOwner()
+	api(libs.androidx.lifecycle.viewmodel)
+	// LocalViewModelStoreOwner (host capture for LocalNav3HostViewModelStoreOwner) — internal
+	implementation(libs.androidx.lifecycle.viewmodel.compose)
 
-	// Serialization used by TabsNav3Navigator.Saver (NavKeySerializer) and @Serializable screens
-	implementation(libs.kotlinx.serialization)
+	// KSerializer flows through TabsNav3Navigator.Saver's encode/decode calls — internal.
+	// Consumers' @Serializable screens need the serialization plugin on THEIR module; the
+	// core annotations reach them compile-scoped via api(navigation3-runtime).
+	implementation(libs.kotlinx.serialization.core)
 
 	testImplementation(libs.junit)
 	testImplementation(libs.robolectric)

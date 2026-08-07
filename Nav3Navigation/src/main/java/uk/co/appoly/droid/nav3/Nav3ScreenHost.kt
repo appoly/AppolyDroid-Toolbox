@@ -9,6 +9,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.lifecycle.viewmodel.compose.LocalViewModelStoreOwner
 import androidx.lifecycle.viewmodel.navigation3.rememberViewModelStoreNavEntryDecorator
 import androidx.navigation3.runtime.NavBackStack
 import androidx.navigation3.runtime.NavEntry
@@ -46,7 +47,9 @@ fun rememberDefaultNav3EntryDecorators(): List<NavEntryDecorator<NavKey>> = list
 
 /**
  * A [NavDisplay] for a back stack of self-rendering [Nav3Screen]s, with [LocalNav3Navigator]
- * provided so screens push/pop directly instead of receiving host-threaded lambdas.
+ * provided so screens push/pop directly instead of receiving host-threaded lambdas. Also
+ * provides [LocalNav3HostViewModelStoreOwner] (the pre-decorator owner) so screens can resolve
+ * navigator-scoped ViewModels via [nav3HostViewModelStoreOwner].
  *
  * Forwards the full primary [NavDisplay] parameter surface (entry/scene decorators, shared
  * transitions, transition specs, etc.) so advanced Nav3 features stay available without dropping
@@ -133,8 +136,14 @@ fun Nav3ScreenHost(
 			BackStackNav3Navigator(backStack, parent = ambientParent)
 		}
 	val resolvedOnBack = onBack ?: { resolvedNavigator.pop() }
+	// Captured pre-decorator: inside entries the ViewModelStore decorator shadows
+	// LocalViewModelStoreOwner, so this is the only route back to the host's owner.
+	val hostViewModelStoreOwner = LocalViewModelStoreOwner.current
 
-	CompositionLocalProvider(LocalNav3Navigator provides resolvedNavigator) {
+	CompositionLocalProvider(
+		LocalNav3Navigator provides resolvedNavigator,
+		LocalNav3HostViewModelStoreOwner provides hostViewModelStoreOwner,
+	) {
 		NavDisplay(
 			backStack = backStack,
 			modifier = modifier,

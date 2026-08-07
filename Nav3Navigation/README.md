@@ -10,32 +10,33 @@ without giving up the fused-screen / ambient-navigator convenience that Voyager 
 
 ## Features
 
-| Piece                                  | What it does                                                                                            |
-|----------------------------------------|---------------------------------------------------------------------------------------------------------|
-| `Nav3Screen`                           | Fused key + UI: implement `Content()` on the key class itself                                           |
-| `Nav3Navigator` + `LocalNav3Navigator` | Ambient navigation: `push` / `pop` / `replace` / … + optional `parent` / `root()` for nested hosts |
-| Stack peek                             | `canPop`, `lastItem`, `previousItem`, `items` — bottom bar, BackHandler, deep-link reconcile            |
-| `popWithResult` / `Nav3ResultReceiver` | Voyager-style screen-to-screen results (stable; preferred over the alpha result bus)                    |
-| `BackStackNav3Navigator`               | Default navigator — navigation is list mutation on your `NavBackStack`                                  |
-| `Nav3ScreenHost`                       | Full `NavDisplay` surface for `Nav3Screen` stacks + ambient navigator + default entry decorators        |
+| Piece                                      | What it does                                                                                         |
+|--------------------------------------------|------------------------------------------------------------------------------------------------------|
+| `Nav3Screen`                               | Fused key + UI: implement `Content()` on the key class itself                                        |
+| `Nav3Navigator` + `LocalNav3Navigator`     | Ambient navigation: `push` / `pop` / `replace` / … + optional `parent` / `root()` for nested hosts   |
+| Stack peek                                 | `canPop`, `lastItem`, `previousItem`, `items` — bottom bar, BackHandler, deep-link reconcile         |
+| `popWithResult` / `Nav3ResultReceiver`     | Voyager-style screen-to-screen results (stable; preferred over the alpha result bus)                 |
+| `BackStackNav3Navigator`                   | Default navigator — navigation is list mutation on your `NavBackStack`                               |
+| `Nav3ScreenHost`                           | Full `NavDisplay` surface for `Nav3Screen` stacks + ambient navigator + default entry decorators     |
 | `TabsNav3Navigator` + `LocalTabsNavigator` | Flattened per-tab stacks, exit-through-home, `navigateToTab`, tab-slide hints                        |
-| `Nav3TabsHost`                         | Tabs host: provides both ambients, wires tab back stack + tab-aware transition defaults                 |
-| `Nav3Transitions`                      | Optional spring-slide / full-slide / tab-slide `ContentTransform`s (used as `Nav3TabsHost` defaults)    |
-| `rememberDefaultNav3EntryDecorators`   | Saveable state + ViewModelStore + result bus per entry                                                  |
-| Native predictive back                 | Pop transition is scrubbed by the system gesture                                                        |
-| Caller-owned back stack                | Deep links are just a seeded start stack                                                                |
-| Per-screen transitions                 | Override via `Nav3Screen.metadata`                                                                      |
+| `Nav3TabsHost`                             | Tabs host: provides both ambients, wires tab back stack + tab-aware transition defaults              |
+| `Nav3Transitions`                          | Optional spring-slide / full-slide / tab-slide `ContentTransform`s (used as `Nav3TabsHost` defaults) |
+| `rememberDefaultNav3EntryDecorators`       | Saveable state + ViewModelStore + result bus per entry                                               |
+| `nav3HostViewModelStoreOwner()`            | Navigator-scoped ViewModels — Voyager's `koinNavigatorScreenModel()` equivalent                      |
+| Native predictive back                     | Pop transition is scrubbed by the system gesture                                                     |
+| Caller-owned back stack                    | Deep links are just a seeded start stack                                                             |
+| Per-screen transitions                     | Override via `Nav3Screen.metadata`                                                                   |
 
 ## Installation
 
 ```gradle.kts
-implementation("com.github.appoly.AppolyDroid-Toolbox:Nav3Navigation:1.7.0-beta01")
+implementation("com.github.appoly.AppolyDroid-Toolbox:Nav3Navigation:1.7.0-beta02")
 ```
 
 Or via the AppolyDroid BOM (version managed by the platform):
 
 ```gradle.kts
-implementation(platform("com.github.appoly.AppolyDroid-Toolbox:AppolyDroid-Toolbox-bom:1.7.0-beta01"))
+implementation(platform("com.github.appoly.AppolyDroid-Toolbox:AppolyDroid-Toolbox-bom:1.7.0-beta02"))
 implementation("com.github.appoly.AppolyDroid-Toolbox:Nav3Navigation")
 ```
 
@@ -92,16 +93,16 @@ Nav3ScreenHost(
 `Nav3ScreenHost` mirrors the primary [NavDisplay](https://developer.android.com/jetpack/androidx/releases/navigation3)
 parameter surface so you rarely need to drop down to a raw `NavDisplay` call:
 
-| Parameter | Default | Notes |
-|---|---|---|
-| `navigator` | `BackStackNav3Navigator(backStack)` | Provided as `LocalNav3Navigator` |
-| `onBack` | `{ navigator.pop() }` | Prefer this over raw list mutation |
-| `entryDecorators` | `rememberDefaultNav3EntryDecorators()` | Saveable + ViewModelStore + result bus |
-| `sceneStrategies` | `SinglePaneSceneStrategy` | List-pane / adaptive scenes |
-| `sceneDecoratorStrategies` | `emptyList()` | Scene-level chrome / shared state |
-| `sharedTransitionScope` | `null` | Pass a parent `SharedTransitionLayout` scope for shared elements |
-| `transitionSpec` / `popTransitionSpec` / `predictivePopTransitionSpec` | NavDisplay defaults | Host-level animations |
-| `entryProvider` | `::nav3ScreenEntry` | Fused `Nav3Screen` rendering — override only for mixed stacks |
+| Parameter                                                              | Default                                | Notes                                                            |
+|------------------------------------------------------------------------|----------------------------------------|------------------------------------------------------------------|
+| `navigator`                                                            | `BackStackNav3Navigator(backStack)`    | Provided as `LocalNav3Navigator`                                 |
+| `onBack`                                                               | `{ navigator.pop() }`                  | Prefer this over raw list mutation                               |
+| `entryDecorators`                                                      | `rememberDefaultNav3EntryDecorators()` | Saveable + ViewModelStore + result bus                           |
+| `sceneStrategies`                                                      | `SinglePaneSceneStrategy`              | List-pane / adaptive scenes                                      |
+| `sceneDecoratorStrategies`                                             | `emptyList()`                          | Scene-level chrome / shared state                                |
+| `sharedTransitionScope`                                                | `null`                                 | Pass a parent `SharedTransitionLayout` scope for shared elements |
+| `transitionSpec` / `popTransitionSpec` / `predictivePopTransitionSpec` | NavDisplay defaults                    | Host-level animations                                            |
+| `entryProvider`                                                        | `::nav3ScreenEntry`                    | Fused `Nav3Screen` rendering — override only for mixed stacks    |
 
 The back stack must be non-empty (`NavDisplay` requires it).
 
@@ -317,13 +318,13 @@ process-death behaviour. Prefer (A) or a shared ViewModel until this hits beta/s
 
 Voyager `ScreenModel` + `koinScreenModel()` maps cleanly onto real `ViewModel`s:
 
-| Voyager                                         | Nav3Navigation + Koin                                   |
-|-------------------------------------------------|---------------------------------------------------------|
-| `class FooScreenModel : ScreenModel`            | `class FooViewModel : ViewModel()`                      |
-| `screenModelScope`                              | `viewModelScope`                                        |
-| `koinScreenModel()`                             | `koinViewModel()`                                       |
-| `koinScreenModel { parametersOf(id) }`          | `koinViewModel { parametersOf(id) }`                    |
-| `koinNavigatorScreenModel()` (navigator-scoped) | Host-/activity-scoped ViewModel shared across the stack |
+| Voyager                                         | Nav3Navigation + Koin                                                |
+|-------------------------------------------------|----------------------------------------------------------------------|
+| `class FooScreenModel : ScreenModel`            | `class FooViewModel : ViewModel()`                                   |
+| `screenModelScope`                              | `viewModelScope`                                                     |
+| `koinScreenModel()`                             | `koinViewModel()`                                                    |
+| `koinScreenModel { parametersOf(id) }`          | `koinViewModel { parametersOf(id) }`                                 |
+| `koinNavigatorScreenModel()` (navigator-scoped) | `koinViewModel(viewModelStoreOwner = nav3HostViewModelStoreOwner())` |
 
 With the default ViewModelStore decorator, `viewModel()` / `koinViewModel()` resolve against the
 entry's `LocalViewModelStoreOwner` — **no Nav3-specific Koin artifact**. Scope is per entry:
@@ -340,30 +341,61 @@ data class DetailScreen(val itemId: Int) : Nav3Screen {
 }
 ```
 
+#### Navigator-scoped ViewModels
+
+Three scopes are available, from narrowest to widest:
+
+| Scope                | How                                                                                 | Cleared                                  |
+|----------------------|-------------------------------------------------------------------------------------|------------------------------------------|
+| **Entry** (default)  | `koinViewModel()`                                                                   | when the screen pops                     |
+| **Navigator / host** | `koinViewModel(viewModelStoreOwner = nav3HostViewModelStoreOwner())`                | when the host's owner clears (see below) |
+| **Activity**         | `koinViewModel(viewModelStoreOwner = LocalActivity.current as ViewModelStoreOwner)` | when the activity is destroyed           |
+
+Each `Nav3ScreenHost` captures the `ViewModelStoreOwner` it was composed under — **before** the
+per-entry decorator shadows `LocalViewModelStoreOwner` — and republishes it as
+`LocalNav3HostViewModelStoreOwner`. That gives navigator scope its lifetime for free:
+
+- Host at the activity root → owner is the activity: one instance shared across the whole stack.
+- **Nested** host inside a screen (checkout flow, tab shell) → owner is that screen's *entry*
+  store: one instance shared across the nested stack, `onCleared()` when the flow's screen pops
+  — Voyager's `koinNavigatorScreenModel()`, with a real ViewModel.
+
+```kotlin
+// Any screen inside the checkout flow's nested host:
+val vm: CheckoutViewModel = koinViewModel(
+    viewModelStoreOwner = nav3HostViewModelStoreOwner(),
+)
+```
+
+Two sibling hosts composed under the same owner share the same store — pass a distinct
+`key` to `koinViewModel()` if the same ViewModel class must stay per-host.
+
 Drop `uniqueScreenKey` — multi-instance identity is the constructor args (and equality) of the
 `@Serializable` key itself.
 
 ## API surface
 
-| Symbol                                 | Kind             | Role                                            |
-|----------------------------------------|------------------|-------------------------------------------------|
-| `Nav3Screen`                           | interface        | `NavKey` + `Content()` + optional `metadata`    |
-| `nav3ScreenEntry(key)`                 | function         | Universal entryProvider for `Nav3Screen` stacks |
-| `Nav3Navigator`                        | interface        | Full Voyager-parity stack ops + peek + `parent` |
-| `LocalNav3Navigator`                   | CompositionLocal | Ambient navigator (`null` outside a host)       |
-| `root()`                               | extension        | Walk `parent` to the outermost navigator        |
-| `BackStackNav3Navigator`               | class            | List-mutating default implementation            |
-| `rememberBackStackNav3Navigator`       | composable       | Remembers navigator with ambient `parent`       |
-| `rememberTabsNav3Navigator`            | composable       | Remembers tabs navigator with ambient `parent`  |
-| `Nav3ResultReceiver`                   | interface        | `onResult` target for `popWithResult`           |
-| `popWithResult` / `popUntilWithResult` | extensions       | Deliver result + pop                            |
-| `Nav3ScreenHost`                       | composable       | Full `NavDisplay` host + ambient navigator      |
-| `TabsNav3Navigator`                    | class            | Per-tab stacks + flatten + `navigateToTab`      |
-| `LocalTabsNavigator`                   | CompositionLocal | Ambient tabs API (`null` outside a tab host)    |
+| Symbol                                 | Kind             | Role                                               |
+|----------------------------------------|------------------|----------------------------------------------------|
+| `Nav3Screen`                           | interface        | `NavKey` + `Content()` + optional `metadata`       |
+| `nav3ScreenEntry(key)`                 | function         | Universal entryProvider for `Nav3Screen` stacks    |
+| `Nav3Navigator`                        | interface        | Full Voyager-parity stack ops + peek + `parent`    |
+| `LocalNav3Navigator`                   | CompositionLocal | Ambient navigator (`null` outside a host)          |
+| `root()`                               | extension        | Walk `parent` to the outermost navigator           |
+| `BackStackNav3Navigator`               | class            | List-mutating default implementation               |
+| `rememberBackStackNav3Navigator`       | composable       | Remembers navigator with ambient `parent`          |
+| `rememberTabsNav3Navigator`            | composable       | Remembers tabs navigator with ambient `parent`     |
+| `Nav3ResultReceiver`                   | interface        | `onResult` target for `popWithResult`              |
+| `popWithResult` / `popUntilWithResult` | extensions       | Deliver result + pop                               |
+| `Nav3ScreenHost`                       | composable       | Full `NavDisplay` host + ambient navigator         |
+| `TabsNav3Navigator`                    | class            | Per-tab stacks + flatten + `navigateToTab`         |
+| `LocalTabsNavigator`                   | CompositionLocal | Ambient tabs API (`null` outside a tab host)       |
 | `Nav3TabsHost`                         | composable       | Tabs host: both ambients + tab transition defaults |
-| `TabSlide`                             | enum             | Forward / Backward tab-switch direction         |
-| `Nav3Transitions`                      | object           | Optional slide / spring-slide / tab-slide specs |
-| `rememberDefaultNav3EntryDecorators`   | composable       | Saveable + VM store + result bus                |
+| `TabSlide`                             | enum             | Forward / Backward tab-switch direction            |
+| `Nav3Transitions`                      | object           | Optional slide / spring-slide / tab-slide specs    |
+| `rememberDefaultNav3EntryDecorators`   | composable       | Saveable + VM store + result bus                   |
+| `LocalNav3HostViewModelStoreOwner`     | CompositionLocal | Pre-decorator owner captured by the host           |
+| `nav3HostViewModelStoreOwner()`        | composable       | Non-null read for navigator-scoped ViewModels      |
 
 ## Dependencies
 
@@ -372,6 +404,7 @@ Drop `uniqueScreenKey` — multi-instance identity is the constructor args (and 
 | `androidx.navigation3:navigation3-runtime`           | 1.2.0-alpha07 | `api` — `NavKey` / `NavBackStack` / `NavEntry` in public API |
 | `androidx.navigation3:navigation3-ui`                | 1.2.0-alpha07 | `api` — `NavDisplay` / scene types in public API             |
 | `androidx.lifecycle:lifecycle-viewmodel-navigation3` | 2.11.0        | Per-entry ViewModelStore decorator                           |
+| `androidx.lifecycle:lifecycle-viewmodel`             | 2.11.0        | `api` — `ViewModelStoreOwner` returned by `nav3HostViewModelStoreOwner()` |
 
 Pin Navigation 3 deliberately — decorator/API names have churned across 1.0 → 1.1 → 1.2 alphas.
 

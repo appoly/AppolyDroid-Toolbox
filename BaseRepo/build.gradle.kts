@@ -63,7 +63,7 @@ dependencies {
 	api(libs.flexiLogger.okhttp)
 
 	//kotlinx serialization
-	api(libs.kotlinx.serialization)
+	api(libs.kotlinx.serialization.json)
 
 	//sandwich
 	api(platform(libs.sandwich.bom))

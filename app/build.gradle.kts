@@ -104,7 +104,7 @@ dependencies {
 	implementation(libs.retrofit.serializationConverter)
 	implementation(libs.okhttp)
 	implementation(libs.okhttp.logging)
-	implementation(libs.kotlinx.serialization)
+	implementation(libs.kotlinx.serialization.json)
 	implementation(platform(libs.sandwich.bom))
 	implementation(libs.sandwich)
 	implementation(libs.sandwich.retrofit)

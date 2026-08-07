@@ -55,7 +55,7 @@ dependencies {
 	api(project(":DateHelperUtil"))
 
 	//kotlinx serialization
-	api(libs.kotlinx.serialization)
+	api(libs.kotlinx.serialization.json)
 
 	testImplementation(libs.junit)
 	androidTestImplementation(libs.androidx.junit)
