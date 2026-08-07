@@ -17,7 +17,6 @@ sandwichVersion = "2.4.0"
 kotlinxSerialization = "1.11.0"
 paging = "3.5.0"
 roomVersion = "2.8.4"
-navigationCompose = "2.9.8"
 nav3 = "1.2.0-alpha07"
 workManager = "2.11.2"
 kover = "0.9.9"
@@ -84,9 +83,6 @@ androidx-room-runtime = { group = "androidx.room", name = "room-runtime", versio
 androidx-room-compiler = { group = "androidx.room", name = "room-compiler", version.ref = "roomVersion" }
 androidx-room-ktx = { group = "androidx.room", name = "room-ktx", version.ref = "roomVersion" }
 androidx-room-testing = { group = "androidx.room", name = "room-testing", version.ref = "roomVersion" }
-
-#Navigation
-androidx-navigation-compose = { group = "androidx.navigation", name = "navigation-compose", version.ref = "navigationCompose" }
 
 #Navigation 3
 androidx-navigation3-runtime = { group = "androidx.navigation3", name = "navigation3-runtime", version.ref = "nav3" }

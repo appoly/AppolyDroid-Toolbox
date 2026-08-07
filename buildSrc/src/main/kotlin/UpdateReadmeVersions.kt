@@ -107,10 +107,15 @@ abstract class UpdateReadmeVersions : DefaultTask() {
                 val beforeBom = content.substring(0, bomSectionStart)
                 val afterBom = content.substring(bomSectionEnd)
 
+                // Version group is intentionally tight ([\w.-]+) so it cannot span newlines
+                // or match Kotlin type annotations (e.g. `HomeScreen : Nav3Screen`) when a
+                // BOM-style unversioned `implementation("…:Module")` appears earlier in the file.
+                val toolboxPattern = Pattern.compile(
+                    "(implementation\\([\"']com\\.github\\.appoly\\.AppolyDroid-Toolbox:[^:\"'\\s)]+:)([\\w.-]+)([\"')])"
+                )
                 val beforeResult = updateVersions(
                     content = beforeBom,
-                    pattern = Pattern.compile("(implementation\\([\"']com\\.github\\.appoly\\.AppolyDroid-Toolbox:[^:]+:)([^\"')]+)([\"')])")
-                        .toMatchProcessor(1, 3) { it == toolboxVersion },
+                    pattern = toolboxPattern.toMatchProcessor(1, 3) { it == toolboxVersion },
                     file = file,
                     versionName = "toolbox",
                     expectedVersion = toolboxVersion,
@@ -119,8 +124,7 @@ abstract class UpdateReadmeVersions : DefaultTask() {
 
                 val afterResult = updateVersions(
                     content = afterBom,
-                    pattern = Pattern.compile("(implementation\\([\"']com\\.github\\.appoly\\.AppolyDroid-Toolbox:[^:]+:)([^\"')]+)([\"')])")
-                        .toMatchProcessor(1, 3) { it == toolboxVersion },
+                    pattern = toolboxPattern.toMatchProcessor(1, 3) { it == toolboxVersion },
                     file = file,
                     versionName = "toolbox",
                     expectedVersion = toolboxVersion,
@@ -136,8 +140,9 @@ abstract class UpdateReadmeVersions : DefaultTask() {
                 // Process normally
                 updateVersions(
                     content = content,
-                    pattern = Pattern.compile("(implementation\\([\"']com\\.github\\.appoly\\.AppolyDroid-Toolbox:[^:]+:)([^\"')]+)([\"')])")
-                        .toMatchProcessor(1, 3) { it == toolboxVersion },
+                    pattern = Pattern.compile(
+                        "(implementation\\([\"']com\\.github\\.appoly\\.AppolyDroid-Toolbox:[^:\"'\\s)]+:)([\\w.-]+)([\"')])"
+                    ).toMatchProcessor(1, 3) { it == toolboxVersion },
                     file = file,
                     versionName = "toolbox",
                     expectedVersion = toolboxVersion,
@@ -153,8 +158,9 @@ abstract class UpdateReadmeVersions : DefaultTask() {
             // Pattern 1.5: Check BOM platform statements in code blocks
             val bomResult = updateVersions(
                 content = content,
-                pattern = Pattern.compile("(implementation\\(platform\\([\"']com\\.github\\.appoly\\.AppolyDroid-Toolbox:AppolyDroid-Toolbox-bom:)([^\"')]+)([\"')])")
-                    .toMatchProcessor(1, 3) { it == toolboxVersion },
+                pattern = Pattern.compile(
+                    "(implementation\\(platform\\([\"']com\\.github\\.appoly\\.AppolyDroid-Toolbox:AppolyDroid-Toolbox-bom:)([\\w.-]+)([\"')])"
+                ).toMatchProcessor(1, 3) { it == toolboxVersion },
                 file = file,
                 versionName = "bom",
                 expectedVersion = toolboxVersion,
@@ -169,7 +175,7 @@ abstract class UpdateReadmeVersions : DefaultTask() {
             // Pattern 2: Check Room dependency versions in code blocks
             val roomResult = updateVersions(
                 content = content,
-                pattern = Pattern.compile("(implementation\\([\"']androidx\\.room:[^:]+:)([^\"')]+)([\"')])")
+                pattern = Pattern.compile("(implementation\\([\"']androidx\\.room:[^:\"'\\s)]+:)([\\w.-]+)([\"')])")
                     .toMatchProcessor(1, 3) { it == roomVersion },
                 file = file,
                 versionName = "room",
@@ -185,7 +191,7 @@ abstract class UpdateReadmeVersions : DefaultTask() {
             // Pattern 3: Check kapt Room compiler versions in code blocks
             val kaptRoomResult = updateVersions(
                 content = content,
-                pattern = Pattern.compile("(ksp\\([\"']androidx\\.room:[^:]+:)([^\"')]+)([\"')])")
+                pattern = Pattern.compile("(ksp\\([\"']androidx\\.room:[^:\"'\\s)]+:)([\\w.-]+)([\"')])")
                     .toMatchProcessor(1, 3) { it == roomVersion },
                 file = file,
                 versionName = "room",
@@ -201,8 +207,9 @@ abstract class UpdateReadmeVersions : DefaultTask() {
             // Pattern 4: Check kotlinx-serialization dependency versions in code blocks
             val kotlinxSerializationResult = updateVersions(
                 content = content,
-                pattern = Pattern.compile("(implementation\\([\"']org\\.jetbrains\\.kotlinx:kotlinx-serialization-[^:]+:)([^\"')]+)([\"')])")
-                    .toMatchProcessor(1, 3) { it == kotlinxSerializationVersion },
+                pattern = Pattern.compile(
+                    "(implementation\\([\"']org\\.jetbrains\\.kotlinx:kotlinx-serialization-[^:\"'\\s)]+:)([\\w.-]+)([\"')])"
+                ).toMatchProcessor(1, 3) { it == kotlinxSerializationVersion },
                 file = file,
                 versionName = "kotlinx-serialization",
                 expectedVersion = kotlinxSerializationVersion,
@@ -217,7 +224,7 @@ abstract class UpdateReadmeVersions : DefaultTask() {
             // Pattern 5: Check androidx.paging:paging-compose dependency versions in code blocks
             val pagingComposeResult = updateVersions(
                 content = content,
-                pattern = Pattern.compile("(implementation\\([\"']androidx\\.paging:paging-compose:)([^\"')]+)([\"')])")
+                pattern = Pattern.compile("(implementation\\([\"']androidx\\.paging:paging-compose:)([\\w.-]+)([\"')])")
                     .toMatchProcessor(1, 3) { it == pagingVersion },
                 file = file,
                 versionName = "paging-compose",

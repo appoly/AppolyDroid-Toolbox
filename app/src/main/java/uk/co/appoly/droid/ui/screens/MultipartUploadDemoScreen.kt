@@ -60,7 +60,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.navigation.NavController
+import kotlinx.serialization.Serializable
+import uk.co.appoly.droid.nav3.LocalNav3Navigator
+import uk.co.appoly.droid.nav3.Nav3Screen
 import uk.co.appoly.droid.s3upload.multipart.database.entity.UploadSessionStatus
 import uk.co.appoly.droid.s3upload.multipart.result.MultipartUploadProgress
 import uk.co.appoly.droid.ui.viewmodels.MultipartUploadDemoViewModel
@@ -112,19 +114,20 @@ import uk.co.appoly.droid.ui.viewmodels.MultipartUploadDemoViewModel
  * - Upload state (session ID, progress, errors)
  * - Debug logs
  *
- * @param navController Navigation controller for back navigation
- * @param viewModel ViewModel managing all screen state and operations
+ * Demo screen for S3 multipart uploads (pause / resume / recover).
  *
  * @see MultipartUploadDemoViewModel
  * @see uk.co.appoly.droid.data.TestBackendRepository
  * @see uk.co.appoly.droid.s3upload.multipart.MultipartUploadManager
  */
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun MultipartUploadDemoScreen(
-    navController: NavController,
-    viewModel: MultipartUploadDemoViewModel = viewModel()
-) {
+@Serializable
+data object MultipartUploadDemoScreen : Nav3Screen {
+	@OptIn(ExperimentalMaterial3Api::class)
+	@Composable
+	override fun Content() {
+		val navigator = LocalNav3Navigator.current
+		val viewModel: MultipartUploadDemoViewModel = viewModel()
+
     // Collect all state from ViewModel
     val authToken by viewModel.authToken.collectAsState()
     val email by viewModel.email.collectAsState()
@@ -162,7 +165,7 @@ fun MultipartUploadDemoScreen(
             TopAppBar(
                 title = { Text("Multipart Upload Test") },
                 navigationIcon = {
-                    IconButton(onClick = { navController.navigateUp() }) {
+                    IconButton(onClick = { navigator?.pop() }) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
                 }
@@ -889,4 +892,5 @@ private fun LogSection(
             }
         }
     }
+}
 }

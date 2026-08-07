@@ -26,13 +26,19 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.navigation.NavController
+import kotlinx.serialization.Serializable
+import uk.co.appoly.droid.nav3.LocalNav3Navigator
+import uk.co.appoly.droid.nav3.Nav3Screen
 import uk.co.appoly.droid.data.repo.APIFlowState
 import uk.co.appoly.droid.ui.viewmodels.AppolyJsonDemoViewModel
 
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun AppolyJsonDemoScreen(navController: NavController) {
+@Serializable
+data object AppolyJsonDemoScreen : Nav3Screen {
+	@OptIn(ExperimentalMaterial3Api::class)
+	@Composable
+	override fun Content() {
+		val navigator = LocalNav3Navigator.current
+
 	val viewModel: AppolyJsonDemoViewModel = viewModel()
 	val usersState by viewModel.usersState.collectAsState()
 	val productsState by viewModel.productsState.collectAsState()
@@ -44,7 +50,7 @@ fun AppolyJsonDemoScreen(navController: NavController) {
 			TopAppBar(
 				title = { Text("Appoly JSON Demo") },
 				navigationIcon = {
-					IconButton(onClick = { navController.navigateUp() }) {
+					IconButton(onClick = { navigator?.pop() }) {
 						Text("←")
 					}
 				}
@@ -159,4 +165,5 @@ fun AppolyJsonDemoScreen(navController: NavController) {
 			}
 		}
 	}
+}
 }

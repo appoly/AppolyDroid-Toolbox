@@ -53,6 +53,7 @@ The library uses a layered module structure:
 - `ConnectivityMonitor` - Network state monitoring
 - `DateHelperUtil` - Date/time operations (with Room and Serialization variants)
 - `AppSnackBar` / `AppSnackBar-UiState` - Enhanced Snackbar
+- `Nav3Navigation` - Voyager-style screens on androidx Navigation 3 (`Nav3Screen`, ambient navigator, `Nav3ScreenHost`)
 
 **Demo App:**
 - `app` - Test application implementing all modules

@@ -29,13 +29,19 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.navigation.NavController
+import kotlinx.serialization.Serializable
+import uk.co.appoly.droid.nav3.LocalNav3Navigator
+import uk.co.appoly.droid.nav3.Nav3Screen
 import uk.co.appoly.droid.data.repo.APIFlowState
 import uk.co.appoly.droid.ui.viewmodels.BaseRepoDemoViewModel
 
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun BaseRepoDemoScreen(navController: NavController) {
+@Serializable
+data object BaseRepoDemoScreen : Nav3Screen {
+	@OptIn(ExperimentalMaterial3Api::class)
+	@Composable
+	override fun Content() {
+		val navigator = LocalNav3Navigator.current
+
 	val viewModel: BaseRepoDemoViewModel = viewModel()
 	val userState by viewModel.userState.collectAsState()
 	val postsState by viewModel.postsState.collectAsState()
@@ -46,7 +52,7 @@ fun BaseRepoDemoScreen(navController: NavController) {
 			TopAppBar(
 				title = { Text("BaseRepo Demo") },
 				navigationIcon = {
-					IconButton(onClick = { navController.navigateUp() }) {
+					IconButton(onClick = { navigator?.pop() }) {
 						Text("←")
 					}
 				}
@@ -295,4 +301,5 @@ fun BaseRepoDemoScreen(navController: NavController) {
 			}
 		}
 	}
+}
 }

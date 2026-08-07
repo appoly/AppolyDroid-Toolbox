@@ -32,7 +32,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
-import androidx.navigation.NavController
+import kotlinx.serialization.Serializable
+import uk.co.appoly.droid.nav3.LocalNav3Navigator
+import uk.co.appoly.droid.nav3.Nav3Screen
 import kotlinx.coroutines.launch
 import uk.co.appoly.droid.ui.snackbar.AppSnackBar
 import uk.co.appoly.droid.ui.snackbar.AppSnackBarColors
@@ -40,9 +42,13 @@ import uk.co.appoly.droid.ui.snackbar.LocalAppSnackBarColors
 import uk.co.appoly.droid.ui.snackbar.SnackBarType
 import uk.co.appoly.droid.ui.snackbar.showSnackbar
 
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun SnackBarDemoScreen(navController: NavController) {
+@Serializable
+data object SnackBarDemoScreen : Nav3Screen {
+	@OptIn(ExperimentalMaterial3Api::class)
+	@Composable
+	override fun Content() {
+		val navigator = LocalNav3Navigator.current
+
 	val snackbarHostState = remember { SnackbarHostState() }
 	val scope = rememberCoroutineScope()
 
@@ -58,7 +64,7 @@ fun SnackBarDemoScreen(navController: NavController) {
 			TopAppBar(
 				title = { Text("AppSnackBar Demo") },
 				navigationIcon = {
-					IconButton(onClick = { navController.navigateUp() }) {
+					IconButton(onClick = { navigator?.pop() }) {
 						Text("←")
 					}
 				}
@@ -302,4 +308,5 @@ fun SnackBarDemoScreen(navController: NavController) {
 			}
 		}
 	}
+}
 }

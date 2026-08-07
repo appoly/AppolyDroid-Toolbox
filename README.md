@@ -15,6 +15,7 @@ AppolyDroid Toolbox is a comprehensive collection of Android utility modules tha
 - Snackbar notifications
 - Segmented controls
 - Jetpack Compose pagination utilities
+- Voyager-style Navigation 3 screens (`Nav3Navigation`)
 - And more!
 
 ## Installation
@@ -78,6 +79,7 @@ appolydroid-toolbox-pagingExtensions = { group = "com.github.appoly.AppolyDroid-
 appolydroid-toolbox-s3Uploader = { group = "com.github.appoly.AppolyDroid-Toolbox", name = "S3Uploader" }
 appolydroid-toolbox-s3Uploader-multipart = { group = "com.github.appoly.AppolyDroid-Toolbox", name = "S3Uploader-Multipart" }
 appolydroid-toolbox-connectivityMonitor = { group = "com.github.appoly.AppolyDroid-Toolbox", name = "ConnectivityMonitor" }
+appolydroid-toolbox-nav3Navigation = { group = "com.github.appoly.AppolyDroid-Toolbox", name = "Nav3Navigation" }
 appolydroid-toolbox-mockInterceptor = { group = "com.github.appoly.AppolyDroid-Toolbox", name = "MockInterceptor" }
 appolydroid-toolbox-mockInterceptor-serialization = { group = "com.github.appoly.AppolyDroid-Toolbox", name = "MockInterceptor-Serialization" }
 appolydroid-toolbox-mockInterceptor-appolyjson = { group = "com.github.appoly.AppolyDroid-Toolbox", name = "MockInterceptor-AppolyJson" }
@@ -112,6 +114,7 @@ dependencies {
     implementation(libs.appolydroid.toolbox.s3Uploader)
     implementation(libs.appolydroid.toolbox.s3Uploader.multipart)
     implementation(libs.appolydroid.toolbox.connectivityMonitor)
+    implementation(libs.appolydroid.toolbox.nav3Navigation)
     implementation(libs.appolydroid.toolbox.mockInterceptor)
     implementation(libs.appolydroid.toolbox.mockInterceptor.serialization)
     implementation(libs.appolydroid.toolbox.mockInterceptor.appolyjson)
@@ -149,6 +152,7 @@ dependencies {
     implementation("com.github.appoly.AppolyDroid-Toolbox:S3Uploader")
     implementation("com.github.appoly.AppolyDroid-Toolbox:S3Uploader-Multipart")
     implementation("com.github.appoly.AppolyDroid-Toolbox:ConnectivityMonitor")
+    implementation("com.github.appoly.AppolyDroid-Toolbox:Nav3Navigation")
     implementation("com.github.appoly.AppolyDroid-Toolbox:MockInterceptor")
     implementation("com.github.appoly.AppolyDroid-Toolbox:MockInterceptor-Serialization")
     implementation("com.github.appoly.AppolyDroid-Toolbox:MockInterceptor-AppolyJson")
@@ -185,6 +189,7 @@ appolydroid-toolbox-lazyGridPagingExtensions = { group = "com.github.appoly.Appo
 appolydroid-toolbox-s3Uploader = { group = "com.github.appoly.AppolyDroid-Toolbox", name = "S3Uploader", version.ref = "appolydroidToolbox" }
 appolydroid-toolbox-s3Uploader-multipart = { group = "com.github.appoly.AppolyDroid-Toolbox", name = "S3Uploader-Multipart", version.ref = "appolydroidToolbox" }
 appolydroid-toolbox-connectivityMonitor = { group = "com.github.appoly.AppolyDroid-Toolbox", name = "ConnectivityMonitor", version.ref = "appolydroidToolbox" }
+appolydroid-toolbox-nav3Navigation = { group = "com.github.appoly.AppolyDroid-Toolbox", name = "Nav3Navigation", version.ref = "appolydroidToolbox" }
 appolydroid-toolbox-mockInterceptor = { group = "com.github.appoly.AppolyDroid-Toolbox", name = "MockInterceptor", version.ref = "appolydroidToolbox" }
 appolydroid-toolbox-mockInterceptor-serialization = { group = "com.github.appoly.AppolyDroid-Toolbox", name = "MockInterceptor-Serialization", version.ref = "appolydroidToolbox" }
 appolydroid-toolbox-mockInterceptor-appolyjson = { group = "com.github.appoly.AppolyDroid-Toolbox", name = "MockInterceptor-AppolyJson", version.ref = "appolydroidToolbox" }
@@ -215,6 +220,7 @@ dependencies {
     implementation(libs.appolydroid.toolbox.s3Uploader)
     implementation(libs.appolydroid.toolbox.s3Uploader.multipart)
     implementation(libs.appolydroid.toolbox.connectivityMonitor)
+    implementation(libs.appolydroid.toolbox.nav3Navigation)
     implementation(libs.appolydroid.toolbox.mockInterceptor)
     implementation(libs.appolydroid.toolbox.mockInterceptor.serialization)
     implementation(libs.appolydroid.toolbox.mockInterceptor.appolyjson)
@@ -249,6 +255,7 @@ dependencies {
     implementation("com.github.appoly.AppolyDroid-Toolbox:S3Uploader:$appolydroidToolbox")
     implementation("com.github.appoly.AppolyDroid-Toolbox:S3Uploader-Multipart:$appolydroidToolbox")
     implementation("com.github.appoly.AppolyDroid-Toolbox:ConnectivityMonitor:$appolydroidToolbox")
+    implementation("com.github.appoly.AppolyDroid-Toolbox:Nav3Navigation:$appolydroidToolbox")
     implementation("com.github.appoly.AppolyDroid-Toolbox:MockInterceptor:$appolydroidToolbox")
     implementation("com.github.appoly.AppolyDroid-Toolbox:MockInterceptor-Serialization:$appolydroidToolbox")
     implementation("com.github.appoly.AppolyDroid-Toolbox:MockInterceptor-AppolyJson:$appolydroidToolbox")
@@ -324,6 +331,12 @@ Extension bridging BaseRepo and S3Uploader-Multipart for pausable, resumable upl
 ### ConnectivityMonitor
 Connectivity monitoring flows
 [Learn more](ConnectivityMonitor/README.md)
+
+### Nav3Navigation
+Voyager-style screens on androidx Navigation 3: fused key+UI (`Nav3Screen`), ambient
+`LocalNav3Navigator` push/pop, and a `Nav3ScreenHost` that preserves native predictive back
+and per-entry ViewModel/saveable/result decorators.
+[Learn more](Nav3Navigation/README.md)
 
 ### MockInterceptor
 OkHttp interceptor with a route-matching DSL for mocking API responses during development and testing.

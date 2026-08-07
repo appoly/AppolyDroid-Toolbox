@@ -4,6 +4,7 @@ import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 plugins {
 	alias(libs.plugins.android.library)
 	alias(libs.plugins.kotlin.compose)
+	alias(libs.plugins.kotlinxSerialization)
 	`maven-publish`
 }
 
@@ -62,7 +63,16 @@ dependencies {
 	api(libs.androidx.navigation3.ui)
 	api(libs.androidx.lifecycle.viewmodel.navigation3)
 
+	// Serialization used by TabsNav3Navigator.Saver (NavKeySerializer) and @Serializable screens
+	implementation(libs.kotlinx.serialization)
+
 	testImplementation(libs.junit)
+	testImplementation(libs.robolectric)
+	testImplementation(libs.androidx.junit)
+	testImplementation(platform(libs.androidx.compose.bom))
+	testImplementation(libs.androidx.ui.test.junit4)
+	testImplementation(libs.androidx.ui.test.manifest)
+	testImplementation(libs.androidx.material3)
 	androidTestImplementation(libs.androidx.junit)
 	androidTestImplementation(libs.androidx.espresso.core)
 }

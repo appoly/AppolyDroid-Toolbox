@@ -26,16 +26,22 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import androidx.navigation.NavController
+import kotlinx.serialization.Serializable
+import uk.co.appoly.droid.nav3.LocalNav3Navigator
+import uk.co.appoly.droid.nav3.Nav3Screen
 import uk.co.appoly.droid.util.DateHelper
 import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun DateHelperDemoScreen(navController: NavController) {
+@Serializable
+data object DateHelperDemoScreen : Nav3Screen {
+	@OptIn(ExperimentalMaterial3Api::class)
+	@Composable
+	override fun Content() {
+		val navigator = LocalNav3Navigator.current
+
 	var inputServerTimestamp by remember { mutableStateOf("2025-09-16T14:30:00.000000Z") }
 	var inputDate by remember { mutableStateOf("2025-09-16") }
 	var parsedInstant by remember { mutableStateOf<Instant?>(null) }
@@ -48,7 +54,7 @@ fun DateHelperDemoScreen(navController: NavController) {
 			TopAppBar(
 				title = { Text("DateHelperUtil Demo") },
 				navigationIcon = {
-					IconButton(onClick = { navController.navigateUp() }) {
+					IconButton(onClick = { navigator?.pop() }) {
 						Text("←")
 					}
 				}
@@ -268,4 +274,5 @@ fun DateHelperDemoScreen(navController: NavController) {
 			}
 		}
 	}
+}
 }

@@ -66,8 +66,7 @@ dependencies {
 	implementation(libs.androidx.material3)
 	implementation(libs.compose.material.icons.extended)
 
-	//Navigation
-	implementation(libs.androidx.navigation.compose)
+	// Navigation is provided by :Nav3Navigation (androidx Navigation 3)
 
 	//AppolyDroidBaseRepo
 	implementation(project(":BaseRepo"))
@@ -94,6 +93,7 @@ dependencies {
 	implementation(project(":S3Uploader"))
 	implementation(project(":S3Uploader-Multipart"))
 	implementation(project(":ConnectivityMonitor"))
+	implementation(project(":Nav3Navigation"))
 	implementation(project(":MockInterceptor"))
 	implementation(project(":MockInterceptor-Serialization"))
 	implementation(project(":MockInterceptor-AppolyJson"))

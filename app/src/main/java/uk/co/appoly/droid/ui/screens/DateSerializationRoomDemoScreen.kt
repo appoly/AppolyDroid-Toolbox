@@ -26,12 +26,18 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.navigation.NavController
+import kotlinx.serialization.Serializable
+import uk.co.appoly.droid.nav3.LocalNav3Navigator
+import uk.co.appoly.droid.nav3.Nav3Screen
 import uk.co.appoly.droid.ui.viewmodels.DateSerializationRoomDemoViewModel
 
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun DateSerializationRoomDemoScreen(navController: NavController) {
+@Serializable
+data object DateSerializationRoomDemoScreen : Nav3Screen {
+	@OptIn(ExperimentalMaterial3Api::class)
+	@Composable
+	override fun Content() {
+		val navigator = LocalNav3Navigator.current
+
 	val viewModel: DateSerializationRoomDemoViewModel = viewModel()
 	val serializedJson by viewModel.serializedJson.collectAsState()
 	val decoded by viewModel.decoded.collectAsState()
@@ -42,7 +48,7 @@ fun DateSerializationRoomDemoScreen(navController: NavController) {
 			TopAppBar(
 				title = { Text("Date Serialization & Room") },
 				navigationIcon = {
-					IconButton(onClick = { navController.navigateUp() }) {
+					IconButton(onClick = { navigator?.pop() }) {
 						Text("←")
 					}
 				}
@@ -119,4 +125,5 @@ fun DateSerializationRoomDemoScreen(navController: NavController) {
 			}
 		}
 	}
+}
 }
