@@ -13,7 +13,7 @@ without giving up the fused-screen / ambient-navigator convenience that Voyager 
 | Piece                                  | What it does                                                                                            |
 |----------------------------------------|---------------------------------------------------------------------------------------------------------|
 | `Nav3Screen`                           | Fused key + UI: implement `Content()` on the key class itself                                           |
-| `Nav3Navigator` + `LocalNav3Navigator` | Ambient navigation: `push` / `pop` / `replace` / … + optional [parent] / [root] for nested hosts |
+| `Nav3Navigator` + `LocalNav3Navigator` | Ambient navigation: `push` / `pop` / `replace` / … + optional `parent` / `root()` for nested hosts |
 | Stack peek                             | `canPop`, `lastItem`, `previousItem`, `items` — bottom bar, BackHandler, deep-link reconcile            |
 | `popWithResult` / `Nav3ResultReceiver` | Voyager-style screen-to-screen results (stable; preferred over the alpha result bus)                    |
 | `BackStackNav3Navigator`               | Default navigator — navigation is list mutation on your `NavBackStack`                                  |
@@ -167,8 +167,8 @@ Inspect `navigator.items` to skip screens already present when reconciling a dee
 
 Bottom-bar chrome stays **app-owned**. The library provides a navigator that:
 
-- keeps **one stack per tab** and flattens `startTab + currentTab` into a single `backStack` for one [Nav3ScreenHost]
-- implements [Nav3Navigator] so in-tab `LocalNav3Navigator.push/pop` stay tab-local
+- keeps **one stack per tab** and flattens `startTab + currentTab` into a single `backStack` for one `Nav3ScreenHost`
+- implements `Nav3Navigator` so in-tab `LocalNav3Navigator.push/pop` stay tab-local
 - **exit-through-home**: `pop` at a non-start tab root switches to the start tab
 - **`navigateToTab(tab, vararg screens)`** for cross-tab deep links
 - records **`pendingTabSlide`** so tab switches can animate directionally (see [Transitions](#transitions))
@@ -216,7 +216,7 @@ same reflection-based `NavKey` serialization as `rememberNavBackStack`). Screens
 equal key on Home and on Rooms shares saveable state / ViewModelStore — use distinguishing
 constructor args when a destination can appear under more than one tab.
 
-`Nav3TabsHost` is only a convenience wrapper over [Nav3ScreenHost] — you can still wire
+`Nav3TabsHost` is only a convenience wrapper over `Nav3ScreenHost` — you can still wire
 `CompositionLocalProvider(LocalTabsNavigator provides tabs) { Nav3ScreenHost(...) }` yourself
 if you need a custom layout.
 
@@ -228,7 +228,7 @@ nested Voyager navigators. Cross-tab then means mutating the target tab's list y
 
 ### Transitions
 
-[Nav3Transitions] is **optional** — not applied unless you pass the specs into the host.
+`Nav3Transitions` is **optional** — not applied unless you pass the specs into the host.
 
 | Builder | Use |
 |---|---|
