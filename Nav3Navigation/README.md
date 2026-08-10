@@ -625,12 +625,39 @@ Gestures are dispatched programmatically rather than synthesised as touch events
 region is device- and gesture-mode-dependent, and these tests are about the navigation contract,
 not the platform's swipe detection.
 
-**Known gaps**, deliberately not covered:
+**Not automated — verify by hand before a release.** Neither of these can be an `androidTest`:
+killing the app's process kills the instrumentation with it. Both were verified manually against
+`1.7.0-beta03` on a physical device, using a real consuming app (see the checklist below).
 
 - **True process death.** `recreate()` exercises real `Bundle` save/restore and real `NavKey`
-  reflection, but keeps the process (and so the `ViewModelStore`) alive. Killing the process kills
-  the instrumentation with it.
+  reflection, but keeps the process — and therefore the `ViewModelStore` — alive. Only a cold
+  restore proves the tab back stack rehydrates from the `Bundle` alone.
 - **Minified restore.** `verifyConsumerKeepRules` proves the keep rules *match* under R8; it does
-  not prove back-stack restore works in a minified app. Closing that needs a minified sample
-  driven by UI Automator — see the root README for why the earlier instrumented attempt was
-  dropped.
+  not prove back-stack restore works in a minified app. See the root README for why the earlier
+  instrumented attempt at this was dropped.
+
+#### Manual cold-restore checklist
+
+Run against a **minified** build of a real consuming app (`isMinifyEnabled = true`), not the demo
+app — the point is to exercise a consumer's own `@Serializable` screens through the AAR's consumer
+rules.
+
+1. Navigate to a **non-start tab**, then push at least one screen so the restore target is neither
+   the start tab nor a tab root.
+2. Prefer a **parameterised** `NavKey` (a `data class` carrying an id) over a `data object`. An
+   object only proves the class survived R8; a data class proves its *serializer and arguments*
+   round-tripped.
+3. `adb shell input keyevent KEYCODE_HOME`, then **wait a moment**, then
+   `adb shell am kill <package>`.
+4. Relaunch from the launcher. Confirm the pid actually changed, then check the exact screen,
+   its arguments, and that back behaves per the restored stack.
+
+Two traps that produce false failures:
+
+- **`am kill` silently no-ops if fired immediately after `KEYCODE_HOME`** — the process is still
+  foreground and therefore protected. A surviving pid reads exactly like a restore failure when it
+  is nothing of the kind. Always confirm the pid changed before believing a result.
+- **Use `am kill`, never `force-stop`.** `force-stop` discards saved instance state, so it proves
+  nothing about restore.
+
+Thanks to the Accelerate Android team for the cold-restore verification and both traps above.

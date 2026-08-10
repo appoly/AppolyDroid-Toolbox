@@ -412,7 +412,10 @@ gate**: run it before tagging, alongside `verifyConsumerKeepRules`.
 ```
 
 See the [Nav3Navigation README](Nav3Navigation/README.md#the-modules-own-suites) for what it
-covers and the gaps it deliberately leaves.
+covers, plus a manual cold-restore checklist for the two things no instrumented test can reach
+(true process death and minified back-stack restore — killing the process kills the instrumentation
+with it). Both were verified by hand against `1.7.0-beta03` on a physical device, through a real
+minified consuming app, including a parameterised `NavKey` round-tripping its arguments under R8.
 
 > An earlier version used an instrumented test (`testBuildType = "release"`) that round-tripped the
 > serializers on a device. It was dropped: minifying the *test* APK strips the test runner's own
