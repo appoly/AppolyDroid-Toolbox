@@ -99,36 +99,39 @@ object Nav3Transitions {
 /**
  * [Nav3ScreenHost] / [androidx.navigation3.ui.NavDisplay] `transitionSpec` that prefers a
  * directional [Nav3Transitions.tabSlide] when [TabsNav3Navigator.pendingTabSlide] is set,
- * otherwise [forIntraTabPush] (default: spring-slide parallax).
+ * otherwise [forIntraTabPush] (default: spring-slide parallax) using
+ * [TabsNav3Navigator.currentTabDepth] as the z-index basis (not the multi-tab [backStack] size).
  */
 fun TabsNav3Navigator.transitionSpec(
 	forIntraTabPush: (stackSize: Int) -> ContentTransform = Nav3Transitions::springSlidePush,
 ): AnimatedContentTransitionScope<Scene<NavKey>>.() -> ContentTransform = {
 	pendingTabSlide?.let(Nav3Transitions::tabSlide)
-		?: forIntraTabPush(backStack.size)
+		?: forIntraTabPush(currentTabDepth)
 }
 
 /**
- * Pop counterpart of [transitionSpec].
+ * Pop counterpart of [transitionSpec]. Uses [TabsNav3Navigator.currentTabDepth] for in-tab pops.
  */
 fun TabsNav3Navigator.popTransitionSpec(
 	forIntraTabPop: (stackSize: Int) -> ContentTransform = Nav3Transitions::springSlidePop,
 ): AnimatedContentTransitionScope<Scene<NavKey>>.() -> ContentTransform = {
 	pendingTabSlide?.let(Nav3Transitions::tabSlide)
-		?: forIntraTabPop(backStack.size)
+		?: forIntraTabPop(currentTabDepth)
 }
 
 /**
  * Predictive-back counterpart: before [TabsNav3Navigator.pop] commits there is no
  * [TabsNav3Navigator.pendingTabSlide] yet, so a gesture on a non-start tab root is inferred as
- * a backward tab slide (exit-through-home); otherwise [forIntraTabPop].
+ * the same direction a committed exit-through-home [TabsNav3Navigator.pop] would use
+ * ([TabsNav3Navigator.exitToStartTabSlide]); otherwise [forIntraTabPop] with
+ * [TabsNav3Navigator.currentTabDepth].
  */
 fun TabsNav3Navigator.predictivePopTransitionSpec(
 	forIntraTabPop: (stackSize: Int) -> ContentTransform = Nav3Transitions::springSlidePop,
 ): AnimatedContentTransitionScope<Scene<NavKey>>.(Int) -> ContentTransform = {
 	if (isAtCurrentTabRoot && !isOnStartTab) {
-		Nav3Transitions.tabSlide(TabSlide.Backward)
+		Nav3Transitions.tabSlide(exitToStartTabSlide)
 	} else {
-		forIntraTabPop(backStack.size)
+		forIntraTabPop(currentTabDepth)
 	}
 }

@@ -181,6 +181,17 @@ val consumerKeepSentinels = listOf(
 	// process-death restore); demo app uses them via ComposeExtensionsDemoScreen so R8 retains them.
 	"uk.co.appoly.droid.compose.extensions.SerializableMutableState",
 	"uk.co.appoly.droid.compose.extensions.TransientMutableState",
+	// Nav3Navigation — these are the CONSUMING app's own screens, not library internals. Nav3
+	// persists the back stack by resolving each key's KSerializer reflectively, so the module's
+	// consumer rules keep every `Nav3Screen` implementor. One sentinel per rule branch, so a
+	// regression in any single branch fails the build:
+	//   data object screen  → class identity + INSTANCE + serializer()
+	"uk.co.appoly.droid.ui.screens.TabsDemoScreen",
+	//   data class screen   → Companion holding serializer()
+	"uk.co.appoly.droid.ui.screens.TabsRoomDetailScreen",
+	//   data class screen   → generated $$serializer (INSTANCE + methods)
+	"uk.co.appoly.droid.ui.screens.TabsRoomDetailScreen\$\$serializer",
+	"uk.co.appoly.droid.ui.screens.Nav3StackProbeScreen\$\$serializer",
 )
 
 tasks.register("verifyConsumerKeepRules") {

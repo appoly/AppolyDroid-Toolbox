@@ -54,7 +54,7 @@ In your `libs.versions.toml` file:
 
 ```toml
 [versions]
-appolydroidToolbox = "1.7.0-beta02" # Replace with the latest version
+appolydroidToolbox = "1.7.0-beta03" # Replace with the latest version
 
 [libraries]
 appolydroid-toolbox-bom = { group = "com.github.appoly.AppolyDroid-Toolbox", name = "AppolyDroid-Toolbox-bom", version.ref = "appolydroidToolbox" }
@@ -129,7 +129,7 @@ In your module's `build.gradle.kts`:
 ```gradle.kts
 dependencies {
     // Import the BOM
-    implementation(platform("com.github.appoly.AppolyDroid-Toolbox:AppolyDroid-Toolbox-bom:1.7.0-beta02"))
+    implementation(platform("com.github.appoly.AppolyDroid-Toolbox:AppolyDroid-Toolbox-bom:1.7.0-beta03"))
 
     // Now you can use AppolyDroid modules without specifying versions
     implementation("com.github.appoly.AppolyDroid-Toolbox:BaseRepo")
@@ -166,7 +166,7 @@ In your `libs.versions.toml` file:
 
 ```toml
 [versions]
-appolydroidToolbox = "1.7.0-beta02" # Replace with the latest version
+appolydroidToolbox = "1.7.0-beta03" # Replace with the latest version
 
 [libraries]
 #AppolyDroid-Toolbox
@@ -234,7 +234,7 @@ In your module's `build.gradle.kts`:
 
 ```gradle.kts
 dependencies {
-    val appolydroidToolbox = "1.7.0-beta02" // Replace with the latest version
+    val appolydroidToolbox = "1.7.0-beta03" // Replace with the latest version
     // Add only the modules you need
     implementation("com.github.appoly.AppolyDroid-Toolbox:BaseRepo:$appolydroidToolbox")
     implementation("com.github.appoly.AppolyDroid-Toolbox:BaseRepo-AppolyJson:$appolydroidToolbox")
@@ -382,6 +382,14 @@ own `@Serializable` enums, your generated subclasses are kept automatically — 
 - `uk.co.appoly.droid.util.NullableEnumAsStringSerializer`
 - `uk.co.appoly.droid.util.EnumAsIntSerializer`
 - `uk.co.appoly.droid.util.NullableEnumAsIntSerializer`
+
+**`Nav3Screen` implementors (your classes, not ours).** `Nav3Navigation` is the one module whose
+consumer rules keep classes *you* wrote. Navigation 3 persists its back stack by resolving each
+key's `KSerializer` reflectively, so under R8 full mode your `@Serializable` screen classes — which
+nothing references directly — could be stripped or renamed, breaking back-stack restore after
+process death. The module therefore keeps every implementor of
+`uk.co.appoly.droid.nav3.Nav3Screen`, along with its `Companion` and generated `$$serializer`. The
+rules are scoped to that interface; there is no blanket `-keep class ** { *; }`.
 
 **Regression test.** These rules are guarded by the `verifyConsumerKeepRules` Gradle task in the
 `app` module. The demo app depends on every module and is minified (`isMinifyEnabled = true`), so

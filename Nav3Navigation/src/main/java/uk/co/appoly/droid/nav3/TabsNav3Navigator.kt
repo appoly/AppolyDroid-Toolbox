@@ -46,28 +46,37 @@ val LocalTabsNavigator = staticCompositionLocalOf<TabsNav3Navigator?> { null }
  *
  * ## Model
  *
- * - Each tab has its own stack; the first entry of [tabOrder] is the **start tab** (exit-through-home).
- * - The display stack is `startTabStack + (currentTabStack if not start)` so system back walks
- *   current-tab screens → start tab → (caller finishes the host).
+ * - Each tab has its own stack. [startTab] is the launch tab and **exit-through-home** target
+ *   (defaults to the first entry of [tabOrder]; pass an explicit [startTab] when the home tab
+ *   is not first in the strip, e.g. a centre Home among Stations · Kerbside · Home · …).
+ * - The display stack retains **every visited tab** so Nav3 keeps per-tab saveable state and
+ *   ViewModelStores across tab switches (entries are only torn down when their key leaves the
+ *   back stack). Flatten order:
+ *   `[other visited tabs in tabOrder] + startTabStack + (currentTabStack if not start)`.
+ *   The current tab is always the suffix (`backStack.last()` is its top). Pair with
+ *   [TabsSceneStrategy] (the [Nav3TabsHost] default) so only the current top is rendered.
  * - Implements [Nav3Navigator] so tab pages use [LocalNav3Navigator] for tab-local push/pop
  *   without knowing they are in a tab.
  * - [pendingTabSlide] records whether the latest mutation was a tab switch (and its direction)
  *   so transition specs can animate tab changes differently from intra-tab push/pop.
+ *   Direction is always relative to [tabOrder] indices (not “toward start”), except
+ *   exit-through-home which uses [exitToStartTabSlide].
  *
  * ## Persistence
  *
  * Create via [rememberTabsNav3Navigator] so [currentTab] and every per-tab stack survive
  * configuration change and process death (same reflection-based [NavKey] serialization as
  * [androidx.navigation3.runtime.rememberNavBackStack]). [parent] is **not** saved — it is
- * re-wired from composition on restore.
+ * re-wired from composition on restore. After process-death restore every [tabOrder] root is
+ * present in the back stack (unvisited tabs become single-root stacks); unrendered roots are
+ * never composed, so no ViewModel is created for them until the tab is selected.
  *
  * ## Equal keys across tabs
  *
- * The flattened display stack is `startTabStack + currentTabStack`. If the same equal key
- * appears in both (e.g. `DetailScreen(1)` on Home and on Rooms), Nav3 treats them as the same
- * entry for saveable state / ViewModelStore — the same rule as duplicate keys on a single
- * stack. Prefer distinguishing constructor args when the same destination can live under more
- * than one tab.
+ * Visited tabs share one flattened [backStack]. If the same equal key appears under more than
+ * one tab (e.g. `DetailScreen(1)` on Home and on Rooms), Nav3 treats them as the same entry for
+ * saveable state / ViewModelStore — the same rule as duplicate keys on a single stack. Prefer
+ * distinguishing constructor args when the same destination can live under more than one tab.
  *
  * ## Chrome
  *
@@ -77,44 +86,57 @@ val LocalTabsNavigator = staticCompositionLocalOf<TabsNav3Navigator?> { null }
  * ## Example
  *
  * ```kotlin
+ * // Home is first in strip order (default startTab = tabOrder.first()):
  * val tabs = rememberTabsNav3Navigator(listOf(HomeTab, RoomsTab, SettingsTab))
+ *
+ * // Centre-start strip (display order ≠ launch tab):
+ * val tabs = rememberTabsNav3Navigator(
+ *     tabOrder = listOf(StationsTab, KerbsideTab, HomeTab, CardTab, AccountTab),
+ *     startTab = HomeTab,
+ * )
  * Nav3TabsHost(tabsNavigator = tabs)
  * // From a tab page: LocalNav3Navigator.current?.parent?.pop() // dismiss whole tab shell
  * ```
  *
- * @param tabOrder tab roots in strip order (first = start / home tab). Must be non-empty.
- *   Each root is kept as the first entry of that tab's stack and is never popped or replaced.
- *   Only tabs in this list may be passed to [switchTab] / [navigateToTab].
+ * @param tabOrder tab roots in strip order (used for [TabSlide] direction and bottom-bar order).
+ *   Must be non-empty. Each root is kept as the first entry of that tab's stack and is never
+ *   popped or replaced. Only tabs in this list may be passed to [switchTab] / [navigateToTab].
+ * @param startTab the launch tab, exit-through-home target, and stack always flattened
+ *   underneath the current tab. Must be one of [tabOrder]. Defaults to the first entry of
+ *   [tabOrder] so existing call sites stay source-compatible.
  * @param parent the navigator that nested this tab shell (typically the root host), or `null`
  *   when tabs are the app root. Prefer [rememberTabsNav3Navigator] so parent is wired from
  *   [LocalNav3Navigator].
  */
 class TabsNav3Navigator(
 	tabOrder: List<Nav3Screen>,
+	// firstOrNull + requireNotNull, not first(): the default is evaluated before the constructor
+	// body, so `first()` would pre-empt the init require with a message-less NoSuchElementException.
+	startTab: Nav3Screen = requireNotNull(tabOrder.firstOrNull()) { "tabOrder must not be empty" },
 	override val parent: Nav3Navigator? = null,
 ) : Nav3Navigator {
 
-	init {
-		require(tabOrder.isNotEmpty()) { "tabOrder must not be empty" }
-	}
-
-	/** Tab roots in strip order; first is the start tab. */
+	/** Tab roots in strip order (display / slide-direction order). */
 	val tabOrder: List<Nav3Screen> = tabOrder.toList()
 
-	private val startTab: Nav3Screen = this.tabOrder.first()
+	/**
+	 * The launch tab, the exit-through-home target, and the stack always flattened underneath
+	 * the current tab's stack. Independent of [tabOrder] index — may sit mid-strip.
+	 */
+	val startTab: Nav3Screen = startTab
 
 	private val tabStacks: LinkedHashMap<NavKey, MutableList<NavKey>> = linkedMapOf(
-		startTab to mutableStateListOf<NavKey>(startTab),
+		this.startTab to mutableStateListOf<NavKey>(this.startTab),
 	)
 
 	/**
 	 * Flattened stack for [Nav3ScreenHost] / [androidx.navigation3.ui.NavDisplay].
 	 * Mutated only via this navigator — do not edit directly.
 	 */
-	val backStack: NavBackStack<NavKey> = NavBackStack(startTab)
+	val backStack: NavBackStack<NavKey> = NavBackStack(this.startTab)
 
-	/** Currently selected tab root. */
-	var currentTab: NavKey by mutableStateOf<NavKey>(startTab)
+	/** Currently selected tab root. Always one of [tabOrder]. */
+	var currentTab: Nav3Screen by mutableStateOf(this.startTab)
 		private set
 
 	/**
@@ -125,6 +147,13 @@ class TabsNav3Navigator(
 	var pendingTabSlide: TabSlide? by mutableStateOf(null)
 		private set
 
+	init {
+		require(this.tabOrder.isNotEmpty()) { "tabOrder must not be empty" }
+		require(this.startTab in this.tabOrder) {
+			"startTab ${this.startTab} must be one of tabOrder: ${this.tabOrder}"
+		}
+	}
+
 	/** True when the current tab shows only its root. */
 	val isAtCurrentTabRoot: Boolean
 		get() = tabStacks.getValue(currentTab).size == 1
@@ -132,6 +161,25 @@ class TabsNav3Navigator(
 	/** True when the start (home) tab is selected. */
 	val isOnStartTab: Boolean
 		get() = currentTab == startTab
+
+	/**
+	 * Depth of the current tab's own stack (1 at its root) — the z-index basis for in-tab
+	 * transitions. Prefer this over `backStack.size`, which counts retained entries from every
+	 * visited tab.
+	 *
+	 * @see Nav3Transitions.springSlidePush
+	 * @see transitionSpec
+	 */
+	val currentTabDepth: Int
+		get() = tabStacks.getValue(currentTab).size
+
+	/**
+	 * The direction an exit-through-home [pop] would animate from the current tab, i.e. the slide
+	 * toward [startTab]. [TabSlide.Forward] when [startTab] sits at a higher [tabOrder] index than
+	 * the current tab.
+	 */
+	val exitToStartTabSlide: TabSlide
+		get() = slideDirectionTo(startTab)
 
 	/**
 	 * Selects [tab] without pushing extra screens. No-op if already current.
@@ -198,7 +246,8 @@ class TabsNav3Navigator(
 			currentStack.removeAt(currentStack.lastIndex)
 			pendingTabSlide = null
 		} else if (currentTab != startTab) {
-			pendingTabSlide = TabSlide.Backward
+			// Compute before reassigning currentTab — slideDirectionTo reads currentTab as "from".
+			pendingTabSlide = slideDirectionTo(startTab)
 			currentTab = startTab
 		}
 		rebuild()
@@ -268,17 +317,42 @@ class TabsNav3Navigator(
 		rebuild()
 	}
 
+	/**
+	 * `true` when the current tab has screens above its root, or when a non-start tab is selected
+	 * (exit-through-home can still run). `false` only at the start-tab root.
+	 */
 	override val canPop: Boolean
 		get() = tabStacks.getValue(currentTab).size > 1 || currentTab != startTab
 
+	/**
+	 * Top of the current tab's stack (always `backStack.last()`, since the current tab is the
+	 * flattened suffix).
+	 */
 	override val lastItem: Nav3Screen?
 		get() = backStack.lastOrNull() as? Nav3Screen
 
+	/**
+	 * Entry immediately beneath the current top in the flattened [backStack].
+	 *
+	 * - Deeper in a tab → that tab's previous screen.
+	 * - At a non-start tab root → the top of [startTab]'s stack (what exit-through-home reveals).
+	 * - At the start-tab root with retained visited tabs → another tab's entry may sit beneath
+	 *   home in the flatten; [canPop] is still `false` and [TabsSceneStrategy] reports empty
+	 *   `previousEntries`, so system back backgrounds the app rather than navigating there.
+	 */
 	override val previousItem: Nav3Screen?
 		get() = backStack.getOrNull(backStack.lastIndex - 1) as? Nav3Screen
 
+	/**
+	 * Screens on the **current tab's** stack only (root first) — Voyager-equivalent meaning of
+	 * “the stack”, not the full flattened multi-tab [backStack].
+	 *
+	 * Deliberate behaviour: callers inspecting `items` for bottom-bar chrome, deep-link
+	 * reconcile, or “am I on X?” want the active tab, not every retained visited tab.
+	 * Use [stackFor] or [backStack] when you need another tab or the display flatten.
+	 */
 	override val items: List<Nav3Screen>
-		get() = backStack.mapNotNull { it as? Nav3Screen }
+		get() = stackFor(currentTab)
 
 	/** Snapshot of the given tab's stack (root first). Empty if the tab was never visited. */
 	fun stackFor(tab: Nav3Screen): List<Nav3Screen> =
@@ -336,14 +410,28 @@ class TabsNav3Navigator(
 
 	private fun slideDirectionTo(tab: Nav3Screen): TabSlide {
 		val to = tabOrder.indexOf(tab)
-		val from = tabOrder.indexOf(currentTab as? Nav3Screen)
+		val from = tabOrder.indexOf(currentTab)
 		// After [requireTab], [to] is always >= 0. Unknown [from] (should not happen) → Forward.
 		if (to < 0 || from < 0) return TabSlide.Forward
 		return if (to >= from) TabSlide.Forward else TabSlide.Backward
 	}
 
+	/**
+	 * Rebuilds the flattened [backStack] so every **visited** tab keeps its entries (Nav3 only
+	 * tears down saveable / ViewModel state when a content key leaves the back stack).
+	 *
+	 * Order: other visited tabs in [tabOrder] (excluding [startTab] and [currentTab]) +
+	 * [startTab] stack + current-tab stack (omitted when current is start, already included).
+	 * The current tab is always the suffix so [lastItem] / `backStack.last()` stay correct.
+	 */
 	private fun rebuild() {
 		backStack.clear()
+		// Visited = has an entry in tabStacks (lazy getOrPut; unvisited tabs contribute nothing).
+		for (tab in tabOrder) {
+			if (tab == startTab || tab == currentTab) continue
+			val stack = tabStacks[tab] ?: continue
+			backStack.addAll(stack)
+		}
 		backStack.addAll(tabStacks.getValue(startTab))
 		if (currentTab != startTab) {
 			backStack.addAll(tabStacks.getValue(currentTab))
@@ -360,14 +448,22 @@ class TabsNav3Navigator(
 		 *
 		 * Persists [currentTab] and each tab's stack via the same reflection-based
 		 * [NavKeySerializer] that [androidx.navigation3.runtime.rememberNavBackStack] uses.
-		 * [parent] is not saved — pass it again on restore.
+		 * [parent] is not saved — pass it again on restore. [startTab] is not saved either;
+		 * pass the same [startTab] on restore so missing-[KEY_CURRENT] fallback and construction
+		 * match the original instance.
+		 *
+		 * @param tabOrder tab roots in strip order (must match the saved instance).
+		 * @param startTab launch / exit-through-home tab (must match the saved instance).
+		 * @param parent re-wired parent; not read from the [Bundle].
 		 */
 		fun saver(
 			tabOrder: List<Nav3Screen>,
+			startTab: Nav3Screen,
 			parent: Nav3Navigator?,
 		): Saver<TabsNav3Navigator, Bundle> {
 			// Same reflection-based NavKey path as rememberNavBackStack (NavKeySerializer).
 			val keySerializer = NavKeySerializer<NavKey>()
+			val startTabIndex = tabOrder.indexOf(startTab).coerceAtLeast(0)
 			return Saver(
 				save = { nav ->
 					Bundle().apply {
@@ -403,9 +499,9 @@ class TabsNav3Navigator(
 							}
 						}
 					}
-					TabsNav3Navigator(tabOrder, parent = parent).also { nav ->
+					TabsNav3Navigator(tabOrder, startTab, parent = parent).also { nav ->
 						nav.restoreFrom(
-							currentTabIndex = bundle.getInt(KEY_CURRENT, 0),
+							currentTabIndex = bundle.getInt(KEY_CURRENT, startTabIndex),
 							stacksByTabIndex = stacks,
 						)
 					}
@@ -423,19 +519,22 @@ class TabsNav3Navigator(
  * [androidx.navigation3.runtime.rememberNavBackStack]). [parent] is re-applied from
  * composition on restore and is not itself saved.
  *
- * @param tabOrder tab roots in strip order (first = start tab). Pass a stable list (e.g. from
+ * @param tabOrder tab roots in strip order. Pass a stable list (e.g. from
  *   [androidx.compose.runtime.remember]).
+ * @param startTab launch / exit-through-home tab; defaults to the first entry of [tabOrder].
  * @param parent override parent; defaults to the ambient navigator.
  */
 @Composable
 fun rememberTabsNav3Navigator(
 	tabOrder: List<Nav3Screen>,
+	startTab: Nav3Screen = requireNotNull(tabOrder.firstOrNull()) { "tabOrder must not be empty" },
 	parent: Nav3Navigator? = LocalNav3Navigator.current,
 ): TabsNav3Navigator =
 	rememberSaveable(
 		tabOrder,
+		startTab,
 		parent,
-		saver = TabsNav3Navigator.saver(tabOrder, parent),
+		saver = TabsNav3Navigator.saver(tabOrder, startTab, parent),
 	) {
-		TabsNav3Navigator(tabOrder, parent = parent)
+		TabsNav3Navigator(tabOrder, startTab, parent = parent)
 	}

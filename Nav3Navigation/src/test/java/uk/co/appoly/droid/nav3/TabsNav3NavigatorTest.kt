@@ -74,7 +74,8 @@ class TabsNav3NavigatorTest {
 
 		assertEquals(homeTab, tabs.currentTab)
 		assertEquals(TabSlide.Backward, tabs.pendingTabSlide)
-		assertEquals(listOf(homeTab), tabs.backStack.toList())
+		// settings was visited → retained beneath start/current
+		assertEquals(listOf(settingsTab, homeTab), tabs.backStack.toList())
 	}
 
 	@Test
@@ -94,12 +95,20 @@ class TabsNav3NavigatorTest {
 		tabs.push(DetailScreen(9))
 		tabs.switchTab(settingsTab)
 
-		assertEquals(listOf(homeTab, settingsTab), tabs.backStack.toList())
+		// visited-other (rooms) + start + current
+		assertEquals(
+			listOf(roomsTab, DetailScreen(9), homeTab, settingsTab),
+			tabs.backStack.toList(),
+		)
 		assertEquals(listOf(roomsTab, DetailScreen(9)), tabs.stackFor(roomsTab))
 
 		tabs.switchTab(roomsTab)
 
-		assertEquals(listOf(homeTab, roomsTab, DetailScreen(9)), tabs.backStack.toList())
+		// visited-other (settings) + start + current (rooms stack)
+		assertEquals(
+			listOf(settingsTab, homeTab, roomsTab, DetailScreen(9)),
+			tabs.backStack.toList(),
+		)
 	}
 
 	@Test
@@ -115,7 +124,8 @@ class TabsNav3NavigatorTest {
 
 		assertEquals(homeTab, tabs.currentTab)
 		assertEquals(TabSlide.Backward, tabs.pendingTabSlide)
-		assertEquals(listOf(homeTab), tabs.backStack.toList())
+		// rooms remains visited after exit-through-home
+		assertEquals(listOf(roomsTab, homeTab), tabs.backStack.toList())
 	}
 
 	@Test
@@ -213,7 +223,22 @@ class TabsNav3NavigatorTest {
 
 	@Test(expected = IllegalArgumentException::class)
 	fun `empty tabOrder is rejected`() {
+		// The default-startTab path: the default expression runs before the constructor body, so
+		// it must reject empty tabOrder itself rather than letting first() throw NoSuchElement.
 		TabsNav3Navigator(emptyList())
+	}
+
+	@Test
+	fun `empty tabOrder failure names the offending argument`() {
+		val error = runCatching { TabsNav3Navigator(emptyList()) }.exceptionOrNull()
+		assertTrue("expected IllegalArgumentException, got $error", error is IllegalArgumentException)
+		assertEquals("tabOrder must not be empty", error!!.message)
+	}
+
+	@Test(expected = IllegalArgumentException::class)
+	fun `empty tabOrder is rejected even with an explicit startTab`() {
+		// Explicit startTab skips the default expression, so this exercises the init require.
+		TabsNav3Navigator(emptyList(), startTab = homeTab)
 	}
 
 	@Test(expected = IllegalArgumentException::class)
@@ -243,8 +268,9 @@ class TabsNav3NavigatorTest {
 		assertEquals(listOf(homeTab), restored.stackFor(homeTab))
 		assertEquals(listOf(roomsTab, DetailScreen(9)), restored.stackFor(roomsTab))
 		assertEquals(listOf(settingsTab, DetailScreen(2)), restored.stackFor(settingsTab))
+		// restoreFrom populates every tabOrder entry → all count as visited
 		assertEquals(
-			listOf(homeTab, settingsTab, DetailScreen(2)),
+			listOf(roomsTab, DetailScreen(9), homeTab, settingsTab, DetailScreen(2)),
 			restored.backStack.toList(),
 		)
 		assertNull(restored.pendingTabSlide)
@@ -294,7 +320,7 @@ class TabsNav3NavigatorTest {
 		tabs.switchTab(settingsTab)
 		assertEquals(2, tabs.currentTabIndex())
 
-		val saver = TabsNav3Navigator.saver(tabOrder = tabOrder, parent = null)
+		val saver = TabsNav3Navigator.saver(tabOrder = tabOrder, startTab = homeTab, parent = null)
 		val saved = with(saver) {
 			object : SaverScope {
 				override fun canBeSaved(value: Any): Boolean = true
@@ -309,10 +335,226 @@ class TabsNav3NavigatorTest {
 		assertEquals(listOf(homeTab), restored.stackFor(homeTab))
 		assertEquals(listOf(roomsTab, DetailScreen(42)), restored.stackFor(roomsTab))
 		assertEquals(listOf(settingsTab), restored.stackFor(settingsTab))
+		// Saver restore populates every tab → rooms retained + start + current
 		assertEquals(
-			listOf(homeTab, settingsTab),
+			listOf(roomsTab, DetailScreen(42), homeTab, settingsTab),
 			restored.backStack.toList(),
 		)
 		assertNull(restored.pendingTabSlide)
+	}
+
+	// --- Visited-tab retention / currentTabDepth / items ---------------------------
+
+	@Test
+	fun `visited inactive tabs remain in backStack after switching away`() {
+		tabs.switchTab(roomsTab)
+		tabs.push(DetailScreen(1))
+		tabs.switchTab(settingsTab)
+
+		assertTrue(tabs.backStack.contains(roomsTab))
+		assertTrue(tabs.backStack.contains(DetailScreen(1)))
+		assertEquals(settingsTab, tabs.backStack.last())
+	}
+
+	@Test
+	fun `current tab stack is always the suffix and lastItem is its top`() {
+		tabs.switchTab(roomsTab)
+		tabs.push(DetailScreen(1))
+		tabs.switchTab(settingsTab)
+		tabs.push(DetailScreen(2))
+
+		val suffix = listOf(settingsTab, DetailScreen(2))
+		assertEquals(suffix, tabs.backStack.takeLast(suffix.size))
+		assertEquals(DetailScreen(2), tabs.lastItem)
+		assertEquals(settingsTab, tabs.currentTab)
+	}
+
+	@Test
+	fun `never-visited tab contributes nothing to backStack`() {
+		tabs.switchTab(roomsTab)
+		// settings never selected
+		assertFalse(tabs.backStack.contains(settingsTab))
+		assertEquals(emptyList<Nav3Screen>(), tabs.stackFor(settingsTab))
+		assertEquals(listOf(homeTab, roomsTab), tabs.backStack.toList())
+	}
+
+	@Test
+	fun `currentTabDepth tracks current tab depth not total backStack size`() {
+		tabs.switchTab(roomsTab)
+		tabs.push(DetailScreen(1))
+		tabs.switchTab(settingsTab)
+		tabs.push(DetailScreen(2), DetailScreen(3))
+
+		// rooms(2) + home(1) + settings(3) = 6 retained entries
+		assertEquals(6, tabs.backStack.size)
+		assertEquals(3, tabs.currentTabDepth) // settings + two details
+		assertEquals(listOf(settingsTab, DetailScreen(2), DetailScreen(3)), tabs.items)
+	}
+
+	@Test
+	fun `items returns only the current tab stack`() {
+		tabs.switchTab(roomsTab)
+		tabs.push(DetailScreen(9))
+		tabs.switchTab(settingsTab)
+
+		assertEquals(listOf(settingsTab), tabs.items)
+		assertEquals(listOf(roomsTab, DetailScreen(9)), tabs.stackFor(roomsTab))
+
+		tabs.switchTab(roomsTab)
+		assertEquals(listOf(roomsTab, DetailScreen(9)), tabs.items)
+	}
+
+	// --- Explicit startTab (non-first in tabOrder) ---------------------------------
+
+	/**
+	 * Centre-start strip: display order A · B · C with C as launch / exit-through-home.
+	 * Mirrors Stations · Kerbside · Home with Home mid-strip.
+	 */
+	private fun centreStartTabs(): TabsNav3Navigator {
+		// homeTab at index 2
+		return TabsNav3Navigator(
+			tabOrder = listOf(roomsTab, settingsTab, homeTab),
+			startTab = homeTab,
+		)
+	}
+
+	@Test
+	fun `non-first startTab is launch tab and isOnStartTab`() {
+		val centre = centreStartTabs()
+
+		assertEquals(homeTab, centre.startTab)
+		assertEquals(homeTab, centre.currentTab)
+		assertTrue(centre.isOnStartTab)
+		assertEquals(listOf(homeTab), centre.backStack.toList())
+		assertFalse(centre.canPop)
+	}
+
+	@Test
+	fun `non-first startTab rebuild flattens start stack underneath`() {
+		val centre = centreStartTabs()
+		centre.push(DetailScreen(1))
+		centre.switchTab(roomsTab)
+		centre.push(DetailScreen(9))
+
+		// startTab stack + current (rooms) stack
+		assertEquals(
+			listOf(homeTab, DetailScreen(1), roomsTab, DetailScreen(9)),
+			centre.backStack.toList(),
+		)
+		assertEquals(listOf(homeTab, DetailScreen(1)), centre.stackFor(homeTab))
+		assertEquals(listOf(roomsTab, DetailScreen(9)), centre.stackFor(roomsTab))
+	}
+
+	@Test
+	fun `exit-through-home from tab before startTab records Forward`() {
+		val centre = centreStartTabs()
+		// roomsTab index 0, startTab (home) index 2 → exit slides Forward
+		centre.switchTab(roomsTab)
+		assertEquals(roomsTab, centre.currentTab)
+		assertEquals(TabSlide.Forward, centre.exitToStartTabSlide)
+
+		centre.pop()
+
+		assertEquals(homeTab, centre.currentTab)
+		assertEquals(TabSlide.Forward, centre.pendingTabSlide)
+	}
+
+	@Test
+	fun `exit-through-home from tab after startTab records Backward`() {
+		// startTab at index 0 is the default; switch to settings (index 2) then pop → Backward
+		tabs.switchTab(settingsTab)
+		assertEquals(TabSlide.Backward, tabs.exitToStartTabSlide)
+
+		tabs.pop()
+
+		assertEquals(homeTab, tabs.currentTab)
+		assertEquals(TabSlide.Backward, tabs.pendingTabSlide)
+	}
+
+	@Test
+	fun `exit-through-home from tab after mid startTab records Backward`() {
+		// Strip: rooms(0) · home(1) · settings(2), start = home
+		val mid = TabsNav3Navigator(
+			tabOrder = listOf(roomsTab, homeTab, settingsTab),
+			startTab = homeTab,
+		)
+		mid.switchTab(settingsTab)
+		assertEquals(TabSlide.Backward, mid.exitToStartTabSlide)
+
+		mid.pop()
+
+		assertEquals(homeTab, mid.currentTab)
+		assertEquals(TabSlide.Backward, mid.pendingTabSlide)
+	}
+
+	@Test(expected = IllegalArgumentException::class)
+	fun `startTab not in tabOrder is rejected`() {
+		TabsNav3Navigator(tabOrder, startTab = OtherTabScreen)
+	}
+
+	@Test
+	fun `saver round-trip with non-first startTab preserves currentTab and stacks`() {
+		val centre = centreStartTabs()
+		centre.switchTab(roomsTab)
+		centre.push(DetailScreen(7))
+		centre.switchTab(settingsTab)
+		centre.push(DetailScreen(3))
+
+		val saver = TabsNav3Navigator.saver(
+			tabOrder = listOf(roomsTab, settingsTab, homeTab),
+			startTab = homeTab,
+			parent = null,
+		)
+		val saved = with(saver) {
+			object : SaverScope {
+				override fun canBeSaved(value: Any): Boolean = true
+			}.save(centre)
+		}
+		assertTrue(saved != null)
+
+		val restored = saver.restore(saved!!)!!
+		assertEquals(settingsTab, restored.currentTab)
+		assertEquals(homeTab, restored.startTab)
+		assertEquals(listOf(homeTab), restored.stackFor(homeTab))
+		assertEquals(listOf(roomsTab, DetailScreen(7)), restored.stackFor(roomsTab))
+		assertEquals(listOf(settingsTab, DetailScreen(3)), restored.stackFor(settingsTab))
+		// tabOrder = rooms · settings · home; other visited = rooms; start = home; current = settings
+		assertEquals(
+			listOf(roomsTab, DetailScreen(7), homeTab, settingsTab, DetailScreen(3)),
+			restored.backStack.toList(),
+		)
+		assertNull(restored.pendingTabSlide)
+	}
+
+	@Test
+	fun `saver KEY_CURRENT missing falls back to startTab not tabOrder first`() {
+		// Centre-start: rooms(0) · settings(1) · home(2). Missing KEY_CURRENT must restore to home,
+		// not rooms (index 0).
+		val order = listOf(roomsTab, settingsTab, homeTab)
+		val centre = TabsNav3Navigator(order, startTab = homeTab)
+		centre.switchTab(roomsTab)
+		centre.push(DetailScreen(1))
+
+		val saver = TabsNav3Navigator.saver(tabOrder = order, startTab = homeTab, parent = null)
+		val saved = with(saver) {
+			object : SaverScope {
+				override fun canBeSaved(value: Any): Boolean = true
+			}.save(centre)
+		}!!
+
+		// Drop KEY_CURRENT so restore uses the default (startTab index).
+		saved.remove("tabs_nav3_current")
+
+		val restored = saver.restore(saved)!!
+		assertEquals(homeTab, restored.currentTab)
+		assertTrue(restored.isOnStartTab)
+		// Stacks still restored from the bundle
+		assertEquals(listOf(roomsTab, DetailScreen(1)), restored.stackFor(roomsTab))
+		assertEquals(listOf(homeTab), restored.stackFor(homeTab))
+		// restore populates all tabOrder roots as visited (settings root + rooms depth + home)
+		assertEquals(
+			listOf(roomsTab, DetailScreen(1), settingsTab, homeTab),
+			restored.backStack.toList(),
+		)
 	}
 }

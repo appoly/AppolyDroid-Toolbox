@@ -17,7 +17,7 @@ A highly customizable iOS-style segmented control for Jetpack Compose with smoot
 ## Installation
 
 ```gradle.kts
-implementation("com.github.appoly.AppolyDroid-Toolbox:SegmentedControl:1.7.0-beta02")
+implementation("com.github.appoly.AppolyDroid-Toolbox:SegmentedControl:1.7.0-beta03")
 ```
 
 ## Usage

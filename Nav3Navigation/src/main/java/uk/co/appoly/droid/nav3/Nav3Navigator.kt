@@ -1,8 +1,9 @@
 package uk.co.appoly.droid.nav3
 
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.runtime.ProvidableCompositionLocal
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.navigation3.runtime.NavBackStack
 import androidx.navigation3.runtime.NavKey
 
@@ -173,8 +174,22 @@ fun Nav3Navigator.root(): Nav3Navigator =
  * Nullable so composables can degrade gracefully in `@Preview`s with no host — read with
  * `LocalNav3Navigator.current?.push(...)` where a host isn't guaranteed. [Nav3ScreenHost]
  * always provides a non-null value for its content subtree.
+ *
+ * Prefer [currentOrThrow] inside a [Nav3ScreenHost] when a missing navigator is a programming
+ * error rather than a preview/degraded path.
  */
 val LocalNav3Navigator = staticCompositionLocalOf<Nav3Navigator?> { null }
+
+/**
+ * The ambient [Nav3Navigator], throwing when read outside a [Nav3ScreenHost].
+ *
+ * Mirrors Voyager's `LocalNavigator.currentOrThrow`. Prefer [LocalNav3Navigator.current]
+ * (nullable) in composables that must also render in `@Preview` or outside a host.
+ */
+val ProvidableCompositionLocal<Nav3Navigator?>.currentOrThrow: Nav3Navigator
+	@Composable
+	get() = current
+		?: error("No Nav3Navigator provided — is this composable inside a Nav3ScreenHost?")
 
 /**
  * Root navigator: thin wrapper over the host's [NavBackStack] — navigation **is** list mutation.

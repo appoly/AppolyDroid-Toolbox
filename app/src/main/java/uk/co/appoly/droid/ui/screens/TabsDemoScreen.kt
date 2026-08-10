@@ -37,6 +37,7 @@ import uk.co.appoly.droid.nav3.LocalNav3Navigator
 import uk.co.appoly.droid.nav3.LocalTabsNavigator
 import uk.co.appoly.droid.nav3.Nav3Screen
 import uk.co.appoly.droid.nav3.Nav3TabsHost
+import uk.co.appoly.droid.nav3.rememberNav3RetentionScope
 import uk.co.appoly.droid.nav3.rememberTabsNav3Navigator
 
 /**
@@ -44,6 +45,12 @@ import uk.co.appoly.droid.nav3.rememberTabsNav3Navigator
  * animations, spring-slide for in-tab push/pop, and cross-tab [TabsNav3Navigator.navigateToTab].
  *
  * Bottom bar chrome is **app code** — the host wires both ambient navigators and tab-aware transitions.
+ *
+ * Also shows the required [rememberNav3RetentionScope]: tabs keep visited entries on the back
+ * stack so state survives switches, and that retention needs an explicit owner that ends with
+ * the identity behind the UI (sign-out / account switch). This demo has no auth boundary —
+ * popping the shell is enough — but production tabs hosts must call
+ * [uk.co.appoly.droid.nav3.Nav3RetentionScope.clear] when the member ends.
  */
 @Serializable
 data object TabsDemoScreen : Nav3Screen {
@@ -63,6 +70,9 @@ data object TabsDemoScreen : Nav3Screen {
 		}
 		// parent = ambient root showcase navigator (for LocalNav3Navigator.current?.parent?.pop())
 		val tabsNavigator = rememberTabsNav3Navigator(tabItems.map { it.screen })
+		// Owns ViewModel stores of retained tab entries. Survives config change; call clear()
+		// on sign-out so the next session cannot reattach to this one's stores.
+		val retentionScope = rememberNav3RetentionScope()
 
 		Scaffold(
 			topBar = {
@@ -96,6 +106,7 @@ data object TabsDemoScreen : Nav3Screen {
 					.fillMaxSize()
 					.padding(padding),
 				tabsNavigator = tabsNavigator,
+				retentionScope = retentionScope,
 			)
 		}
 	}
