@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <application>
+        <!--
+          Host for the on-device suite. Declared here rather than reusing ui-test-manifest's
+          generic ComponentActivity because these tests need the composition to be re-established
+          by the Activity itself on recreate() — a rule-driven setContent is lost on recreation,
+          which is exactly the path under test.
+        -->
+        <activity
+            android:name="uk.co.appoly.droid.nav3.Nav3TestActivity"
+            android:configChanges=""
+            android:exported="false" />
+    </application>
+
+</manifest>

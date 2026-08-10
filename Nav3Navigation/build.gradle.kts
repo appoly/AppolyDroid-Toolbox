@@ -79,8 +79,17 @@ dependencies {
 	testImplementation(libs.androidx.ui.test.junit4)
 	testImplementation(libs.androidx.ui.test.manifest)
 	testImplementation(libs.androidx.material3)
+	// On-device suite (see README "On-device test suite"). Deliberately NOT run in CI: it covers
+	// only what Robolectric physically cannot reach — a real OnBackPressedDispatcher and real
+	// Activity recreation. Run it before tagging a release.
 	androidTestImplementation(libs.androidx.junit)
 	androidTestImplementation(libs.androidx.espresso.core)
+	androidTestImplementation(libs.androidx.test.core.ktx)
+	androidTestImplementation(platform(libs.androidx.compose.bom))
+	androidTestImplementation(libs.androidx.ui.test.junit4)
+	androidTestImplementation(libs.androidx.material3)
+	androidTestImplementation(libs.androidx.activity.compose)
+	debugImplementation(libs.androidx.ui.test.manifest)
 }
 
 publishing {

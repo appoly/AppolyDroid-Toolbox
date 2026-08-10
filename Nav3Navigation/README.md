@@ -594,3 +594,43 @@ navigator.replace(DetailScreen(2))
 navigator.popUntilRoot()
 assertEquals(listOf(HomeScreen), navigator.items)
 ```
+
+### The module's own suites
+
+Two layers, deliberately split by what each can actually observe.
+
+**JVM (`src/test`, Robolectric) — runs in CI.** The bulk of the coverage, including
+`Nav3TabsRetentionTest`, which drives a real `NavDisplay` composition on the JVM. This layer is
+not shallow: it is what caught both teardown defects in `Nav3RetentionScope` (`clear()` skipping
+the on-screen tab, and `onCleared()` not matching `clear()`).
+
+```bash
+./gradlew :Nav3Navigation:testDebugUnitTest
+```
+
+**On-device (`src/androidTest`) — NOT in CI, run before tagging a release.** Deliberately small
+and scoped to what Robolectric physically cannot reach. It does not mirror the JVM suite; if a
+behaviour can be observed on the JVM, it belongs there instead.
+
+```bash
+./gradlew :Nav3Navigation:connectedDebugAndroidTest
+```
+
+| Suite | Covers | Why it cannot be a JVM test |
+|---|---|---|
+| `Nav3PredictiveBackDeviceTest` | Completed / cancelled predictive-back gestures, exit-through-home, back-callback enablement | Needs a real `OnBackPressedDispatcher`. `predictivePopTransitionSpec` runs *before* the pop commits, so it infers direction rather than reading `pendingTabSlide` |
+| `Nav3RecreationDeviceTest` | Retention scope, tab ViewModels, per-tab stacks and `rememberSaveable` state across real recreation; `clear()` after rotation | Needs the real `NonConfigurationInstance` handoff — the exact claim `Nav3RetentionScope` exists to make |
+
+Gestures are dispatched programmatically rather than synthesised as touch events: the edge-swipe
+region is device- and gesture-mode-dependent, and these tests are about the navigation contract,
+not the platform's swipe detection.
+
+**Known gaps**, deliberately not covered:
+
+- **True process death.** `recreate()` exercises real `Bundle` save/restore and real `NavKey`
+  reflection, but keeps the process (and so the `ViewModelStore`) alive. Killing the process kills
+  the instrumentation with it.
+- **Minified restore.** `verifyConsumerKeepRules` proves the keep rules *match* under R8; it does
+  not prove back-stack restore works in a minified app. Closing that needs a minified sample
+  driven by UI Automator — see the root README for why the earlier instrumented attempt was
+  dropped.

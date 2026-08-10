@@ -402,6 +402,18 @@ fails. It runs in CI (no device needed) and via the **"Verify Consumer R8 Rules"
 ./gradlew :app:verifyConsumerKeepRules
 ```
 
+**On-device suite (Nav3Navigation).** `Nav3Navigation` additionally ships a small instrumented
+suite covering what Robolectric cannot reach — real predictive-back gestures and real Activity
+recreation. It is **deliberately excluded from CI** (it needs a device) and is a **pre-release
+gate**: run it before tagging, alongside `verifyConsumerKeepRules`.
+
+```bash
+./gradlew :Nav3Navigation:connectedDebugAndroidTest
+```
+
+See the [Nav3Navigation README](Nav3Navigation/README.md#the-modules-own-suites) for what it
+covers and the gaps it deliberately leaves.
+
 > An earlier version used an instrumented test (`testBuildType = "release"`) that round-tripped the
 > serializers on a device. It was dropped: minifying the *test* APK strips the test runner's own
 > transitive dependencies (`androidx.tracing`, Kotlin stdlib facades, …), which is plumbing
