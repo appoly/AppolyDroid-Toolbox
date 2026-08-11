@@ -15,6 +15,7 @@ AppolyDroid Toolbox is a comprehensive collection of Android utility modules tha
 - Snackbar notifications
 - Segmented controls
 - Jetpack Compose pagination utilities
+- Voyager-style Navigation 3 screens (`Nav3Navigation`)
 - And more!
 
 ## Installation
@@ -53,7 +54,7 @@ In your `libs.versions.toml` file:
 
 ```toml
 [versions]
-appolydroidToolbox = "1.6.4" # Replace with the latest version
+appolydroidToolbox = "1.7.0-beta03" # Replace with the latest version
 
 [libraries]
 appolydroid-toolbox-bom = { group = "com.github.appoly.AppolyDroid-Toolbox", name = "AppolyDroid-Toolbox-bom", version.ref = "appolydroidToolbox" }
@@ -78,6 +79,7 @@ appolydroid-toolbox-pagingExtensions = { group = "com.github.appoly.AppolyDroid-
 appolydroid-toolbox-s3Uploader = { group = "com.github.appoly.AppolyDroid-Toolbox", name = "S3Uploader" }
 appolydroid-toolbox-s3Uploader-multipart = { group = "com.github.appoly.AppolyDroid-Toolbox", name = "S3Uploader-Multipart" }
 appolydroid-toolbox-connectivityMonitor = { group = "com.github.appoly.AppolyDroid-Toolbox", name = "ConnectivityMonitor" }
+appolydroid-toolbox-nav3Navigation = { group = "com.github.appoly.AppolyDroid-Toolbox", name = "Nav3Navigation" }
 appolydroid-toolbox-mockInterceptor = { group = "com.github.appoly.AppolyDroid-Toolbox", name = "MockInterceptor" }
 appolydroid-toolbox-mockInterceptor-serialization = { group = "com.github.appoly.AppolyDroid-Toolbox", name = "MockInterceptor-Serialization" }
 appolydroid-toolbox-mockInterceptor-appolyjson = { group = "com.github.appoly.AppolyDroid-Toolbox", name = "MockInterceptor-AppolyJson" }
@@ -112,6 +114,7 @@ dependencies {
     implementation(libs.appolydroid.toolbox.s3Uploader)
     implementation(libs.appolydroid.toolbox.s3Uploader.multipart)
     implementation(libs.appolydroid.toolbox.connectivityMonitor)
+    implementation(libs.appolydroid.toolbox.nav3Navigation)
     implementation(libs.appolydroid.toolbox.mockInterceptor)
     implementation(libs.appolydroid.toolbox.mockInterceptor.serialization)
     implementation(libs.appolydroid.toolbox.mockInterceptor.appolyjson)
@@ -126,7 +129,7 @@ In your module's `build.gradle.kts`:
 ```gradle.kts
 dependencies {
     // Import the BOM
-    implementation(platform("com.github.appoly.AppolyDroid-Toolbox:AppolyDroid-Toolbox-bom:1.6.4"))
+    implementation(platform("com.github.appoly.AppolyDroid-Toolbox:AppolyDroid-Toolbox-bom:1.7.0-beta03"))
 
     // Now you can use AppolyDroid modules without specifying versions
     implementation("com.github.appoly.AppolyDroid-Toolbox:BaseRepo")
@@ -149,6 +152,7 @@ dependencies {
     implementation("com.github.appoly.AppolyDroid-Toolbox:S3Uploader")
     implementation("com.github.appoly.AppolyDroid-Toolbox:S3Uploader-Multipart")
     implementation("com.github.appoly.AppolyDroid-Toolbox:ConnectivityMonitor")
+    implementation("com.github.appoly.AppolyDroid-Toolbox:Nav3Navigation")
     implementation("com.github.appoly.AppolyDroid-Toolbox:MockInterceptor")
     implementation("com.github.appoly.AppolyDroid-Toolbox:MockInterceptor-Serialization")
     implementation("com.github.appoly.AppolyDroid-Toolbox:MockInterceptor-AppolyJson")
@@ -162,7 +166,7 @@ In your `libs.versions.toml` file:
 
 ```toml
 [versions]
-appolydroidToolbox = "1.6.4" # Replace with the latest version
+appolydroidToolbox = "1.7.0-beta03" # Replace with the latest version
 
 [libraries]
 #AppolyDroid-Toolbox
@@ -185,6 +189,7 @@ appolydroid-toolbox-lazyGridPagingExtensions = { group = "com.github.appoly.Appo
 appolydroid-toolbox-s3Uploader = { group = "com.github.appoly.AppolyDroid-Toolbox", name = "S3Uploader", version.ref = "appolydroidToolbox" }
 appolydroid-toolbox-s3Uploader-multipart = { group = "com.github.appoly.AppolyDroid-Toolbox", name = "S3Uploader-Multipart", version.ref = "appolydroidToolbox" }
 appolydroid-toolbox-connectivityMonitor = { group = "com.github.appoly.AppolyDroid-Toolbox", name = "ConnectivityMonitor", version.ref = "appolydroidToolbox" }
+appolydroid-toolbox-nav3Navigation = { group = "com.github.appoly.AppolyDroid-Toolbox", name = "Nav3Navigation", version.ref = "appolydroidToolbox" }
 appolydroid-toolbox-mockInterceptor = { group = "com.github.appoly.AppolyDroid-Toolbox", name = "MockInterceptor", version.ref = "appolydroidToolbox" }
 appolydroid-toolbox-mockInterceptor-serialization = { group = "com.github.appoly.AppolyDroid-Toolbox", name = "MockInterceptor-Serialization", version.ref = "appolydroidToolbox" }
 appolydroid-toolbox-mockInterceptor-appolyjson = { group = "com.github.appoly.AppolyDroid-Toolbox", name = "MockInterceptor-AppolyJson", version.ref = "appolydroidToolbox" }
@@ -215,6 +220,7 @@ dependencies {
     implementation(libs.appolydroid.toolbox.s3Uploader)
     implementation(libs.appolydroid.toolbox.s3Uploader.multipart)
     implementation(libs.appolydroid.toolbox.connectivityMonitor)
+    implementation(libs.appolydroid.toolbox.nav3Navigation)
     implementation(libs.appolydroid.toolbox.mockInterceptor)
     implementation(libs.appolydroid.toolbox.mockInterceptor.serialization)
     implementation(libs.appolydroid.toolbox.mockInterceptor.appolyjson)
@@ -228,7 +234,7 @@ In your module's `build.gradle.kts`:
 
 ```gradle.kts
 dependencies {
-    val appolydroidToolbox = "1.6.4" // Replace with the latest version
+    val appolydroidToolbox = "1.7.0-beta03" // Replace with the latest version
     // Add only the modules you need
     implementation("com.github.appoly.AppolyDroid-Toolbox:BaseRepo:$appolydroidToolbox")
     implementation("com.github.appoly.AppolyDroid-Toolbox:BaseRepo-AppolyJson:$appolydroidToolbox")
@@ -249,6 +255,7 @@ dependencies {
     implementation("com.github.appoly.AppolyDroid-Toolbox:S3Uploader:$appolydroidToolbox")
     implementation("com.github.appoly.AppolyDroid-Toolbox:S3Uploader-Multipart:$appolydroidToolbox")
     implementation("com.github.appoly.AppolyDroid-Toolbox:ConnectivityMonitor:$appolydroidToolbox")
+    implementation("com.github.appoly.AppolyDroid-Toolbox:Nav3Navigation:$appolydroidToolbox")
     implementation("com.github.appoly.AppolyDroid-Toolbox:MockInterceptor:$appolydroidToolbox")
     implementation("com.github.appoly.AppolyDroid-Toolbox:MockInterceptor-Serialization:$appolydroidToolbox")
     implementation("com.github.appoly.AppolyDroid-Toolbox:MockInterceptor-AppolyJson:$appolydroidToolbox")
@@ -325,6 +332,12 @@ Extension bridging BaseRepo and S3Uploader-Multipart for pausable, resumable upl
 Connectivity monitoring flows
 [Learn more](ConnectivityMonitor/README.md)
 
+### Nav3Navigation
+Voyager-style screens on androidx Navigation 3: fused key+UI (`Nav3Screen`), ambient
+`LocalNav3Navigator` push/pop, and a `Nav3ScreenHost` that preserves native predictive back
+and per-entry ViewModel/saveable/result decorators.
+[Learn more](Nav3Navigation/README.md)
+
 ### MockInterceptor
 OkHttp interceptor with a route-matching DSL for mocking API responses during development and testing.
 [Learn more](MockInterceptor/README.md)
@@ -370,6 +383,14 @@ own `@Serializable` enums, your generated subclasses are kept automatically — 
 - `uk.co.appoly.droid.util.EnumAsIntSerializer`
 - `uk.co.appoly.droid.util.NullableEnumAsIntSerializer`
 
+**`Nav3Screen` implementors (your classes, not ours).** `Nav3Navigation` is the one module whose
+consumer rules keep classes *you* wrote. Navigation 3 persists its back stack by resolving each
+key's `KSerializer` reflectively, so under R8 full mode your `@Serializable` screen classes — which
+nothing references directly — could be stripped or renamed, breaking back-stack restore after
+process death. The module therefore keeps every implementor of
+`uk.co.appoly.droid.nav3.Nav3Screen`, along with its `Companion` and generated `$$serializer`. The
+rules are scoped to that interface; there is no blanket `-keep class ** { *; }`.
+
 **Regression test.** These rules are guarded by the `verifyConsumerKeepRules` Gradle task in the
 `app` module. The demo app depends on every module and is minified (`isMinifyEnabled = true`), so
 R8 applies all of their `consumer-rules.pro`. The task reads R8's `seeds.txt` — the exact set of
@@ -377,9 +398,34 @@ classes its keep rules matched — and asserts every serializer / converter the 
 protect is present. If a module's rule regresses, the class drops out of `seeds.txt` and the task
 fails. It runs in CI (no device needed) and via the **"Verify Consumer R8 Rules"** IDE run config:
 
+> **What this does and does not prove.** `seeds.txt` records *that* something was kept, never
+> *which* rule kept it, and a class listed there may still have been renamed. So the task also
+> asserts, against `mapping.txt`, that `Nav3Screen` implementors keep their exact fully-qualified
+> names — Nav3 resolves back-stack keys by serial name, which defaults to the FQCN, and
+> kotlinx-serialization's own rules keep `@Serializable` classes with `allowobfuscation`. Keeps
+> that merely duplicate another library's shipped rules (Nav3's `Companion` / `serializer()` /
+> `INSTANCE` branches mirror `kotlinx-serialization-common.pro`) cannot be attributed here; they
+> are retained as insurance against that upstream file changing, not because this task verifies
+> them. The task header in `app/build.gradle.kts` records how to re-measure this.
+
 ```bash
 ./gradlew :app:verifyConsumerKeepRules
 ```
+
+**On-device suite (Nav3Navigation).** `Nav3Navigation` additionally ships a small instrumented
+suite covering what Robolectric cannot reach — real predictive-back gestures and real Activity
+recreation. It is **deliberately excluded from CI** (it needs a device) and is a **pre-release
+gate**: run it before tagging, alongside `verifyConsumerKeepRules`.
+
+```bash
+./gradlew :Nav3Navigation:connectedDebugAndroidTest
+```
+
+See the [Nav3Navigation README](Nav3Navigation/README.md#the-modules-own-suites) for what it
+covers, plus a manual cold-restore checklist for the two things no instrumented test can reach
+(true process death and minified back-stack restore — killing the process kills the instrumentation
+with it). Both were verified by hand against `1.7.0-beta03` on a physical device, through a real
+minified consuming app, including a parameterised `NavKey` round-tripping its arguments under R8.
 
 > An earlier version used an instrumented test (`testBuildType = "release"`) that round-tripped the
 > serializers on a device. It was dropped: minifying the *test* APK strips the test runner's own

@@ -53,6 +53,7 @@ The library uses a layered module structure:
 - `ConnectivityMonitor` - Network state monitoring
 - `DateHelperUtil` - Date/time operations (with Room and Serialization variants)
 - `AppSnackBar` / `AppSnackBar-UiState` - Enhanced Snackbar
+- `Nav3Navigation` - Voyager-style screens on androidx Navigation 3 (`Nav3Screen`, ambient navigator, `Nav3ScreenHost`)
 
 **Demo App:**
 - `app` - Test application implementing all modules
@@ -96,6 +97,7 @@ flow.collect { state ->
 - OkHttp 5.4.0, Retrofit 3.0.0
 - Sandwich 2.4.0 (API response handling)
 - Jetpack Paging 3.5.0, Room 2.8.4
+- androidx Navigation 3 1.2.0-alpha07 (Nav3Navigation module)
 - kotlinx-serialization 1.11.0
 
 ## Publishing

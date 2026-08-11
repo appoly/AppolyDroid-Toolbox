@@ -1,0 +1,663 @@
+# Nav3Navigation
+
+Voyager-style ergonomics on androidx Navigation 3: screens are self-rendering classes (the nav
+key **is** the screen, cmd+B-navigable), with an ambient `LocalNav3Navigator` for push/pop — no
+key ↔ entryProvider mapping and no host-threaded lambdas — while keeping Nav3's native predictive
+back, caller-owned back stack, and opt-in per-entry state/ViewModel scoping.
+
+Use this when you want Navigation 3's first-party Compose features (especially predictive back)
+without giving up the fused-screen / ambient-navigator convenience that Voyager popularised.
+
+## Features
+
+| Piece                                      | What it does                                                                                         |
+|--------------------------------------------|------------------------------------------------------------------------------------------------------|
+| `Nav3Screen`                               | Fused key + UI: implement `Content()` on the key class itself                                        |
+| `Nav3Navigator` + `LocalNav3Navigator`     | Ambient navigation: `push` / `pop` / `replace` / … + optional `parent` / `root()` / `currentOrThrow` |
+| Stack peek                                 | `canPop`, `lastItem`, `previousItem`, `items` — bottom bar, BackHandler, deep-link reconcile         |
+| `popWithResult` / `Nav3ResultReceiver`     | Voyager-style screen-to-screen results (stable; preferred over the alpha result bus)                 |
+| `BackStackNav3Navigator`                   | Default navigator — navigation is list mutation on your `NavBackStack`                               |
+| `Nav3ScreenHost`                           | Full `NavDisplay` surface for `Nav3Screen` stacks + ambient navigator + default entry decorators     |
+| `TabsNav3Navigator` + `LocalTabsNavigator` | Per-tab stacks retained across switches, exit-through-home, `navigateToTab`, tab-slide hints         |
+| `TabsSceneStrategy`                        | Renders only the current tab top so inactive tabs keep ViewModels / `rememberSaveable` state         |
+| `Nav3TabsHost`                             | Tabs host: both ambients, `TabsSceneStrategy` + tab-aware transition defaults                        |
+| `Nav3RetentionScope`                       | Owns retained entry ViewModel stores; `clear()` ends them (required on `Nav3TabsHost`)               |
+| `Nav3Transitions`                          | Optional spring-slide / full-slide / tab-slide `ContentTransform`s (used as `Nav3TabsHost` defaults) |
+| `rememberDefaultNav3EntryDecorators`       | Saveable state + ViewModelStore + result bus per entry (optional retention parent)                   |
+| `nav3HostViewModelStoreOwner()`            | Navigator-scoped ViewModels — Voyager's `koinNavigatorScreenModel()` equivalent                      |
+| Native predictive back                     | Pop transition is scrubbed by the system gesture                                                     |
+| Caller-owned back stack                    | Deep links are just a seeded start stack                                                             |
+| Per-screen transitions                     | Override via `Nav3Screen.metadata`                                                                   |
+
+## Installation
+
+```gradle.kts
+implementation("com.github.appoly.AppolyDroid-Toolbox:Nav3Navigation:1.7.0-beta03")
+```
+
+Or via the AppolyDroid BOM (version managed by the platform):
+
+```gradle.kts
+implementation(platform("com.github.appoly.AppolyDroid-Toolbox:AppolyDroid-Toolbox-bom:1.7.0-beta03"))
+implementation("com.github.appoly.AppolyDroid-Toolbox:Nav3Navigation")
+```
+
+**Requirements**
+
+- `minSdk` **23** (androidx.navigation3 requirement)
+- Depends on `androidx.navigation3` **1.2.0-alpha07** (alpha result bus is optional; see [Results](#results))
+- Screen classes need `kotlinx-serialization` (`@Serializable` + the serialization plugin)
+
+## Usage
+
+### Declaring screens
+
+```kotlin
+@Serializable
+data object HomeScreen : Nav3Screen {
+    @Composable
+    override fun Content() {
+        val navigator = LocalNav3Navigator.current
+        Button(onClick = { navigator?.push(DetailScreen(itemId = 42)) }) {
+            Text("Open detail")
+        }
+    }
+}
+
+@Serializable
+data class DetailScreen(val itemId: Int) : Nav3Screen {
+    @Composable
+    override fun Content() {
+        // itemId is a real constructor arg — no Bundles, no route strings
+    }
+}
+```
+
+Rules the compiler won't enforce:
+
+1. Concrete screens must be `@Serializable` — they ride the persisted back stack.
+2. Non-serializable body properties must be `get() =` computed (no backing field) — including
+   `metadata` overrides. kotlinx.serialization serializes stored body `val`s.
+3. Two pushes of an equal key share saved state + ViewModel store; give multi-instance screens
+   a distinguishing constructor arg (the same reason Voyager screens carry `uniqueScreenKey`).
+
+### Hosting a stack
+
+```kotlin
+val backStack = rememberNavBackStack(HomeScreen)
+
+Nav3ScreenHost(
+    modifier = Modifier.fillMaxSize(),
+    backStack = backStack,
+)
+```
+
+`Nav3ScreenHost` mirrors the primary [NavDisplay](https://developer.android.com/jetpack/androidx/releases/navigation3)
+parameter surface so you rarely need to drop down to a raw `NavDisplay` call:
+
+| Parameter                                                              | Default                                              | Notes                                                            |
+|------------------------------------------------------------------------|------------------------------------------------------|------------------------------------------------------------------|
+| `navigator`                                                            | `BackStackNav3Navigator(backStack)`                  | Provided as `LocalNav3Navigator`                                 |
+| `retentionScope`                                                       | `null`                                               | Optional parent for entry ViewModel stores; see [Retention](#retention-and-teardown) |
+| `onBack`                                                               | `{ navigator.pop() }`                                | Prefer this over raw list mutation                               |
+| `entryDecorators`                                                      | `rememberDefaultNav3EntryDecorators(retentionScope)` | Saveable + ViewModelStore + result bus                           |
+| `sceneStrategies`                                                      | `SinglePaneSceneStrategy`                            | List-pane / adaptive scenes                                      |
+| `sceneDecoratorStrategies`                                             | `emptyList()`                                        | Scene-level chrome / shared state                                |
+| `sharedTransitionScope`                                                | `null`                                               | Pass a parent `SharedTransitionLayout` scope for shared elements |
+| `transitionSpec` / `popTransitionSpec` / `predictivePopTransitionSpec` | NavDisplay defaults                                  | Host-level animations                                            |
+| `entryProvider`                                                        | `::nav3ScreenEntry`                                  | Fused `Nav3Screen` rendering — override only for mixed stacks    |
+
+The back stack must be non-empty (`NavDisplay` requires it).
+
+### Navigator API (Voyager parity)
+
+| Voyager                | Nav3Navigation                               |
+|------------------------|----------------------------------------------|
+| `push(screen)`         | `push(screen)`                               |
+| `push(a, b, c)` / list | `push(a, b, c)` or `push(list)`              |
+| `pop()`                | `pop()` (no-op at root / when `!canPop`)     |
+| `replace(screen)`      | `replace(screen)`                            |
+| `replaceAll(screen)`   | `replaceAll(screen)` / `replaceAll(a, b, …)` |
+| `popUntil { … }`       | `popUntil { … }` / `popUpTo(screen)`         |
+| `popUntilRoot()`       | `popUntilRoot()`                             |
+| `canPop`               | `canPop`                                     |
+| `lastItem`             | `lastItem`                                   |
+| `items`                | `items`                                      |
+| `parent`               | `parent` (`null` at root)                    |
+| *(root walk)*          | `navigator.root()`                           |
+
+```kotlin
+// Checkout → confirmation (must not leave checkout on the stack)
+navigator.replace(OrderConfirmationScreen(order))
+
+// Day-setup / auth handoff: wipe the tab stack
+navigator.replaceAll(ScheduleScreen())
+
+// Done with a flow
+navigator.popUntilRoot()
+
+// Bottom bar from top screen
+val showBottomBar = (navigator.lastItem as? ShowsBottomBar)?.showBottomBar != false
+
+// System back: pop tab stack, else switch tab / finish
+BackHandler(enabled = navigator.canPop || currentTab != HomeTab) {
+    if (navigator.canPop) navigator.pop() else selectTab(HomeTab)
+}
+```
+
+### Deep links
+
+A deep link is just a seeded start stack — no graph, no URI-pattern framework:
+
+```kotlin
+val backStack = rememberNavBackStack(
+    HomeScreen,
+    ListScreen,
+    DetailScreen(itemId = deepLinkId),
+)
+```
+
+Or at runtime (router already built a list):
+
+```kotlin
+navigator.push(screensToPush)          // Iterable overload
+// or seed / replace the whole tab stack:
+navigator.replaceAll(*desiredStack.toTypedArray())
+```
+
+Inspect `navigator.items` to skip screens already present when reconciling a deep-link stack.
+
+### Tabs (`TabsNav3Navigator`)
+
+**Headline: tab state survives tab switches by default.** ViewModels and `rememberSaveable`
+state on a tab are retained when you leave and come back — the same Voyager `TabNavigator`
+semantics this module exists to provide. Nav3 only tears down per-entry state when a key
+leaves the back stack; `TabsNav3Navigator` keeps every **visited** tab in `backStack`, and
+`Nav3TabsHost` defaults to `TabsSceneStrategy` so only the current tab’s top entry is rendered.
+
+Bottom-bar chrome stays **app-owned**. The library provides a navigator that:
+
+- keeps **one stack per tab** and flattens **all visited tabs** into a single `backStack` for one
+  `NavDisplay` (`[other visited in tabOrder] + startTabStack + currentTabStack`), with the
+  current tab always the suffix
+- pairs with **`TabsSceneStrategy`** (default on `Nav3TabsHost`) so inactive tabs stay in the
+  stack without being composed — that is the retention mechanism
+- implements `Nav3Navigator` so in-tab `LocalNav3Navigator.push/pop` stay tab-local
+- **exit-through-home**: `pop` at a non-start tab root switches to the start tab
+- **`navigateToTab(tab, vararg screens)`** for cross-tab deep links
+- records **`pendingTabSlide`** so tab switches can animate directionally (see [Transitions](#transitions))
+- exposes **`currentTabDepth`** (depth of the current tab only) for in-tab transition z-index —
+  not `backStack.size`, which grows as tabs are visited
+- **`items`** returns the **current tab’s** stack only (Voyager-equivalent), not the full multi-tab
+  flatten — use `stackFor(tab)` or `backStack` when you need another tab or the display list
+- separates **display order** (`tabOrder`) from the **launch / exit-through-home tab** (`startTab`)
+
+`tabOrder` is the strip order (bottom-bar left→right, and the indices used for
+`TabSlide.Forward` / `Backward`). `startTab` is the launch tab, the exit-through-home target,
+and the stack always flattened underneath the current tab — it defaults to `tabOrder.first()` so
+existing call sites stay source-compatible, but can be any entry of `tabOrder` (e.g. a centre Home).
+
+```kotlin
+// Home first in the strip (default startTab = tabOrder.first())
+val tabs = rememberTabsNav3Navigator(listOf(HomeTab, RoomsTab, SettingsTab))
+
+// Centre-start strip: display order A · B · C · D · E with C as launch / exit-through-home
+// (e.g. Stations · Kerbside · Home · Card · Account)
+val tabs = rememberTabsNav3Navigator(
+    tabOrder = listOf(StationsTab, KerbsideTab, HomeTab, CardTab, AccountTab),
+    startTab = HomeTab,
+)
+
+// Required: names who owns retained tab ViewModel stores (and who ends them).
+val retentionScope = rememberNav3RetentionScope()
+
+Scaffold(
+    bottomBar = {
+        NavigationBar {
+            // selected = tabs.currentTab == …; onClick = { tabs.switchTab(…) }
+        }
+    },
+) { padding ->
+    // Provides LocalNav3Navigator + LocalTabsNavigator; tab-aware spring/tab-slide defaults
+    Nav3TabsHost(
+        modifier = Modifier.padding(padding),
+        tabsNavigator = tabs,
+        retentionScope = retentionScope,
+    )
+}
+```
+
+#### Retention and teardown
+
+**What is retained and why.** Visited tabs stay in `backStack` (and `TabsSceneStrategy` only
+renders the current top) so ViewModels and `rememberSaveable` state survive tab switches — the
+Voyager `TabNavigator` behaviour this module exists to provide. Nav3 only clears an entry's
+`ViewModelStore` when its key **leaves** the back stack; retention is intentional and has no
+automatic teardown on host disposal (disposal is indistinguishable from a configuration change,
+which the ViewModel decorator is designed to survive).
+
+**`Nav3RetentionScope` is required on `Nav3TabsHost`.** The host parents its default ViewModel
+decorator to that scope. Call `retentionScope.clear()` when the identity behind the UI ends
+(sign-out, account switch). Create the scope with `rememberNav3RetentionScope()` — it resolves
+against the ambient `LocalViewModelStoreOwner`, so it survives rotation; pass a `key` for sibling
+hosts. Note that owner is the **Activity only when tabs are the app root**: called from a screen
+that is itself hosted by a `Nav3ScreenHost`, it is scoped to that screen's entry and dies when the
+shell pops. That is usually what you want, but do not treat it as a security boundary — a shell
+left on the back stack across sign-out still holds the previous identity until the scope is torn
+down.
+
+**Two equivalent ways to end retention.** Either works, and they do the same thing:
+
+1. Call `retentionScope.clear()` explicitly on sign-out.
+2. Hoist the scope into a session-scoped `ViewModelStoreOwner` of your own and clear *that* — the
+   scope is a `ViewModel`, so destroying its owner routes through `onCleared()`.
+
+Route 2 never calls `clear()`, so `onCleared()` deliberately performs the identical work
+(including the `generation` bump). If it did not, route-2 consumers would get the subtle half-
+broken state: hidden tabs torn down, the on-screen tab's ViewModels surviving — which looks like
+it works. Both routes are covered by `Nav3TabsRetentionTest`.
+
+**The stable-`contentKey` hazard.** Tab roots are usually `@Serializable data object`s — their
+`contentKey` is stable across users. If entry stores live on the Activity (the decorator's default
+parent) and the authenticated host is disposed without popping, the next member who signs in on
+the same Activity reattaches to the **previous member's live ViewModels**. That is deterministic
+cross-user data exposure, not incidental caching. Parenting stores to a clearable
+`Nav3RetentionScope` and calling `clear()` on sign-out is the fix.
+
+**Plain `Nav3ScreenHost` keeps `retentionScope` optional.** A stack host that signs out via
+`replaceAll(LoginScreen)` pops while composed, so `onPop` cleans stores naturally. Only a host
+disposed without popping (e.g. swapped out by a `Crossfade`) needs an explicit scope — tabs is
+where the library deliberately manufactures un-popped retention, so tabs is where it is mandatory.
+
+**Custom `entryDecorators`:** if you pass your own list, the ViewModel decorator **must** still be
+parented to the same `retentionScope`, **and its provider must be keyed on
+`retentionScope.generation`**:
+
+```kotlin
+val provider = rememberViewModelStoreProvider(
+    key = currentCompositeKeyHashCode to retentionScope.generation,
+    parent = retentionScope,
+)
+val decorators = listOf(
+    rememberSaveableStateHolderNavEntryDecorator(),
+    rememberViewModelStoreNavEntryDecorator(provider),
+    rememberResultEventBusNavEntryDecorator(),
+)
+```
+
+Simplest is to use `rememberDefaultNav3EntryDecorators(retentionScope)` as a base and append.
+
+Parenting alone is **not enough**. `ViewModelStoreProvider` refuses to tear down any entry whose
+reference count is above zero, and the entry composed on screen at the moment of sign-out always
+holds one — so without the `generation` key, `clear()` leaves the ViewModels of the screen the
+user was just looking at alive. That is usually the account/settings tab the sign-out button lives
+on. Bumping `generation` recreates the provider, which drops those tokens and lets the deferred
+cleanup run. It also re-parents a fresh state holder into the emptied store, so the *second* and
+subsequent `clear()` calls keep working. Guarded by `Nav3TabsRetentionTest`.
+
+**Sign-out example:**
+
+```kotlin
+val retentionScope = rememberNav3RetentionScope()
+val isSignedIn by authRepository.isSignedIn.collectAsStateWithLifecycle()
+
+LaunchedEffect(isSignedIn) {
+    if (!isSignedIn) {
+        // End retained tab ViewModels before (or as) the authenticated host leaves composition.
+        retentionScope.clear()
+    }
+}
+
+if (isSignedIn) {
+    val tabs = rememberTabsNav3Navigator(tabOrder)
+    Nav3TabsHost(
+        tabsNavigator = tabs,
+        retentionScope = retentionScope,
+    )
+} else {
+    LoginScreen(/* … */)
+}
+```
+
+Exit-through-home slide direction follows strip indices toward `startTab` (not a hardcoded
+backward): backing out of a tab **before** the start tab slides `Forward`; from a tab **after**
+it slides `Backward`. `exitToStartTabSlide` exposes that direction for predictive-back specs
+(and is what `predictivePopTransitionSpec` uses).
+
+Cross-tab from a page:
+
+```kotlin
+LocalTabsNavigator.current?.navigateToTab(RoomsTab, RoomDetailScreen(id))
+```
+
+Nested / outer stack (escape hatch — prefer for dismiss-shell / logout, not everyday nav):
+
+```kotlin
+LocalNav3Navigator.current?.parent?.pop()   // pop outer host
+LocalNav3Navigator.current?.root()?.replaceAll(LoginScreen)
+// Or, inside a host when a missing navigator is a bug:
+LocalNav3Navigator.currentOrThrow.parent?.pop()
+```
+
+Tab roots are never popped/replaced (they key each tab's stack). `replaceAll` is **tab-local**:
+keeps the root, then appends the new screens.
+
+**Persistence:** `rememberTabsNav3Navigator` saves `currentTab` and every per-tab stack (via the
+same reflection-based `NavKey` serialization as `rememberNavBackStack`). Screens must be
+`@Serializable`. `parent` and `startTab` are re-applied from composition / call-site args on
+restore (not read from the saved bundle). If `KEY_CURRENT` is missing, restore falls back to
+the start tab's index — not `0`.
+
+**Equal keys across tabs:** visited tabs share one flattened `backStack`. The same equal key on
+Home and on Rooms shares saveable state / ViewModelStore — use distinguishing constructor args
+when a destination can appear under more than one tab.
+
+**After process death:** `restoreFrom` / the saver populates an entry for every `tabOrder` root,
+so every tab counts as visited (at least its root) in the back stack. Unrendered roots are never
+composed, so no ViewModel is created until the tab is selected.
+
+`Nav3TabsHost` is only a convenience wrapper over `Nav3ScreenHost` — you can still wire
+`CompositionLocalProvider(LocalTabsNavigator provides tabs) { Nav3ScreenHost(...) }` yourself
+if you need a custom layout; pass `TabsSceneStrategy(tabs)` (or equivalent) if you want retention.
+
+#### Multi-stack alternative
+
+If you prefer independent `rememberNavBackStack` per tab (no flatten / no built-in tab-slide),
+swap which stack you pass to `Nav3ScreenHost` and re-provide `LocalNav3Navigator` — same idea as
+nested Voyager navigators. Cross-tab then means mutating the target tab's list yourself.
+
+### Transitions
+
+`Nav3Transitions` is **optional** — not applied unless you pass the specs into the host.
+`Nav3TabsHost` applies the tab-aware helpers by default.
+
+| Builder | Use |
+|---|---|
+| `springSlidePush/Pop(stackSize)` | In-tab / single-stack spring + parallax (`stackSize` → `targetContentZIndex`) |
+| `slidePush/Pop()` | Full-width spring slide |
+| `tabSlide(Forward/Backward)` | Directional full slide for tab switches |
+| `tabs.transitionSpec()` / `popTransitionSpec()` / `predictivePopTransitionSpec()` | Tab-aware: tab-slide when `pendingTabSlide` is set, else spring-slide with **`currentTabDepth`** (not multi-tab `backStack.size`) |
+
+Single-stack host with spring-slide:
+
+```kotlin
+Nav3ScreenHost(
+    backStack = backStack,
+    transitionSpec = { Nav3Transitions.springSlidePush(backStack.size) },
+    popTransitionSpec = { Nav3Transitions.springSlidePop(backStack.size) },
+    predictivePopTransitionSpec = { Nav3Transitions.springSlidePop(backStack.size) },
+)
+```
+
+Tabs host (defaults already do this):
+
+```kotlin
+Nav3TabsHost(
+    tabsNavigator = tabs,
+    retentionScope = retentionScope,
+    // sceneStrategies defaults to TabsSceneStrategy(tabs)
+    // transitionSpec / pop / predictivePop default to tabs.*Spec() using currentTabDepth
+)
+```
+
+### Custom / per-screen transitions
+
+Host-level defaults (and optional shared-element scope):
+
+```kotlin
+SharedTransitionLayout {
+    Nav3ScreenHost(
+        modifier = Modifier.fillMaxSize(),
+        backStack = backStack,
+        sharedTransitionScope = this,
+        transitionSpec = { myPushTransform() },
+        popTransitionSpec = { myPopTransform() },
+        predictivePopTransitionSpec = { myPopTransform() },
+    )
+}
+```
+
+Per-screen overrides go through `Nav3Screen.metadata` using `NavDisplay.transitionSpec(...)` /
+`NavDisplay.popTransitionSpec(...)` keys (computed `get() =`, never a stored `val`):
+
+```kotlin
+@Serializable
+data object ModalPickerScreen : Nav3Screen {
+    override val metadata: Map<String, Any>
+        get() = NavDisplay.transitionSpec {
+            slideInVertically { it } togetherWith ExitTransition.None
+        }
+
+    @Composable
+    override fun Content() { /* ... */ }
+}
+```
+
+### Results
+
+Two options — pick one per app, don't mix freely:
+
+#### A. `Nav3ResultReceiver` + `popWithResult` (recommended, stable)
+
+Voyager-style “pop and deliver a value to the previous screen” without depending on the alpha
+result bus:
+
+```kotlin
+@Serializable
+data object ListScreen : Nav3Screen, Nav3ResultReceiver {
+    // Prefer a ViewModel as the real result sink — don't store mutable state on the key
+    override fun onResult(result: Any?) { /* cast/check as needed */ }
+
+    @Composable
+    override fun Content() { /* push PickerScreen */ }
+}
+
+// On the picker:
+navigator.popWithResult(selectedId)
+
+// Multi-step flow: dismiss intermediates and deliver to a specific ancestor
+navigator.popUntilWithResult(result = selectedId) { it is ListScreen }
+```
+
+#### B. Nav3 1.2 `ResultEventBus` (alpha — optional)
+
+Default decorators include the result-bus decorator. A picker can `sendResult(...)`; the
+caller observes via `ResultEffect<T>`. **Treat as alpha** — event vs state variants differ on
+process-death behaviour. Prefer (A) or a shared ViewModel until this hits beta/stable.
+
+### Screen-scoped ViewModels (ScreenModel → ViewModel)
+
+Voyager `ScreenModel` + `koinScreenModel()` maps cleanly onto real `ViewModel`s:
+
+| Voyager                                         | Nav3Navigation + Koin                                                |
+|-------------------------------------------------|----------------------------------------------------------------------|
+| `class FooScreenModel : ScreenModel`            | `class FooViewModel : ViewModel()`                                   |
+| `screenModelScope`                              | `viewModelScope`                                                     |
+| `koinScreenModel()`                             | `koinViewModel()`                                                    |
+| `koinScreenModel { parametersOf(id) }`          | `koinViewModel { parametersOf(id) }`                                 |
+| `koinNavigatorScreenModel()` (navigator-scoped) | `koinViewModel(viewModelStoreOwner = nav3HostViewModelStoreOwner())` |
+
+With the default ViewModelStore decorator, `viewModel()` / `koinViewModel()` resolve against the
+entry's `LocalViewModelStoreOwner` — **no Nav3-specific Koin artifact**. Scope is per entry:
+survives rotation, `onCleared()` on pop, one instance per stacked equal-key entry.
+
+```kotlin
+@Serializable
+data class DetailScreen(val itemId: Int) : Nav3Screen {
+    @Composable
+    override fun Content() {
+        val vm: DetailViewModel = koinViewModel { parametersOf(itemId) }
+        // …
+    }
+}
+```
+
+#### Navigator-scoped ViewModels
+
+Three scopes are available, from narrowest to widest:
+
+| Scope                | How                                                                                 | Cleared                                  |
+|----------------------|-------------------------------------------------------------------------------------|------------------------------------------|
+| **Entry** (default)  | `koinViewModel()`                                                                   | when the screen pops                     |
+| **Navigator / host** | `koinViewModel(viewModelStoreOwner = nav3HostViewModelStoreOwner())`                | when the host's owner clears (see below) |
+| **Activity**         | `koinViewModel(viewModelStoreOwner = LocalActivity.current as ViewModelStoreOwner)` | when the activity is destroyed           |
+
+Each `Nav3ScreenHost` captures the `ViewModelStoreOwner` it was composed under — **before** the
+per-entry decorator shadows `LocalViewModelStoreOwner` — and republishes it as
+`LocalNav3HostViewModelStoreOwner`. That gives navigator scope its lifetime for free:
+
+- Host at the activity root → owner is the activity: one instance shared across the whole stack.
+- **Nested** host inside a screen (checkout flow, tab shell) → owner is that screen's *entry*
+  store: one instance shared across the nested stack, `onCleared()` when the flow's screen pops
+  — Voyager's `koinNavigatorScreenModel()`, with a real ViewModel.
+
+```kotlin
+// Any screen inside the checkout flow's nested host:
+val vm: CheckoutViewModel = koinViewModel(
+    viewModelStoreOwner = nav3HostViewModelStoreOwner(),
+)
+```
+
+Two sibling hosts composed under the same owner share the same store — pass a distinct
+`key` to `koinViewModel()` if the same ViewModel class must stay per-host.
+
+Drop `uniqueScreenKey` — multi-instance identity is the constructor args (and equality) of the
+`@Serializable` key itself.
+
+## API surface
+
+| Symbol                                  | Kind             | Role                                                                 |
+|-----------------------------------------|------------------|----------------------------------------------------------------------|
+| `Nav3Screen`                            | interface        | `NavKey` + `Content()` + optional `metadata`                         |
+| `nav3ScreenEntry(key)`                  | function         | Universal entryProvider for `Nav3Screen` stacks                      |
+| `Nav3Navigator`                         | interface        | Full Voyager-parity stack ops + peek + `parent`                      |
+| `LocalNav3Navigator`                    | CompositionLocal | Ambient navigator (`null` outside a host)                            |
+| `currentOrThrow`                        | extension        | Non-null ambient navigator (throws outside a host)                   |
+| `root()`                                | extension        | Walk `parent` to the outermost navigator                             |
+| `BackStackNav3Navigator`                | class            | List-mutating default implementation                                 |
+| `rememberBackStackNav3Navigator`        | composable       | Remembers navigator with ambient `parent`                            |
+| `rememberTabsNav3Navigator`             | composable       | Remembers tabs navigator (`tabOrder`, optional `startTab`, `parent`) |
+| `Nav3ResultReceiver`                    | interface        | `onResult` target for `popWithResult`                                |
+| `popWithResult` / `popUntilWithResult`  | extensions       | Deliver result + pop                                                 |
+| `Nav3ScreenHost`                        | composable       | Full `NavDisplay` host + ambient navigator                           |
+| `TabsNav3Navigator`                     | class            | Per-tab stacks retained in flatten + `startTab` + `navigateToTab`    |
+| `TabsNav3Navigator.startTab`             | property         | Launch / exit-through-home tab (may sit mid-strip)                   |
+| `TabsNav3Navigator.currentTabDepth`     | property         | Depth of the current tab only (in-tab transition z-index)            |
+| `TabsNav3Navigator.items`               | property         | **Current tab’s** stack only (not the multi-tab flatten)             |
+| `TabsNav3Navigator.exitToStartTabSlide` | property         | Slide direction a committed exit-through-home `pop` would use        |
+| `TabsSceneStrategy`                     | class            | Renders current tab top; retains inactive tab state in back stack    |
+| `LocalTabsNavigator`                    | CompositionLocal | Ambient tabs API (`null` outside a tab host)                         |
+| `Nav3TabsHost`                          | composable       | Tabs host: both ambients + `TabsSceneStrategy` + tab transitions     |
+| `Nav3RetentionScope`                    | class            | Owns retained entry VM stores; `clear()` ends them                   |
+| `rememberNav3RetentionScope`            | composable       | Retention scope on the ambient owner (optional `key` for siblings)   |
+| `TabSlide`                              | enum             | Forward / Backward tab-switch direction                              |
+| `Nav3Transitions`                       | object           | Optional slide / spring-slide / tab-slide specs                      |
+| `rememberDefaultNav3EntryDecorators`    | composable       | Saveable + VM store + result bus (optional retention parent)         |
+| `LocalNav3HostViewModelStoreOwner`      | CompositionLocal | Pre-decorator owner captured by the host                             |
+| `nav3HostViewModelStoreOwner()`         | composable       | Non-null read for navigator-scoped ViewModels                        |
+
+## Dependencies
+
+| Artifact                                             | Version       | Notes                                                        |
+|------------------------------------------------------|---------------|--------------------------------------------------------------|
+| `androidx.navigation3:navigation3-runtime`           | 1.2.0-alpha07 | `api` — `NavKey` / `NavBackStack` / `NavEntry` in public API |
+| `androidx.navigation3:navigation3-ui`                | 1.2.0-alpha07 | `api` — `NavDisplay` / scene types in public API             |
+| `androidx.lifecycle:lifecycle-viewmodel-navigation3` | 2.11.0        | Per-entry ViewModelStore decorator                           |
+| `androidx.lifecycle:lifecycle-viewmodel`             | 2.11.0        | `api` — `ViewModelStoreOwner` returned by `nav3HostViewModelStoreOwner()` |
+
+Pin Navigation 3 deliberately — decorator/API names have churned across 1.0 → 1.1 → 1.2 alphas.
+
+## Why not plain Navigation 3 / Voyager?
+
+| Concern              | Voyager             | Nav3 alone            | This module               |
+|----------------------|---------------------|-----------------------|---------------------------|
+| cmd+B to screen code | ✅ fused `Screen`    | ❌ key ↔ entryProvider | ✅ fused `Nav3Screen`      |
+| Ambient push/pop     | ✅ `LocalNavigator`  | ❌ host lambdas        | ✅ `LocalNav3Navigator`    |
+| Predictive back      | ❌ after-commit only | ✅ native              | ✅ native                  |
+| Stack is a list      | partial             | ✅                     | ✅                         |
+| Screen-scoped VMs    | ScreenModel         | decorator             | decorator (default on)    |
+| Maintenance          | beta, slowing       | first-party           | thin layer on first-party |
+
+## Testing
+
+Unit-test navigation as ordinary list code — no device needed:
+
+```kotlin
+val backStack = NavBackStack<NavKey>(HomeScreen)
+val navigator = BackStackNav3Navigator(backStack)
+
+navigator.push(DetailScreen(1))
+assertEquals(2, backStack.size)
+assertTrue(navigator.canPop)
+
+navigator.replace(DetailScreen(2))
+navigator.popUntilRoot()
+assertEquals(listOf(HomeScreen), navigator.items)
+```
+
+### The module's own suites
+
+Two layers, deliberately split by what each can actually observe.
+
+**JVM (`src/test`, Robolectric) — runs in CI.** The bulk of the coverage, including
+`Nav3TabsRetentionTest`, which drives a real `NavDisplay` composition on the JVM. This layer is
+not shallow: it is what caught both teardown defects in `Nav3RetentionScope` (`clear()` skipping
+the on-screen tab, and `onCleared()` not matching `clear()`).
+
+```bash
+./gradlew :Nav3Navigation:testDebugUnitTest
+```
+
+**On-device (`src/androidTest`) — NOT in CI, run before tagging a release.** Deliberately small
+and scoped to what Robolectric physically cannot reach. It does not mirror the JVM suite; if a
+behaviour can be observed on the JVM, it belongs there instead.
+
+```bash
+./gradlew :Nav3Navigation:connectedDebugAndroidTest
+```
+
+| Suite | Covers | Why it cannot be a JVM test |
+|---|---|---|
+| `Nav3PredictiveBackDeviceTest` | Completed / cancelled predictive-back gestures, exit-through-home, back-callback enablement | Needs a real `OnBackPressedDispatcher`. `predictivePopTransitionSpec` runs *before* the pop commits, so it infers direction rather than reading `pendingTabSlide` |
+| `Nav3RecreationDeviceTest` | Retention scope, tab ViewModels, per-tab stacks and `rememberSaveable` state across real recreation; `clear()` after rotation | Needs the real `NonConfigurationInstance` handoff — the exact claim `Nav3RetentionScope` exists to make |
+
+Gestures are dispatched programmatically rather than synthesised as touch events: the edge-swipe
+region is device- and gesture-mode-dependent, and these tests are about the navigation contract,
+not the platform's swipe detection.
+
+**Not automated — verify by hand before a release.** Neither of these can be an `androidTest`:
+killing the app's process kills the instrumentation with it. Both were verified manually against
+`1.7.0-beta03` on a physical device, using a real consuming app (see the checklist below).
+
+- **True process death.** `recreate()` exercises real `Bundle` save/restore and real `NavKey`
+  reflection, but keeps the process — and therefore the `ViewModelStore` — alive. Only a cold
+  restore proves the tab back stack rehydrates from the `Bundle` alone.
+- **Minified restore.** `verifyConsumerKeepRules` proves the keep rules *match* under R8; it does
+  not prove back-stack restore works in a minified app. See the root README for why the earlier
+  instrumented attempt at this was dropped.
+
+#### Manual cold-restore checklist
+
+Run against a **minified** build of a real consuming app (`isMinifyEnabled = true`), not the demo
+app — the point is to exercise a consumer's own `@Serializable` screens through the AAR's consumer
+rules.
+
+1. Navigate to a **non-start tab**, then push at least one screen so the restore target is neither
+   the start tab nor a tab root.
+2. Prefer a **parameterised** `NavKey` (a `data class` carrying an id) over a `data object`. An
+   object only proves the class survived R8; a data class proves its *serializer and arguments*
+   round-tripped.
+3. `adb shell input keyevent KEYCODE_HOME`, then **wait a moment**, then
+   `adb shell am kill <package>`.
+4. Relaunch from the launcher. Confirm the pid actually changed, then check the exact screen,
+   its arguments, and that back behaves per the restored stack.
+
+Two traps that produce false failures:
+
+- **`am kill` silently no-ops if fired immediately after `KEYCODE_HOME`** — the process is still
+  foreground and therefore protected. A surviving pid reads exactly like a restore failure when it
+  is nothing of the kind. Always confirm the pid changed before believing a result.
+- **Use `am kill`, never `force-stop`.** `force-stop` discards saved instance state, so it proves
+  nothing about restore.
+
+Thanks to the Accelerate Android team for the cold-restore verification and both traps above.

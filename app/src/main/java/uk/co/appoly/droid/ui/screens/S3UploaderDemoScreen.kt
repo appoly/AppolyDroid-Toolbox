@@ -32,13 +32,19 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.navigation.NavController
+import kotlinx.serialization.Serializable
+import uk.co.appoly.droid.nav3.LocalNav3Navigator
+import uk.co.appoly.droid.nav3.Nav3Screen
 import uk.co.appoly.droid.s3upload.UploadResult
 import uk.co.appoly.droid.ui.viewmodels.S3UploaderDemoViewModel
 
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun S3UploaderDemoScreen(navController: NavController) {
+@Serializable
+data object S3UploaderDemoScreen : Nav3Screen {
+	@OptIn(ExperimentalMaterial3Api::class)
+	@Composable
+	override fun Content() {
+		val navigator = LocalNav3Navigator.current
+
 	val viewModel: S3UploaderDemoViewModel = viewModel()
 	val uploadProgress by viewModel.uploadProgress.collectAsState()
 	val uploadResult by viewModel.uploadResult.collectAsState()
@@ -52,7 +58,7 @@ fun S3UploaderDemoScreen(navController: NavController) {
 			TopAppBar(
 				title = { Text("S3 Uploader Demo") },
 				navigationIcon = {
-					IconButton(onClick = { navController.navigateUp() }) {
+					IconButton(onClick = { navigator?.pop() }) {
 						Text("←")
 					}
 				}
@@ -284,4 +290,5 @@ private fun TestScenarioButton(
 			)
 		}
 	}
+}
 }

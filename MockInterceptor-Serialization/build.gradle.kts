@@ -23,7 +23,7 @@ kotlin {
 
 dependencies {
 	api(project(":MockInterceptor"))
-	api(libs.kotlinx.serialization)
+	api(libs.kotlinx.serialization.json)
 
 	testImplementation(libs.junit)
 }

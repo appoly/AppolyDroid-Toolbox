@@ -1,66 +1,25 @@
 package uk.co.appoly.droid.ui.navigation
 
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
-import androidx.navigation.compose.NavHost
-import androidx.navigation.compose.composable
-import androidx.navigation.compose.rememberNavController
-import uk.co.appoly.droid.ui.screens.AppolyJsonDemoScreen
-import uk.co.appoly.droid.ui.screens.BaseRepoDemoScreen
-import uk.co.appoly.droid.ui.screens.ComposeExtensionsDemoScreen
-import uk.co.appoly.droid.ui.screens.DateHelperDemoScreen
-import uk.co.appoly.droid.ui.screens.DateSerializationRoomDemoScreen
+import androidx.compose.ui.Modifier
+import androidx.navigation3.runtime.rememberNavBackStack
+import uk.co.appoly.droid.nav3.Nav3ScreenHost
 import uk.co.appoly.droid.ui.screens.HomeScreen
-import uk.co.appoly.droid.ui.screens.MultipartUploadDemoScreen
-import uk.co.appoly.droid.ui.screens.PagingDemoScreen
-import uk.co.appoly.droid.ui.screens.S3UploaderDemoScreen
-import uk.co.appoly.droid.ui.screens.SegmentedControlDemoScreen
-import uk.co.appoly.droid.ui.screens.SnackBarDemoScreen
-import uk.co.appoly.droid.ui.screens.MockInterceptorDemoScreen
-import uk.co.appoly.droid.ui.screens.UiStateDemoScreen
 
+/**
+ * Root navigation for the toolbox showcase app.
+ *
+ * Uses [Nav3ScreenHost] so the demo is also living documentation for the Nav3Navigation
+ * module: destinations are self-rendering [uk.co.appoly.droid.nav3.Nav3Screen]s and screens
+ * navigate via [uk.co.appoly.droid.nav3.LocalNav3Navigator].
+ */
 @Composable
 fun AppNavigation() {
-	val navController = rememberNavController()
+	val backStack = rememberNavBackStack(HomeScreen)
 
-	NavHost(navController = navController, startDestination = "home") {
-		composable("home") {
-			HomeScreen(navController = navController)
-		}
-		composable("ui_state") {
-			UiStateDemoScreen(navController = navController)
-		}
-		composable("snackbar") {
-			SnackBarDemoScreen(navController = navController)
-		}
-		composable("segmented_control") {
-			SegmentedControlDemoScreen(navController = navController)
-		}
-		composable("date_helper") {
-			DateHelperDemoScreen(navController = navController)
-		}
-		composable("base_repo") {
-			BaseRepoDemoScreen(navController = navController)
-		}
-		composable("appoly_json") {
-			AppolyJsonDemoScreen(navController = navController)
-		}
-		composable("date_serialization_room") {
-			DateSerializationRoomDemoScreen(navController = navController)
-		}
-		composable("paging") {
-			PagingDemoScreen(navController = navController)
-		}
-		composable("s3_uploader") {
-			S3UploaderDemoScreen(navController = navController)
-		}
-		composable("multipart_upload") {
-			MultipartUploadDemoScreen(navController = navController)
-		}
-		composable("mock_interceptor") {
-			MockInterceptorDemoScreen(navController = navController)
-		}
-		composable("compose_extensions") {
-			ComposeExtensionsDemoScreen(navController = navController)
-		}
-	}
+	Nav3ScreenHost(
+		modifier = Modifier.fillMaxSize(),
+		backStack = backStack,
+	)
 }

@@ -28,13 +28,19 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.navigation.NavController
+import kotlinx.serialization.Serializable
+import uk.co.appoly.droid.nav3.LocalNav3Navigator
+import uk.co.appoly.droid.nav3.Nav3Screen
 import uk.co.appoly.droid.ui.viewmodels.MockInterceptorDemoViewModel
 import uk.co.appoly.droid.ui.viewmodels.RequestResult
 
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun MockInterceptorDemoScreen(navController: NavController) {
+@Serializable
+data object MockInterceptorDemoScreen : Nav3Screen {
+	@OptIn(ExperimentalMaterial3Api::class)
+	@Composable
+	override fun Content() {
+		val navigator = LocalNav3Navigator.current
+
 	val viewModel: MockInterceptorDemoViewModel = viewModel()
 	val results by viewModel.results.collectAsState()
 
@@ -43,7 +49,7 @@ fun MockInterceptorDemoScreen(navController: NavController) {
 			TopAppBar(
 				title = { Text("Mock Interceptor Demo") },
 				navigationIcon = {
-					IconButton(onClick = { navController.navigateUp() }) {
+					IconButton(onClick = { navigator?.pop() }) {
 						Text("\u2190")
 					}
 				}
@@ -237,4 +243,5 @@ private fun ResultCard(result: RequestResult) {
 			}
 		}
 	}
+}
 }

@@ -28,16 +28,22 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.navigation.NavController
+import kotlinx.serialization.Serializable
+import uk.co.appoly.droid.nav3.LocalNav3Navigator
+import uk.co.appoly.droid.nav3.Nav3Screen
 import uk.co.appoly.droid.ui.UiState
 import uk.co.appoly.droid.ui.isError
 import uk.co.appoly.droid.ui.isLoading
 import uk.co.appoly.droid.ui.isSuccess
 import uk.co.appoly.droid.ui.viewmodels.UiStateDemoViewModel
 
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun UiStateDemoScreen(navController: NavController) {
+@Serializable
+data object UiStateDemoScreen : Nav3Screen {
+	@OptIn(ExperimentalMaterial3Api::class)
+	@Composable
+	override fun Content() {
+		val navigator = LocalNav3Navigator.current
+
 	val viewModel: UiStateDemoViewModel = viewModel()
 	val uiState by viewModel.uiState.collectAsState()
 	val multiOperationState by viewModel.multiOperationState.collectAsState()
@@ -47,7 +53,7 @@ fun UiStateDemoScreen(navController: NavController) {
 			TopAppBar(
 				title = { Text("UI State Management Demo") },
 				navigationIcon = {
-					IconButton(onClick = { navController.navigateUp() }) {
+					IconButton(onClick = { navigator?.pop() }) {
 						Text("←")
 					}
 				}
@@ -272,4 +278,5 @@ fun UiStateDemoScreen(navController: NavController) {
 			}
 		}
 	}
+}
 }

@@ -37,20 +37,26 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.navigation.NavController
+import kotlinx.serialization.Serializable
+import uk.co.appoly.droid.nav3.LocalNav3Navigator
+import uk.co.appoly.droid.nav3.Nav3Screen
 import uk.co.appoly.droid.ui.segmentedcontrol.SegmentText
 import uk.co.appoly.droid.ui.segmentedcontrol.SegmentedControl
 import uk.co.appoly.droid.ui.segmentedcontrol.SegmentedControlDefaults
 
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun SegmentedControlDemoScreen(navController: NavController) {
+@Serializable
+data object SegmentedControlDemoScreen : Nav3Screen {
+	@OptIn(ExperimentalMaterial3Api::class)
+	@Composable
+	override fun Content() {
+		val navigator = LocalNav3Navigator.current
+
 	Scaffold(
 		topBar = {
 			TopAppBar(
 				title = { Text("SegmentedControl Demo") },
 				navigationIcon = {
-					IconButton(onClick = { navController.navigateUp() }) {
+					IconButton(onClick = { navigator?.pop() }) {
 						Text("←")
 					}
 				}
@@ -366,4 +372,5 @@ private enum class ViewMode(val displayName: String, val icon: ImageVector) {
 	LIST("List", Icons.AutoMirrored.Filled.ViewList),
 	GRID("Grid", Icons.Default.GridView),
 	MAP("Map", Icons.Default.Map)
+}
 }

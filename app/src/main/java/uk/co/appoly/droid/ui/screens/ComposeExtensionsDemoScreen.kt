@@ -16,7 +16,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import androidx.navigation.NavController
+import kotlinx.serialization.Serializable
+import uk.co.appoly.droid.nav3.LocalNav3Navigator
+import uk.co.appoly.droid.nav3.Nav3Screen
 import uk.co.appoly.droid.compose.extensions.copyPlainText
 import uk.co.appoly.droid.compose.extensions.rememberClipboardCopier
 import uk.co.appoly.droid.compose.extensions.serializableMutableStateOf
@@ -30,9 +32,13 @@ import uk.co.appoly.droid.compose.extensions.transientMutableStateOf
  * `TransientMutableState` in the minified demo app, which is what lets `verifyConsumerKeepRules`
  * prove ComposeExtensions' consumer keep rules for their `writeObject`/`readObject` members fire.
  */
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun ComposeExtensionsDemoScreen(navController: NavController) {
+@Serializable
+data object ComposeExtensionsDemoScreen : Nav3Screen {
+	@OptIn(ExperimentalMaterial3Api::class)
+	@Composable
+	override fun Content() {
+		val navigator = LocalNav3Navigator.current
+
 	// Persisted across process death — a real one-shot guard would use this.
 	var tapCount by serializableMutableStateOf(0)
 	// Ephemeral — resets to the initial value on a process-death restore.
@@ -92,11 +98,12 @@ fun ComposeExtensionsDemoScreen(navController: NavController) {
 			}
 
 			Button(
-				onClick = { navController.popBackStack() },
+				onClick = { navigator?.pop() },
 				modifier = Modifier.fillMaxWidth(),
 			) {
 				Text("Back")
 			}
 		}
 	}
+}
 }

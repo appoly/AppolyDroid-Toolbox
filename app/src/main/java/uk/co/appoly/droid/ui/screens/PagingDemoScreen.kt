@@ -26,7 +26,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.navigation.NavController
+import kotlinx.serialization.Serializable
+import uk.co.appoly.droid.nav3.LocalNav3Navigator
+import uk.co.appoly.droid.nav3.Nav3Screen
 import androidx.paging.compose.LazyPagingItems
 import androidx.paging.compose.collectAsLazyPagingItems
 import uk.co.appoly.droid.ui.segmentedcontrol.SegmentedControl
@@ -37,9 +39,13 @@ import uk.co.appoly.droid.util.paging.lazyPagingItemsStates
 private const val VIEW_LIST = "List"
 private const val VIEW_GRID = "Grid"
 
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun PagingDemoScreen(navController: NavController) {
+@Serializable
+data object PagingDemoScreen : Nav3Screen {
+	@OptIn(ExperimentalMaterial3Api::class)
+	@Composable
+	override fun Content() {
+		val navigator = LocalNav3Navigator.current
+
 	val viewModel: PagingDemoViewModel = viewModel()
 	val products: LazyPagingItems<Product> = viewModel.productsFlow.collectAsLazyPagingItems()
 	var viewMode by remember { mutableStateOf(VIEW_LIST) }
@@ -49,7 +55,7 @@ fun PagingDemoScreen(navController: NavController) {
 			TopAppBar(
 				title = { Text("Paging Demo") },
 				navigationIcon = {
-					IconButton(onClick = { navController.navigateUp() }) {
+					IconButton(onClick = { navigator?.pop() }) {
 						Text("←")
 					}
 				}
@@ -157,4 +163,5 @@ private fun ProductCard(product: Product, modifier: Modifier = Modifier) {
 			)
 		}
 	}
+}
 }

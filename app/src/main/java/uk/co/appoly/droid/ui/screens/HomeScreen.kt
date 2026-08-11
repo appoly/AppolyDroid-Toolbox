@@ -21,113 +21,131 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.navigation.NavController
+import kotlinx.serialization.Serializable
+import uk.co.appoly.droid.nav3.LocalNav3Navigator
+import uk.co.appoly.droid.nav3.Nav3Screen
 
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun HomeScreen(navController: NavController) {
-	Scaffold(
-		topBar = {
-			TopAppBar(
-				title = { Text("AppolyDroid Showcase") }
-			)
-		}
-	) { paddingValues ->
-		Column(
-			modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-                .padding(16.dp)
-                .verticalScroll(rememberScrollState()),
-			verticalArrangement = Arrangement.spacedBy(12.dp),
-			horizontalAlignment = Alignment.CenterHorizontally
-		) {
-			Text(
-				text = "Welcome to AppolyDroid Toolbox Showcase",
-				style = MaterialTheme.typography.headlineMedium,
-				textAlign = TextAlign.Center,
-				modifier = Modifier.padding(bottom = 16.dp)
-			)
+@Serializable
+data object HomeScreen : Nav3Screen {
+	@OptIn(ExperimentalMaterial3Api::class)
+	@Composable
+	override fun Content() {
+		val navigator = LocalNav3Navigator.current
 
-			Text(
-				text = "Explore the various library modules and their features",
-				style = MaterialTheme.typography.bodyLarge,
-				textAlign = TextAlign.Center,
-				modifier = Modifier.padding(bottom = 24.dp)
-			)
+		Scaffold(
+			topBar = {
+				TopAppBar(
+					title = { Text("AppolyDroid Showcase") }
+				)
+			}
+		) { paddingValues ->
+			Column(
+				modifier = Modifier
+					.fillMaxSize()
+					.padding(paddingValues)
+					.padding(16.dp)
+					.verticalScroll(rememberScrollState()),
+				verticalArrangement = Arrangement.spacedBy(12.dp),
+				horizontalAlignment = Alignment.CenterHorizontally
+			) {
+				Text(
+					text = "Welcome to AppolyDroid Toolbox Showcase",
+					style = MaterialTheme.typography.headlineMedium,
+					textAlign = TextAlign.Center,
+					modifier = Modifier.padding(bottom = 16.dp)
+				)
 
-			// Feature buttons
-			FeatureButton(
-				title = "UI State Management",
-				description = "Demonstrate UiState with loading, success, and error states",
-				onClick = { navController.navigate("ui_state") }
-			)
+				Text(
+					text = "Explore the various library modules and their features",
+					style = MaterialTheme.typography.bodyLarge,
+					textAlign = TextAlign.Center,
+					modifier = Modifier.padding(bottom = 24.dp)
+				)
 
-			FeatureButton(
-				title = "App SnackBar",
-				description = "Show different snackbar types with custom styling",
-				onClick = { navController.navigate("snackbar") }
-			)
+				FeatureButton(
+					title = "Nav3 Navigation",
+					description = "Voyager-style screens on Navigation 3: push, replace, popUntilRoot, results",
+					onClick = { navigator?.push(Nav3NavigationDemoScreen) }
+				)
 
-			FeatureButton(
-				title = "Segmented Control",
-				description = "iOS-style segmented control with smooth animations",
-				onClick = { navController.navigate("segmented_control") }
-			)
+				FeatureButton(
+					title = "Nav3 Tabs + transitions",
+					description = "TabsNav3Navigator, directional tab slides, spring-slide + parallax for in-tab nav",
+					onClick = { navigator?.push(TabsDemoScreen) }
+				)
 
-			FeatureButton(
-				title = "Date Helper Utilities",
-				description = "Date formatting, parsing, and time zone operations",
-				onClick = { navController.navigate("date_helper") }
-			)
+				FeatureButton(
+					title = "UI State Management",
+					description = "Demonstrate UiState with loading, success, and error states",
+					onClick = { navigator?.push(UiStateDemoScreen) }
+				)
 
-			FeatureButton(
-				title = "Base Repository",
-				description = "API calls with standardized error handling",
-				onClick = { navController.navigate("base_repo") }
-			)
+				FeatureButton(
+					title = "App SnackBar",
+					description = "Show different snackbar types with custom styling",
+					onClick = { navigator?.push(SnackBarDemoScreen) }
+				)
 
-			FeatureButton(
-				title = "Appoly JSON Responses",
-				description = "Parse GenericResponse / nested-paged envelopes via AppolyBaseRepo",
-				onClick = { navController.navigate("appoly_json") }
-			)
+				FeatureButton(
+					title = "Segmented Control",
+					description = "iOS-style segmented control with smooth animations",
+					onClick = { navigator?.push(SegmentedControlDemoScreen) }
+				)
 
-			FeatureButton(
-				title = "Date Serialization & Room",
-				description = "kotlinx date serializers and Room TypeConverters for java.time",
-				onClick = { navController.navigate("date_serialization_room") }
-			)
+				FeatureButton(
+					title = "Date Helper Utilities",
+					description = "Date formatting, parsing, and time zone operations",
+					onClick = { navigator?.push(DateHelperDemoScreen) }
+				)
 
-			FeatureButton(
-				title = "Paging Extensions",
-				description = "LazyList and LazyGrid with paging support",
-				onClick = { navController.navigate("paging") }
-			)
+				FeatureButton(
+					title = "Base Repository",
+					description = "API calls with standardized error handling",
+					onClick = { navigator?.push(BaseRepoDemoScreen) }
+				)
 
-			FeatureButton(
-				title = "S3 Uploader",
-				description = "File upload to AWS S3 with progress tracking",
-				onClick = { navController.navigate("s3_uploader") }
-			)
+				FeatureButton(
+					title = "Appoly JSON Responses",
+					description = "Parse GenericResponse / nested-paged envelopes via AppolyBaseRepo",
+					onClick = { navigator?.push(AppolyJsonDemoScreen) }
+				)
 
-			FeatureButton(
-				title = "Multipart Upload Test",
-				description = "Test S3 multipart uploads with pause/resume/recover",
-				onClick = { navController.navigate("multipart_upload") }
-			)
+				FeatureButton(
+					title = "Date Serialization & Room",
+					description = "kotlinx date serializers and Room TypeConverters for java.time",
+					onClick = { navigator?.push(DateSerializationRoomDemoScreen) }
+				)
 
-			FeatureButton(
-				title = "Mock Interceptor",
-				description = "OkHttp interceptor DSL for mocking API responses with typed bodies and pagination",
-				onClick = { navController.navigate("mock_interceptor") }
-			)
+				FeatureButton(
+					title = "Paging Extensions",
+					description = "LazyList and LazyGrid with paging support",
+					onClick = { navigator?.push(PagingDemoScreen) }
+				)
 
-			FeatureButton(
-				title = "Compose Extensions",
-				description = "Serialization-safe MutableState holders and the clipboard copier",
-				onClick = { navController.navigate("compose_extensions") }
-			)
+				FeatureButton(
+					title = "S3 Uploader",
+					description = "File upload to AWS S3 with progress tracking",
+					onClick = { navigator?.push(S3UploaderDemoScreen) }
+				)
+
+				FeatureButton(
+					title = "Multipart Upload Test",
+					description = "Test S3 multipart uploads with pause/resume/recover",
+					onClick = { navigator?.push(MultipartUploadDemoScreen) }
+				)
+
+				FeatureButton(
+					title = "Mock Interceptor",
+					description = "OkHttp interceptor DSL for mocking API responses with typed bodies and pagination",
+					onClick = { navigator?.push(MockInterceptorDemoScreen) }
+				)
+
+				FeatureButton(
+					title = "Compose Extensions",
+					description = "Serialization-safe MutableState holders and the clipboard copier",
+					onClick = { navigator?.push(ComposeExtensionsDemoScreen) }
+				)
+			}
 		}
 	}
 }

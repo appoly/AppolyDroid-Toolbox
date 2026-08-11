@@ -76,7 +76,7 @@ dependencies {
     implementation(libs.androidx.lifecycle.runtime)
 
     // kotlinx serialization (for JSON storage)
-    implementation(libs.kotlinx.serialization)
+    implementation(libs.kotlinx.serialization.json)
 
     // Retrofit kotlinx serialization converter
     implementation(libs.retrofit.serializationConverter)

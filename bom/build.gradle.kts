@@ -46,6 +46,9 @@ dependencies {
 		// Connectivity Monitor
 		api("com.github.appoly.AppolyDroid-Toolbox:ConnectivityMonitor:${BuildConfig.TOOLBOX_VERSION}")
 
+		// Navigation modules
+		api("com.github.appoly.AppolyDroid-Toolbox:Nav3Navigation:${BuildConfig.TOOLBOX_VERSION}")
+
 		// Mock Interceptor modules
 		api("com.github.appoly.AppolyDroid-Toolbox:MockInterceptor:${BuildConfig.TOOLBOX_VERSION}")
 		api("com.github.appoly.AppolyDroid-Toolbox:MockInterceptor-Serialization:${BuildConfig.TOOLBOX_VERSION}")

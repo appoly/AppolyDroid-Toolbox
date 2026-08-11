@@ -9,7 +9,7 @@ object BuildConfig {
      * The current version of the AppolyDroid Toolbox library.
      * This is used for maven publishing and README version updates.
      */
-	const val TOOLBOX_VERSION = "1.6.4"
+	const val TOOLBOX_VERSION = "1.7.0-beta03"
 
     /**
      * SDK version configuration for Android modules.
@@ -51,6 +51,9 @@ object BuildConfig {
         /** ConnectivityMonitor module (requires newer network APIs) */
         const val CONNECTIVITY_MONITOR = 24
 
+        /** Nav3Navigation module (androidx.navigation3 requires minSdk 23) */
+        const val NAV3_NAVIGATION = 23
+
 		/**
 		 * Returns the highest minSdk version among all modules.
 		 *
@@ -66,7 +69,8 @@ object BuildConfig {
 				DATE_HELPER,
 				LAZY_PAGING,
 				S3_UPLOADER,
-				CONNECTIVITY_MONITOR
+				CONNECTIVITY_MONITOR,
+				NAV3_NAVIGATION
 			).max()
 		}
     }

@@ -66,7 +66,7 @@ dependencies {
     api(libs.sandwich.retrofit)
 
     //kotlinx serialization
-    api(libs.kotlinx.serialization)
+    api(libs.kotlinx.serialization.json)
 
     // FlexiLogger
     api(libs.flexiLogger)
