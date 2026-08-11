@@ -103,6 +103,10 @@ interface Nav3Navigator {
 	 * Uses [Any.equals] to find the **last** matching key on the stack. If no match is found,
 	 * the stack is left unchanged.
 	 *
+	 * **Never empties the stack:** an [inclusive] match on the root leaves the root in place (and
+	 * still returns `true`), because an [androidx.navigation3.ui.NavDisplay] back stack must stay
+	 * non-empty.
+	 *
 	 * @param screen the key to leave on top (or remove when [inclusive] is true).
 	 * @param inclusive when `true`, also removes the matching [screen]; when `false` (default),
 	 *   leaves it as the new top.
@@ -115,6 +119,10 @@ interface Nav3Navigator {
 	 * Pops until the **last** screen matching [predicate] is on top (Voyager `popUntil`).
 	 *
 	 * If no entry matches, the stack is left unchanged.
+	 *
+	 * **Never empties the stack:** an [inclusive] match on the root leaves the root in place (and
+	 * still returns `true`), because an [androidx.navigation3.ui.NavDisplay] back stack must stay
+	 * non-empty.
 	 *
 	 * @param inclusive when `true`, also removes the matching screen; when `false` (default),
 	 *   leaves it as the new top.
@@ -252,7 +260,9 @@ class BackStackNav3Navigator(
 			predicate(screen)
 		}
 		if (index < 0) return false
-		val targetSize = if (inclusive) index else index + 1
+		// Never empty the stack — NavDisplay requires a non-empty back stack, so an inclusive
+		// match on the root floors at 1 (same guard as pop() and TabsNav3Navigator.popUntil).
+		val targetSize = (if (inclusive) index else index + 1).coerceAtLeast(1)
 		while (backStack.size > targetSize) {
 			backStack.removeLastOrNull()
 		}

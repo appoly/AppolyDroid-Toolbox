@@ -163,10 +163,30 @@ class BackStackNav3NavigatorTest {
 	}
 
 	@Test
-	fun `popUpTo inclusive on the only entry empties the stack`() {
-		navigator.popUpTo(HomeScreen, inclusive = true)
+	fun `popUpTo inclusive on the only entry keeps the root`() {
+		// NavDisplay requires a non-empty back stack, so the inclusive match floors at the root
+		// rather than draining it. Still reports true — the predicate did match.
+		assertTrue(navigator.popUpTo(HomeScreen, inclusive = true))
 
-		assertTrue(backStack.isEmpty())
+		assertEquals(listOf(HomeScreen), backStack.toList())
+	}
+
+	@Test
+	fun `popUpTo inclusive on the root keeps the root and drops everything above it`() {
+		navigator.push(ListScreen, DetailScreen(1))
+
+		assertTrue(navigator.popUpTo(HomeScreen, inclusive = true))
+
+		assertEquals(listOf(HomeScreen), backStack.toList())
+	}
+
+	@Test
+	fun `popUntil inclusive matching the root keeps the root`() {
+		navigator.push(ListScreen, SettingsScreen)
+
+		assertTrue(navigator.popUntil(inclusive = true) { it is HomeScreen })
+
+		assertEquals(listOf(HomeScreen), backStack.toList())
 	}
 
 	@Test
