@@ -27,13 +27,28 @@ class Nav3ResultsTest {
 	}
 
 	@Test
-	fun `popWithResult delivers to previousItem and pops`() {
+	fun `popWithResult pops then delivers to the revealed screen`() {
 		navigator.push(PickerScreen)
 
 		navigator.popWithResult("chosen")
 
 		assertEquals(listOf(listScreen), backStack.toList())
 		assertEquals(listOf("chosen"), listScreen.results)
+	}
+
+	@Test
+	fun `popWithResult pops before delivering so a reentrant push survives`() {
+		val reentrant = PushingReceiverScreen()
+		backStack.clear()
+		backStack.add(reentrant)
+		reentrant.navigator = navigator
+		navigator.push(PickerScreen)
+
+		navigator.popWithResult("go")
+
+		// Pop ran first, so the push from inside onResult lands on top of the receiver.
+		// Delivering first popped the *pushed* screen instead of the picker.
+		assertEquals(listOf(reentrant, DetailScreen(99)), backStack.toList())
 	}
 
 	@Test
@@ -50,13 +65,50 @@ class Nav3ResultsTest {
 
 	@Test
 	fun `popWithResult on a single-entry stack drops result and leaves root`() {
-		// Only the picker on the stack — no previous receiver; root pop is a no-op.
+		// Only the picker on the stack — canPop is false, so nothing pops and nothing is delivered.
 		backStack.clear()
 		backStack.add(PickerScreen)
 
 		navigator.popWithResult("nobody")
 
 		assertEquals(listOf(PickerScreen), backStack.toList())
+	}
+
+	// --- tabs: previousItem can be an off-screen entry, so delivery gates on canPop ---
+
+	@Test
+	fun `popWithResult does not deliver to a hidden tab at the start-tab root`() {
+		val hidden = ResultListScreen()
+		val tabs = TabsNav3Navigator(listOf(HomeScreen, ListScreen, SettingsScreen))
+		tabs.switchTab(ListScreen)
+		tabs.push(hidden)
+		tabs.switchTab(HomeScreen)
+
+		// The retained rooms tab sits beneath home in the flatten, so previousItem is off-screen.
+		assertEquals(hidden, tabs.previousItem)
+		assertFalse(tabs.canPop)
+
+		tabs.popWithResult("leaked")
+
+		assertTrue(hidden.results.isEmpty())
+		assertEquals(listOf(ListScreen, hidden, HomeScreen), tabs.backStack.toList())
+	}
+
+	@Test
+	fun `popWithResult delivers through exit-through-home to the revealed start-tab top`() {
+		val homeReceiver = ResultListScreen()
+		val tabs = TabsNav3Navigator(listOf(HomeScreen, ListScreen, SettingsScreen))
+		tabs.push(homeReceiver)
+		tabs.switchTab(ListScreen)
+
+		// At a non-start tab root, pop() exits through home rather than popping within the tab.
+		assertTrue(tabs.canPop)
+
+		tabs.popWithResult("home")
+
+		assertEquals(HomeScreen, tabs.currentTab)
+		assertEquals(homeReceiver, tabs.lastItem)
+		assertEquals(listOf("home"), homeReceiver.results)
 	}
 
 	@Test
@@ -117,6 +169,20 @@ class Nav3ResultsTest {
 		@Composable
 		override fun Content() {
 			Text("ResultList")
+		}
+	}
+
+	/** Receiver that navigates from inside [onResult] — exercises the pop-before-deliver order. */
+	internal class PushingReceiverScreen : Nav3Screen, Nav3ResultReceiver {
+		var navigator: Nav3Navigator? = null
+
+		override fun onResult(result: Any?) {
+			navigator?.push(DetailScreen(99))
+		}
+
+		@Composable
+		override fun Content() {
+			Text("PushingReceiver")
 		}
 	}
 

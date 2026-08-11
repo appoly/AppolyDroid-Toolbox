@@ -51,19 +51,32 @@ interface Nav3ResultReceiver {
 }
 
 /**
- * Pops the top screen and delivers [result] to the **previous** screen when it implements
- * [Nav3ResultReceiver] (Voyager-style `popWithResult`).
+ * Pops the top screen, then delivers [result] to the screen revealed underneath when it
+ * implements [Nav3ResultReceiver] (Voyager-style `popWithResult`).
  *
- * If there is no previous screen, or it is not a [Nav3ResultReceiver], the result is dropped
- * and the pop still proceeds.
+ * **Pops first, delivers second** — deliberately, in that order:
+ *
+ * - The receiver is on top when [Nav3ResultReceiver.onResult] runs, so a reentrant `push`/`pop`
+ *   from inside the handler acts on the stack the user is actually looking at. Delivering before
+ *   the pop let a handler that navigated corrupt the pop target (the pushed screen was popped
+ *   instead of the screen the result came from).
+ * - Delivery is gated on [Nav3Navigator.canPop]. On [TabsNav3Navigator] at the start-tab root the
+ *   entry beneath the top is a **hidden other tab's** screen (see
+ *   [TabsNav3Navigator.previousItem]); delivering there handed the result to an off-screen
+ *   receiver while [Nav3Navigator.pop] silently did nothing.
+ *
+ * No-op when [Nav3Navigator.canPop] is `false`: nothing pops and [result] is dropped. When the
+ * new top is not a [Nav3ResultReceiver] the pop still proceeds and [result] is dropped.
+ *
+ * Matches [popUntilWithResult], which has always gated delivery on the pop succeeding.
  *
  * @see Nav3ResultReceiver
  * @see popUntilWithResult
  */
 fun Nav3Navigator.popWithResult(result: Any?) {
-	val receiver = previousItem as? Nav3ResultReceiver
-	receiver?.onResult(result)
+	if (!canPop) return
 	pop()
+	(lastItem as? Nav3ResultReceiver)?.onResult(result)
 }
 
 /**
