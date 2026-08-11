@@ -398,6 +398,16 @@ classes its keep rules matched — and asserts every serializer / converter the 
 protect is present. If a module's rule regresses, the class drops out of `seeds.txt` and the task
 fails. It runs in CI (no device needed) and via the **"Verify Consumer R8 Rules"** IDE run config:
 
+> **What this does and does not prove.** `seeds.txt` records *that* something was kept, never
+> *which* rule kept it, and a class listed there may still have been renamed. So the task also
+> asserts, against `mapping.txt`, that `Nav3Screen` implementors keep their exact fully-qualified
+> names — Nav3 resolves back-stack keys by serial name, which defaults to the FQCN, and
+> kotlinx-serialization's own rules keep `@Serializable` classes with `allowobfuscation`. Keeps
+> that merely duplicate another library's shipped rules (Nav3's `Companion` / `serializer()` /
+> `INSTANCE` branches mirror `kotlinx-serialization-common.pro`) cannot be attributed here; they
+> are retained as insurance against that upstream file changing, not because this task verifies
+> them. The task header in `app/build.gradle.kts` records how to re-measure this.
+
 ```bash
 ./gradlew :app:verifyConsumerKeepRules
 ```
