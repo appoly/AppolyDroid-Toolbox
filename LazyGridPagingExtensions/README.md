@@ -15,11 +15,11 @@ Extension functions for integrating Jetpack Paging 3 with Compose LazyVerticalGr
 
 ```gradle.kts
 // Requires the base PagingExtensions module
-implementation("com.github.appoly.AppolyDroid-Toolbox:PagingExtensions:1.7.0")
-implementation("com.github.appoly.AppolyDroid-Toolbox:LazyGridPagingExtensions:1.7.0")
+implementation("com.github.appoly.AppolyDroid-Toolbox:PagingExtensions:1.8.0")
+implementation("com.github.appoly.AppolyDroid-Toolbox:LazyGridPagingExtensions:1.8.0")
 
 // Make sure to include Jetpack Paging Compose
-implementation("androidx.paging:paging-compose:3.5.0")
+implementation("androidx.paging:paging-compose:3.5.1")
 ```
 
 ## Usage
@@ -344,7 +344,9 @@ fun <T : Any> LazyGridScope.lazyPagingItemsStates(
 
 ## Migration from `lazyPagingItemsWithStates`
 
-The old `lazyPagingItemsWithStates` functions have been deprecated and renamed to `lazyPagingItemsStates` for consistency with the LazyListPagingExtensions module. The deprecated functions will continue to work but show a deprecation warning with a `ReplaceWith` suggestion.
+The old `lazyPagingItemsWithStates` functions were renamed to `lazyPagingItemsStates` for consistency
+with the LazyListPagingExtensions module. They were deprecated in 1.2.14 and **removed in 1.8.0** — if
+you are upgrading from a version older than 1.8.0, rename the calls as below.
 
 Key changes:
 - `lazyPagingItemsWithStates` → `lazyPagingItemsStates`

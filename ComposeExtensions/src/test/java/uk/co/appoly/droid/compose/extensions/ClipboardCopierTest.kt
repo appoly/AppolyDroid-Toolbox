@@ -6,7 +6,6 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.platform.ClipEntry
 import androidx.compose.ui.platform.Clipboard
 import androidx.compose.ui.platform.LocalClipboard
-import androidx.compose.ui.platform.NativeClipboard
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import kotlinx.coroutines.CompletableDeferred
@@ -128,9 +127,6 @@ class ClipboardCopierTest {
 		ShadowToast.reset()
 		val gate = CompletableDeferred<Unit>()
 		val fakeClipboard = object : Clipboard {
-			override val nativeClipboard: NativeClipboard
-				get() = error("unused")
-
 			override suspend fun getClipEntry(): ClipEntry? = null
 
 			override suspend fun setClipEntry(clipEntry: ClipEntry?) {

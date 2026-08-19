@@ -16,7 +16,7 @@ pluginManagement {
 // single root report. Version kept in sync with `kover` in gradle/libs.versions.toml (the
 // settings plugins block can't read the version catalog).
 plugins {
-	id("org.jetbrains.kotlinx.kover.aggregation") version "0.9.8"
+	id("org.jetbrains.kotlinx.kover.aggregation") version "0.9.9"
 }
 
 kover {
