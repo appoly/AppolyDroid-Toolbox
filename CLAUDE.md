@@ -41,15 +41,27 @@ The library uses a layered module structure:
 - `BaseRepo-Paging` - Jetpack Paging 3 integration
 - `BaseRepo-Paging-AppolyJson` - Combines paging with Appoly JSON
 - `BaseRepo-S3Uploader` - S3 upload integration with BaseRepo
+- `BaseRepo-S3Uploader-Multipart` - Bridges BaseRepo and S3Uploader-Multipart for pausable, resumable uploads
 
 **Compose Pagination (builds on PagingExtensions):**
 - `PagingExtensions` - Core paging utilities, LoadState extensions
 - `LazyListPagingExtensions` - LazyColumn/LazyRow helpers
 - `LazyGridPagingExtensions` - LazyGrid helpers
 
+**Compose UI:**
+- `ComposeExtensions` - Insets/IME padding, padding arithmetic, serialization-safe `MutableState`, clipboard copying
+- `SegmentedControl` - iOS-style segmented control with animated thumb and drag-to-switch gestures
+
+**API Mocking (development/testing):**
+- `MockInterceptor` - OkHttp interceptor with a route-matching DSL; no mock server required
+- `MockInterceptor-Serialization` - Type-safe JSON bodies and pagination helpers via kotlinx-serialization
+- `MockInterceptor-AppolyJson` - Helpers for mocking Appoly's standard JSON envelope
+- `MockInterceptor-Retrofit` - Auto-registers mock routes by reflecting over Retrofit annotations
+
 **Standalone Utilities:**
 - `UiState` - Sealed class for UI state (Idle/Loading/Success/Error)
 - `S3Uploader` - Direct S3 uploads with progress tracking
+- `S3Uploader-Multipart` - Pausable/resumable uploads via the AWS S3 Multipart Upload API
 - `ConnectivityMonitor` - Network state monitoring
 - `DateHelperUtil` - Date/time operations (with Room and Serialization variants)
 - `AppSnackBar` / `AppSnackBar-UiState` - Enhanced Snackbar
@@ -91,12 +103,12 @@ flow.collect { state ->
 
 ## Tech Stack
 
-- Kotlin 2.4.10, AGP 9.3.1, Gradle 9.6.1
+- Kotlin 2.4.10, AGP 9.3.1, Gradle 9.7.0
 - Target/Compile SDK 37, Java 11
-- Jetpack Compose BOM 2026.06.01
-- OkHttp 5.4.0, Retrofit 3.0.0
+- Jetpack Compose BOM 2026.08.00
+- OkHttp 5.5.0, Retrofit 3.0.0
 - Sandwich 2.4.0 (API response handling)
-- Jetpack Paging 3.5.0, Room 2.8.4
+- Jetpack Paging 3.5.1, Room 2.8.4
 - androidx Navigation 3 1.2.0-alpha07 (Nav3Navigation module)
 - kotlinx-serialization 1.11.0
 

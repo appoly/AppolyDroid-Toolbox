@@ -232,9 +232,9 @@ open class ConnectivityMonitorApplication : Application() {
 		// Find the primary validated network's capabilities
 		val validatedNetworks = networkValidationMap.filter { it.value }
 		val primaryCapabilities =
-            validatedNetworks.keys.firstNotNullOfOrNull { networkCapabilitiesMap[it] }
+			validatedNetworks.keys.firstNotNullOfOrNull { networkCapabilitiesMap[it] }
 
-        val newNetworkType = if (primaryCapabilities != null) {
+		val newNetworkType = if (primaryCapabilities != null) {
 			determineTransportType(primaryCapabilities)
 		} else {
 			NetworkTransportType.NONE
