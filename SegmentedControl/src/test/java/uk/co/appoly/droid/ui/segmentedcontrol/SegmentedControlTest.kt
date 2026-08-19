@@ -3,6 +3,7 @@ package uk.co.appoly.droid.ui.segmentedcontrol
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.v2.createComposeRule
@@ -30,7 +31,7 @@ class SegmentedControlTest {
 		var selected = "Day"
 		composeRule.setContent {
 			MaterialTheme {
-				var current by mutableStateOf(selected)
+				var current by remember { mutableStateOf(selected) }
 				SegmentedControl(
 					segments = listOf("Day", "Week", "Month"),
 					selectedSegment = current,
