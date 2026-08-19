@@ -13,7 +13,7 @@ Compose utilities for insets/IME padding, padding arithmetic, serialization-safe
 ## Installation
 
 ```gradle.kts
-implementation("com.github.appoly.AppolyDroid-Toolbox:ComposeExtensions:1.7.0")
+implementation("com.github.appoly.AppolyDroid-Toolbox:ComposeExtensions:1.8.0")
 ```
 
 ## Usage
