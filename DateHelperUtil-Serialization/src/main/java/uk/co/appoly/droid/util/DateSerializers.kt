@@ -18,75 +18,83 @@ import java.time.LocalDateTime
 import java.time.ZonedDateTime
 
 /**
- * Typealias for a serializable [LocalDate] using [LocalDateSerializer].
+ * Typealias for a serializable [LocalDate] using [LocalDateSerializer] — the **strict** variant.
  *
- * Works for nullable properties too — write `SerializableLocalDate?` and kotlinx wraps the
- * serializer for you. See the note on [NullableSerializableLocalDate].
+ * A value that cannot be parsed throws [kotlinx.serialization.SerializationException],
+ * failing the whole decode. For a nullable property that should instead degrade an
+ * unparseable value to `null`, use [NullableSerializableLocalDate].
  */
 typealias SerializableLocalDate = @Serializable(with = LocalDateSerializer::class) LocalDate
 
 /**
- * Typealias for a nullable serializable [LocalDate] using [NullableLocalDateSerializer].
+ * Typealias for a nullable serializable [LocalDate] using [NullableLocalDateSerializer] — the
+ * **lenient** variant.
+ *
+ * Decodes both a literal `null` on the wire and any value that cannot be parsed to
+ * `null`, so one malformed value nulls one field instead of failing the whole decode.
+ * Prefer this for models fed by a backend you do not control. For a strict property
+ * that should fail loudly on malformed input, use `SerializableLocalDate?`.
  */
-@Suppress("DEPRECATION")
-@Deprecated(
-	message = "Redundant: `SerializableLocalDate?` behaves identically, because kotlinx wraps " +
-		"LocalDateSerializer for nullable properties. See issue #106.",
-)
 typealias NullableSerializableLocalDate = @Serializable(with = NullableLocalDateSerializer::class) LocalDate?
 
 /**
- * Typealias for a serializable [LocalDateTime] using [DateTimeSerializer].
+ * Typealias for a serializable [LocalDateTime] using [DateTimeSerializer] — the **strict** variant.
  *
- * Works for nullable properties too — write `SerializableDateTime?` and kotlinx wraps the
- * serializer for you. See the note on [NullableSerializableDateTime].
+ * A value that cannot be parsed throws [kotlinx.serialization.SerializationException],
+ * failing the whole decode. For a nullable property that should instead degrade an
+ * unparseable value to `null`, use [NullableSerializableDateTime].
  */
 typealias SerializableDateTime = @Serializable(with = DateTimeSerializer::class) LocalDateTime
 
 /**
- * Typealias for a nullable serializable [LocalDateTime] using [NullableDateTimeSerializer].
+ * Typealias for a nullable serializable [LocalDateTime] using [NullableDateTimeSerializer] — the
+ * **lenient** variant.
+ *
+ * Decodes both a literal `null` on the wire and any value that cannot be parsed to
+ * `null`, so one malformed value nulls one field instead of failing the whole decode.
+ * Prefer this for models fed by a backend you do not control. For a strict property
+ * that should fail loudly on malformed input, use `SerializableDateTime?`.
  */
-@Suppress("DEPRECATION")
-@Deprecated(
-	message = "Redundant: `SerializableDateTime?` behaves identically, because kotlinx wraps " +
-		"DateTimeSerializer for nullable properties. See issue #106.",
-)
 typealias NullableSerializableDateTime = @Serializable(with = NullableDateTimeSerializer::class) LocalDateTime?
 
 /**
- * Typealias for a serializable [ZonedDateTime] using [ZonedDateTimeSerializer].
+ * Typealias for a serializable [ZonedDateTime] using [ZonedDateTimeSerializer] — the **strict** variant.
  *
- * Works for nullable properties too — write `SerializableZonedDateTime?` and kotlinx wraps the
- * serializer for you. See the note on [NullableSerializableZonedDateTime].
+ * A value that cannot be parsed throws [kotlinx.serialization.SerializationException],
+ * failing the whole decode. For a nullable property that should instead degrade an
+ * unparseable value to `null`, use [NullableSerializableZonedDateTime].
  */
 typealias SerializableZonedDateTime = @Serializable(with = ZonedDateTimeSerializer::class) ZonedDateTime
 
 /**
- * Typealias for a nullable serializable [ZonedDateTime] using [NullableZonedDateTimeSerializer].
+ * Typealias for a nullable serializable [ZonedDateTime] using [NullableZonedDateTimeSerializer] — the
+ * **lenient** variant.
+ *
+ * Decodes both a literal `null` on the wire and any value that cannot be parsed to
+ * `null`, so one malformed value nulls one field instead of failing the whole decode.
+ * Prefer this for models fed by a backend you do not control. For a strict property
+ * that should fail loudly on malformed input, use `SerializableZonedDateTime?`.
  */
-@Suppress("DEPRECATION")
-@Deprecated(
-	message = "Redundant: `SerializableZonedDateTime?` behaves identically, because kotlinx wraps " +
-		"ZonedDateTimeSerializer for nullable properties. See issue #106.",
-)
 typealias NullableSerializableZonedDateTime = @Serializable(with = NullableZonedDateTimeSerializer::class) ZonedDateTime?
 
 /**
- * Typealias for a serializable [Instant] using [InstantSerializer].
+ * Typealias for a serializable [Instant] using [InstantSerializer] — the **strict** variant.
  *
- * Works for nullable properties too — write `SerializableInstant?` and kotlinx wraps the
- * serializer for you. See the note on [NullableSerializableInstant].
+ * A value that cannot be parsed throws [kotlinx.serialization.SerializationException],
+ * failing the whole decode. For a nullable property that should instead degrade an
+ * unparseable value to `null`, use [NullableSerializableInstant].
  */
 typealias SerializableInstant = @Serializable(with = InstantSerializer::class) Instant
 
 /**
- * Typealias for a nullable serializable [Instant] using [NullableInstantSerializer].
+ * Typealias for a nullable serializable [Instant] using [NullableInstantSerializer] — the
+ * **lenient** variant.
+ *
+ * Decodes both a literal `null` on the wire and any value that cannot be parsed to
+ * `null`, so one malformed value nulls one field instead of failing the whole decode.
+ * Prefer this for models fed by a backend you do not control. For a strict property
+ * that should fail loudly on malformed input, use `SerializableInstant?`.
  */
-@Suppress("DEPRECATION")
-@Deprecated(
-	message = "Redundant: `SerializableInstant?` behaves identically, because kotlinx wraps " +
-		"InstantSerializer for nullable properties. See issue #106.",
-)
 typealias NullableSerializableInstant = @Serializable(with = NullableInstantSerializer::class) Instant?
 
 /**
@@ -94,13 +102,17 @@ typealias NullableSerializableInstant = @Serializable(with = NullableInstantSeri
  *
  * Uses the standard date format defined in [DateHelper] (yyyy-MM-dd).
  *
- * Also use this for **nullable** `LocalDate?` properties — kotlinx wraps it automatically:
+ * **Strict:** a value that cannot be parsed throws [SerializationException], failing the
+ * whole decode. For a nullable property that should degrade an unparseable value to `null`
+ * instead, use [NullableLocalDateSerializer].
+ *
  * ```kotlin
  * @Serializable
  * data class Event(
  *     val id: Int,
  *     @Serializable(with = LocalDateSerializer::class)
  *     val date: LocalDate,
+ *     // nullable + strict: a null on the wire is fine, a malformed value still throws
  *     @Serializable(with = LocalDateSerializer::class)
  *     val optionalDate: LocalDate?
  * )
@@ -117,20 +129,23 @@ object LocalDateSerializer : KSerializer<LocalDate> {
 		)
 	}
 
-	override fun deserialize(decoder: Decoder): LocalDate =
-		decoder.decodeString().parseJsonDate()!!
+	override fun deserialize(decoder: Decoder): LocalDate {
+		val text = decoder.decodeString()
+		return text.parseJsonDate()
+			?: throw SerializationException("Could not parse LocalDate from <$text>")
+	}
 }
 
 /**
- * Serializer for nullable [LocalDate] instances using kotlinx.serialization.
+ * Serializer for nullable [LocalDate] instances using kotlinx.serialization — the **lenient**
+ * counterpart to [LocalDateSerializer].
  *
  * Uses the standard date format defined in [DateHelper] (yyyy-MM-dd).
+ *
+ * Decodes to `null` in **two** cases: a literal `null` on the wire, and any value
+ * [DateHelper] cannot parse. That second case is what [LocalDateSerializer] cannot do — it
+ * throws instead — and is the reason this serializer exists rather than being redundant.
  */
-@Deprecated(
-	message = "Redundant: annotate the nullable property with LocalDateSerializer and let " +
-		"kotlinx wrap it — the wire format is identical. See issue #106.",
-	replaceWith = ReplaceWith("LocalDateSerializer"),
-)
 object NullableLocalDateSerializer : KSerializer<LocalDate?> {
 	override val descriptor: SerialDescriptor = LocalDateSerializer.descriptor.nullable
 
@@ -159,13 +174,17 @@ object NullableLocalDateSerializer : KSerializer<LocalDate?> {
  * For server-emitted moments in time, prefer [InstantSerializer] — it preserves the
  * literal-`Z` wire bytes for UTC moments.
  *
- * Also use this for **nullable** `LocalDateTime?` properties — kotlinx wraps it automatically:
+ * **Strict:** a value that cannot be parsed throws [SerializationException], failing the
+ * whole decode. For a nullable property that should degrade an unparseable value to `null`
+ * instead, use [NullableDateTimeSerializer].
+ *
  * ```kotlin
  * @Serializable
  * data class Event(
  *     val id: Int,
  *     @Serializable(with = DateTimeSerializer::class)
  *     val startTime: LocalDateTime,
+ *     // nullable + strict: a null on the wire is fine, a malformed value still throws
  *     @Serializable(with = DateTimeSerializer::class)
  *     val endTime: LocalDateTime?
  * )
@@ -182,20 +201,21 @@ object DateTimeSerializer : KSerializer<LocalDateTime> {
 		)
 	}
 
-	override fun deserialize(decoder: Decoder): LocalDateTime =
-		DateHelper.parseNaiveDateTime(decoder.decodeString())!!
+	override fun deserialize(decoder: Decoder): LocalDateTime {
+		val text = decoder.decodeString()
+		return DateHelper.parseNaiveDateTime(text)
+			?: throw SerializationException("Could not parse LocalDateTime from <$text>")
+	}
 }
 
 /**
- * Serializer for nullable [LocalDateTime] instances using kotlinx.serialization.
+ * Serializer for nullable [LocalDateTime] instances using kotlinx.serialization — the
+ * **lenient** counterpart to [DateTimeSerializer].
  *
- * Same wire format and read tolerance as [DateTimeSerializer].
+ * Same wire format and read tolerance as [DateTimeSerializer], but decodes to `null` in
+ * **two** cases: a literal `null` on the wire, and any value [DateHelper] cannot parse.
+ * That second case is what [DateTimeSerializer] cannot do — it throws instead.
  */
-@Deprecated(
-	message = "Redundant: annotate the nullable property with DateTimeSerializer and let " +
-		"kotlinx wrap it — the wire format is identical. See issue #106.",
-	replaceWith = ReplaceWith("DateTimeSerializer"),
-)
 object NullableDateTimeSerializer : KSerializer<LocalDateTime?> {
 	override val descriptor: SerialDescriptor = DateTimeSerializer.descriptor.nullable
 
@@ -222,13 +242,17 @@ object NullableDateTimeSerializer : KSerializer<LocalDateTime?> {
  * 2. Serializing as an ISO-8601 formatted string
  * 3. When deserializing, parsing the string and converting to the device's timezone
  *
- * Also use this for **nullable** `ZonedDateTime?` properties — kotlinx wraps it automatically:
+ * **Strict:** a value that cannot be parsed throws [SerializationException], failing the
+ * whole decode. For a nullable property that should degrade an unparseable value to `null`
+ * instead, use [NullableZonedDateTimeSerializer].
+ *
  * ```kotlin
  * @Serializable
  * data class Event(
  *     val id: Int,
  *     @Serializable(with = ZonedDateTimeSerializer::class)
  *     val startTime: ZonedDateTime,
+ *     // nullable + strict: a null on the wire is fine, a malformed value still throws
  *     @Serializable(with = ZonedDateTimeSerializer::class)
  *     val reminderTime: ZonedDateTime?
  * )
@@ -245,20 +269,21 @@ object ZonedDateTimeSerializer : KSerializer<ZonedDateTime> {
 		)
 	}
 
-	override fun deserialize(decoder: Decoder): ZonedDateTime =
-		DateHelper.parseServerZoneDateTime(decoder.decodeString())!!.toDeviceZone()
+	override fun deserialize(decoder: Decoder): ZonedDateTime {
+		val text = decoder.decodeString()
+		return DateHelper.parseServerZoneDateTime(text)?.toDeviceZone()
+			?: throw SerializationException("Could not parse ZonedDateTime from <$text>")
+	}
 }
 
 /**
- * Serializer for nullable [ZonedDateTime] instances using kotlinx.serialization.
+ * Serializer for nullable [ZonedDateTime] instances using kotlinx.serialization — the
+ * **lenient** counterpart to [ZonedDateTimeSerializer].
  *
- * Same wire format and read tolerance as [ZonedDateTimeSerializer].
+ * Same wire format and read tolerance as [ZonedDateTimeSerializer], but decodes to `null` in
+ * **two** cases: a literal `null` on the wire, and any value [DateHelper] cannot parse.
+ * That second case is what [ZonedDateTimeSerializer] cannot do — it throws instead.
  */
-@Deprecated(
-	message = "Redundant: annotate the nullable property with ZonedDateTimeSerializer and let " +
-		"kotlinx wrap it — the wire format is identical. See issue #106.",
-	replaceWith = ReplaceWith("ZonedDateTimeSerializer"),
-)
 object NullableZonedDateTimeSerializer : KSerializer<ZonedDateTime?> {
 	override val descriptor: SerialDescriptor = ZonedDateTimeSerializer.descriptor.nullable
 
@@ -289,13 +314,17 @@ object NullableZonedDateTimeSerializer : KSerializer<ZonedDateTime?> {
  * "2023-12-01T10:38:29.000000Z" — byte-identical to the legacy literal-`Z` format for any
  * UTC moment, so any server already accepting the existing format keeps working.
  *
- * Also use this for **nullable** `Instant?` properties — kotlinx wraps it automatically:
+ * **Strict:** a value that cannot be parsed throws [SerializationException], failing the
+ * whole decode. For a nullable property that should degrade an unparseable value to `null`
+ * instead, use [NullableInstantSerializer].
+ *
  * ```kotlin
  * @Serializable
  * data class Event(
  *     val id: Int,
  *     @Serializable(with = InstantSerializer::class)
  *     val timestamp: Instant,
+ *     // nullable + strict: a null on the wire is fine, a malformed value still throws
  *     @Serializable(with = InstantSerializer::class)
  *     val deletedAt: Instant?
  * )
@@ -312,20 +341,21 @@ object InstantSerializer : KSerializer<Instant> {
 		)
 	}
 
-	override fun deserialize(decoder: Decoder): Instant =
-		DateHelper.parseServerInstant(decoder.decodeString())!!
+	override fun deserialize(decoder: Decoder): Instant {
+		val text = decoder.decodeString()
+		return DateHelper.parseServerInstant(text)
+			?: throw SerializationException("Could not parse Instant from <$text>")
+	}
 }
 
 /**
- * Serializer for nullable [Instant] instances using kotlinx.serialization.
+ * Serializer for nullable [Instant] instances using kotlinx.serialization — the **lenient**
+ * counterpart to [InstantSerializer].
  *
- * Same semantics as [InstantSerializer], but tolerates null values.
+ * Same wire format as [InstantSerializer], but decodes to `null` in **two** cases: a literal
+ * `null` on the wire, and any value [DateHelper] cannot parse. That second case is what
+ * [InstantSerializer] cannot do — it throws instead.
  */
-@Deprecated(
-	message = "Redundant: annotate the nullable property with InstantSerializer and let " +
-		"kotlinx wrap it — the wire format is identical. See issue #106.",
-	replaceWith = ReplaceWith("InstantSerializer"),
-)
 object NullableInstantSerializer : KSerializer<Instant?> {
 	override val descriptor: SerialDescriptor = InstantSerializer.descriptor.nullable
 

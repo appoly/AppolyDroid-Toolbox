@@ -2,11 +2,13 @@ package uk.co.appoly.droid.util
 
 import com.duck.flexilogger.LoggingLevel
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.SerializationException
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.json.Json
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -18,16 +20,18 @@ import java.time.ZonedDateTime
 /**
  * Round-trip tests for the [LocalDate], [LocalDateTime] and [ZonedDateTime] kotlinx serializers.
  *
- * Covers three paths deliberately:
- * 1. The **recommended** idiom — the non-null serializer on a nullable property, letting kotlinx
- *    wrap it in its own `NullableSerializer`.
- * 2. The **deprecated** `Nullable*` serializers on a nullable property, asserting byte-for-byte
- *    wire parity with (1) so the deprecation is a safe swap.
- * 3. **Direct use** of the `Nullable*` serializers — `encodeToString(serializer, null)` and
- *    inside a `ListSerializer` — which bypasses kotlinx's wrapper and therefore exercises the
- *    serializers' own null branches. This path was uncovered before issue #106.
+ * There are two families and the difference is **leniency**, not nullability:
+ * - `XSerializer` is strict — an unparseable value throws [SerializationException].
+ * - `NullableXSerializer` is lenient — an unparseable value, like a literal `null`, decodes to null.
+ *
+ * Coverage is split into four regions:
+ * 1. The strict serializers, including on a nullable property (kotlinx wraps them).
+ * 2. Wire parity between the two families **for null tokens and valid values** — they agree there.
+ * 3. Direct use of the lenient serializers, bypassing kotlinx's wrapper, which exercises their own
+ *    null branches. Uncovered before issue #106.
+ * 4. The strict/lenient divergence on **unparseable** input. This is the case a parity test cannot
+ *    see, and its absence is why 1.8.1 wrongly deprecated the lenient family as redundant.
  */
-@Suppress("DEPRECATION")
 class DateSerializersTest {
 
 	@Serializable
@@ -37,7 +41,7 @@ class DateSerializersTest {
 	)
 
 	@Serializable
-	private data class LegacyLocalDateHolder(
+	private data class LenientLocalDateHolder(
 		@Serializable(with = LocalDateSerializer::class) val date: LocalDate,
 		@Serializable(with = NullableLocalDateSerializer::class) val nullable: LocalDate?
 	)
@@ -49,7 +53,7 @@ class DateSerializersTest {
 	)
 
 	@Serializable
-	private data class LegacyDateTimeHolder(
+	private data class LenientDateTimeHolder(
 		@Serializable(with = DateTimeSerializer::class) val dt: LocalDateTime,
 		@Serializable(with = NullableDateTimeSerializer::class) val nullable: LocalDateTime?
 	)
@@ -61,7 +65,7 @@ class DateSerializersTest {
 	)
 
 	@Serializable
-	private data class LegacyZonedHolder(
+	private data class LenientZonedHolder(
 		@Serializable(with = ZonedDateTimeSerializer::class) val z: ZonedDateTime,
 		@Serializable(with = NullableZonedDateTimeSerializer::class) val nullable: ZonedDateTime?
 	)
@@ -73,7 +77,7 @@ class DateSerializersTest {
 		DateHelper.setLogger(SilentTestLogger, LoggingLevel.NONE)
 	}
 
-	// region 1. Recommended idiom — non-null serializer on a nullable property
+	// region 1. Strict serializers, including on a nullable property
 
 	@Test
 	fun `LocalDate serializers round-trip non-null and null`() {
@@ -113,55 +117,55 @@ class DateSerializersTest {
 
 	// endregion
 
-	// region 2. Deprecated Nullable* serializers are wire-identical on the property path
+	// region 2. The two families agree on null tokens and valid values
 
 	@Test
-	fun `deprecated NullableLocalDateSerializer is wire-identical to the wrapped LocalDateSerializer`() {
+	fun `lenient LocalDate serializer matches the strict one for null and valid values`() {
 		val date = LocalDate.of(2026, 6, 5)
 		val value = LocalDate.of(2026, 1, 2)
 		assertEquals(
 			json.encodeToString(LocalDateHolder.serializer(), LocalDateHolder(date, value)),
-			json.encodeToString(LegacyLocalDateHolder.serializer(), LegacyLocalDateHolder(date, value))
+			json.encodeToString(LenientLocalDateHolder.serializer(), LenientLocalDateHolder(date, value))
 		)
 		assertEquals(
 			json.encodeToString(LocalDateHolder.serializer(), LocalDateHolder(date, null)),
-			json.encodeToString(LegacyLocalDateHolder.serializer(), LegacyLocalDateHolder(date, null))
+			json.encodeToString(LenientLocalDateHolder.serializer(), LenientLocalDateHolder(date, null))
 		)
 	}
 
 	@Test
-	fun `deprecated NullableDateTimeSerializer is wire-identical to the wrapped DateTimeSerializer`() {
+	fun `lenient LocalDateTime serializer matches the strict one for null and valid values`() {
 		val dt = LocalDateTime.of(2026, 6, 5, 10, 38, 29)
 		val value = LocalDateTime.of(2026, 1, 2, 3, 4, 5)
 		assertEquals(
 			json.encodeToString(DateTimeHolder.serializer(), DateTimeHolder(dt, value)),
-			json.encodeToString(LegacyDateTimeHolder.serializer(), LegacyDateTimeHolder(dt, value))
+			json.encodeToString(LenientDateTimeHolder.serializer(), LenientDateTimeHolder(dt, value))
 		)
 		assertEquals(
 			json.encodeToString(DateTimeHolder.serializer(), DateTimeHolder(dt, null)),
-			json.encodeToString(LegacyDateTimeHolder.serializer(), LegacyDateTimeHolder(dt, null))
+			json.encodeToString(LenientDateTimeHolder.serializer(), LenientDateTimeHolder(dt, null))
 		)
 	}
 
 	@Test
-	fun `deprecated NullableZonedDateTimeSerializer is wire-identical to the wrapped ZonedDateTimeSerializer`() {
+	fun `lenient ZonedDateTime serializer matches the strict one for null and valid values`() {
 		val z = ZonedDateTime.of(2026, 6, 5, 10, 38, 29, 0, ZoneOffset.UTC)
 		assertEquals(
 			json.encodeToString(ZonedHolder.serializer(), ZonedHolder(z, z)),
-			json.encodeToString(LegacyZonedHolder.serializer(), LegacyZonedHolder(z, z))
+			json.encodeToString(LenientZonedHolder.serializer(), LenientZonedHolder(z, z))
 		)
 		assertEquals(
 			json.encodeToString(ZonedHolder.serializer(), ZonedHolder(z, null)),
-			json.encodeToString(LegacyZonedHolder.serializer(), LegacyZonedHolder(z, null))
+			json.encodeToString(LenientZonedHolder.serializer(), LenientZonedHolder(z, null))
 		)
 	}
 
 	// endregion
 
-	// region 3. Direct use — bypasses kotlinx's wrapper, exercises the serializers' own null branches
+	// region 3. Direct use — bypasses kotlinx's wrapper, exercises the lenient null branches
 
 	@Test
-	fun `Nullable serializers encode a bare null as the null literal`() {
+	fun `lenient serializers encode a bare null as the null literal`() {
 		assertEquals("null", json.encodeToString(NullableLocalDateSerializer, null))
 		assertEquals("null", json.encodeToString(NullableDateTimeSerializer, null))
 		assertEquals("null", json.encodeToString(NullableZonedDateTimeSerializer, null))
@@ -169,7 +173,7 @@ class DateSerializersTest {
 	}
 
 	@Test
-	fun `Nullable serializers decode a bare null literal`() {
+	fun `lenient serializers decode a bare null literal`() {
 		assertNull(json.decodeFromString(NullableLocalDateSerializer, "null"))
 		assertNull(json.decodeFromString(NullableDateTimeSerializer, "null"))
 		assertNull(json.decodeFromString(NullableZonedDateTimeSerializer, "null"))
@@ -177,7 +181,7 @@ class DateSerializersTest {
 	}
 
 	@Test
-	fun `Nullable serializers round-trip a bare non-null value`() {
+	fun `lenient serializers round-trip a bare non-null value`() {
 		val date = LocalDate.of(2026, 6, 5)
 		assertEquals("\"2026-06-05\"", json.encodeToString(NullableLocalDateSerializer, date))
 		assertEquals(date, json.decodeFromString(NullableLocalDateSerializer, "\"2026-06-05\""))
@@ -194,7 +198,7 @@ class DateSerializersTest {
 	}
 
 	@Test
-	fun `Nullable serializers round-trip nulls inside a list`() {
+	fun `lenient serializers round-trip nulls inside a list`() {
 		val dates = listOf(LocalDate.of(2026, 6, 5), null, LocalDate.of(2026, 1, 2))
 		val dateSerializer = ListSerializer(NullableLocalDateSerializer)
 		assertEquals(dates, json.decodeFromString(dateSerializer, json.encodeToString(dateSerializer, dates)))
@@ -214,7 +218,7 @@ class DateSerializersTest {
 	}
 
 	@Test
-	fun `Nullable serializers declare a nullable descriptor so kotlinx does not double-wrap`() {
+	fun `lenient serializers declare a nullable descriptor so kotlinx does not double-wrap`() {
 		assertTrue(NullableLocalDateSerializer.descriptor.isNullable)
 		assertTrue(NullableDateTimeSerializer.descriptor.isNullable)
 		assertTrue(NullableZonedDateTimeSerializer.descriptor.isNullable)
@@ -240,6 +244,58 @@ class DateSerializersTest {
 				json.decodeFromString(ZonedDateTimeSerializer, wire).toInstant(),
 				json.decodeFromString(NullableZonedDateTimeSerializer, wire)?.toInstant()
 			)
+		}
+	}
+
+	// endregion
+
+	// region 4. Strict vs lenient on UNPARSEABLE input — the divergence 1.8.1 missed
+
+	@Test
+	fun `lenient serializers decode an unparseable value to null`() {
+		val garbage = "\"not-a-date\""
+		assertNull(json.decodeFromString(NullableLocalDateSerializer, garbage))
+		assertNull(json.decodeFromString(NullableDateTimeSerializer, garbage))
+		assertNull(json.decodeFromString(NullableZonedDateTimeSerializer, garbage))
+		assertNull(json.decodeFromString(NullableInstantSerializer, garbage))
+	}
+
+	@Test
+	fun `strict serializers throw SerializationException on an unparseable value`() {
+		val garbage = "\"not-a-date\""
+		assertThrows(SerializationException::class.java) { json.decodeFromString(LocalDateSerializer, garbage) }
+		assertThrows(SerializationException::class.java) { json.decodeFromString(DateTimeSerializer, garbage) }
+		assertThrows(SerializationException::class.java) { json.decodeFromString(ZonedDateTimeSerializer, garbage) }
+		assertThrows(SerializationException::class.java) { json.decodeFromString(InstantSerializer, garbage) }
+	}
+
+	@Test
+	fun `on a property, lenient nulls the one field where strict fails the whole decode`() {
+		// This is the case that makes the lenient family non-redundant: one malformed timestamp from
+		// a backend nulls one field instead of losing the entire response.
+		val wire = """{"z":"2026-06-05T10:38:29.000000Z","nullable":"garbage"}"""
+
+		val lenient = json.decodeFromString(LenientZonedHolder.serializer(), wire)
+		assertNull(lenient.nullable)
+		assertEquals(
+			ZonedDateTime.of(2026, 6, 5, 10, 38, 29, 0, ZoneOffset.UTC).toInstant(),
+			lenient.z.toInstant()
+		)
+
+		assertThrows(SerializationException::class.java) {
+			json.decodeFromString(ZonedHolder.serializer(), wire)
+		}
+	}
+
+	@Test
+	fun `an unparseable value in a list nulls one element under the lenient serializer`() {
+		val wire = """["2026-06-05","garbage","2026-01-02"]"""
+		assertEquals(
+			listOf(LocalDate.of(2026, 6, 5), null, LocalDate.of(2026, 1, 2)),
+			json.decodeFromString(ListSerializer(NullableLocalDateSerializer), wire)
+		)
+		assertThrows(SerializationException::class.java) {
+			json.decodeFromString(ListSerializer(LocalDateSerializer), wire)
 		}
 	}
 
