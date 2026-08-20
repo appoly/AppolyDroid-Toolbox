@@ -16,8 +16,8 @@ Extension module for DateHelperUtil that provides kotlinx.serialization integrat
 
 ```gradle.kts
 // Requires base DateHelperUtil module
-implementation("com.github.appoly.AppolyDroid-Toolbox:DateHelperUtil:1.8.0")
-implementation("com.github.appoly.AppolyDroid-Toolbox:DateHelperUtil-Serialization:1.8.0")
+implementation("com.github.appoly.AppolyDroid-Toolbox:DateHelperUtil:1.8.1")
+implementation("com.github.appoly.AppolyDroid-Toolbox:DateHelperUtil-Serialization:1.8.1")
 
 // Required kotlinx.serialization dependencies
 implementation("org.jetbrains.kotlinx:kotlinx-serialization-core:1.11.0")
@@ -76,7 +76,7 @@ data class Event(
 > **There is one serializer per type — use it for nullable properties too.** Write
 > `SerializableInstant?` (or `@Serializable(with = InstantSerializer::class) val x: Instant?`)
 > and kotlinx wraps the serializer to handle the null itself. The `Nullable*` family is
-> deprecated as of 1.9.0; see [Deprecated: the `Nullable*` family](#deprecated-the-nullable-family).
+> deprecated as of 1.8.1; see [Deprecated: the `Nullable*` family](#deprecated-the-nullable-family).
 
 > **Note:** These typealiases are equivalent to their underlying types (e.g., `SerializableLocalDate` is just `LocalDate` with built-in serialization). You can assign and use them interchangeably with standard `LocalDate`, `LocalDateTime`, or `ZonedDateTime` values without any conversion.
 
@@ -148,7 +148,7 @@ to the typealias, or annotate the nullable property with the same serializer.
 
 `NullableLocalDateSerializer`, `NullableDateTimeSerializer`, `NullableZonedDateTimeSerializer`,
 `NullableInstantSerializer` and their `NullableSerializable*` typealiases are **deprecated as of
-1.9.0** and will be removed in a future release.
+1.8.1** and will be removed in a future release.
 
 They were always redundant: because they did not declare a nullable descriptor, kotlinx wrapped
 them in its own `NullableSerializer` on the property path exactly as it wraps the non-nullable
