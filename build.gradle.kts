@@ -1,3 +1,5 @@
+import org.gradle.api.publish.tasks.GenerateModuleMetadata
+
 // Top-level build file where you can add configuration options common to all sub-projects/modules.
 plugins {
 	alias(libs.plugins.android.application) apply false
@@ -23,6 +25,35 @@ subprojects {
 					isReturnDefaultValues = true
 				}
 			}
+		}
+	}
+}
+
+// Publish POM-only: no Gradle Module Metadata.
+//
+// JitPack rewrites the published `.module` and drops the `-sources` classifier from the sources
+// variant's file name — it records `BaseRepo-<ver>.jar` where the artifact it is describing is
+// actually `BaseRepo-<ver>-sources.jar` (same size, same checksums). Gradle then requests a file
+// that does not exist, gives up silently, and Android Studio falls back to showing decompiled
+// classes. That is why consumers have to keep clicking "Choose Sources" after every version bump.
+//
+// The strip is unconditional, not a side effect of coordinate rewriting: `CryptoRoomDB` declares
+// coordinates that match JitPack's hosting exactly, has an unmodified `component` block, and still
+// loses the classifier. So it cannot be fixed by correcting what we publish — only by not
+// publishing metadata JitPack will mangle.
+//
+// Without a `.module`, Gradle resolves through the POM, where sources are found by the `-sources`
+// classifier convention. That artifact *is* published correctly, so source navigation works.
+//
+// Trade-off: no variant-aware resolution for consumers. Acceptable here — every module publishes a
+// single release variant, and the BOM is a `java-platform` whose constraints travel in the POM's
+// `<dependencyManagement>`.
+//
+// Verified 2026-08-20. See issue #106 / the 1.8.2 release notes.
+subprojects {
+	plugins.withId("maven-publish") {
+		tasks.withType<GenerateModuleMetadata>().configureEach {
+			enabled = false
 		}
 	}
 }

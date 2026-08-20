@@ -7,7 +7,7 @@ plugins {
 	`maven-publish`
 }
 
-group = "com.github.appoly"
+group = "com.github.appoly.AppolyDroid-Toolbox"
 
 java {
 	sourceCompatibility = JavaVersion.VERSION_11
@@ -32,7 +32,7 @@ publishing {
 	publications {
 		create<MavenPublication>("release") {
 			from(components["java"])
-			groupId = "com.github.appoly"
+			groupId = "com.github.appoly.AppolyDroid-Toolbox"
 			artifactId = project.name
 			version = BuildConfig.TOOLBOX_VERSION
 		}

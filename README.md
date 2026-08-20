@@ -44,6 +44,34 @@ allprojects {
 }
 ```
 
+### Testing an unreleased branch
+
+JitPack can build any branch, which is useful for trying a fix before it is tagged. Two things
+catch people out:
+
+**Use `<branch>-SNAPSHOT`, not the build id JitPack reports.** JitPack shows a build id like
+`bugfix~My-Fix-24f40efabe-1`, but the POM it serves declares its own version as
+`bugfix~My-Fix-SNAPSHOT`. Requesting the build id fails with a confusing error, because the build
+genuinely succeeded and the artifacts genuinely exist:
+
+```
+inconsistent module metadata found. Descriptor: ...:BaseRepo:bugfix~My-Fix-SNAPSHOT
+Errors: bad version: expected='bugfix~My-Fix-24f40efabe-1' found='bugfix~My-Fix-SNAPSHOT'
+```
+
+Slashes in the branch name become `~`:
+
+```kotlin
+implementation("com.github.appoly.AppolyDroid-Toolbox:BaseRepo:bugfix~My-Fix-SNAPSHOT")
+```
+
+**Pass `--refresh-dependencies`.** `-SNAPSHOT` is a changing module, so Gradle caches it for 24
+hours by default — without it you can silently keep testing a stale copy. Alternatively:
+
+```kotlin
+configurations.all { resolutionStrategy.cacheChangingModulesFor(0, "seconds") }
+```
+
 ### Using the BOM (Bill of Materials)
 
 For easier dependency management, you can use the AppolyDroid BOM which provides version alignment for all modules and their shared dependencies:
@@ -54,7 +82,7 @@ In your `libs.versions.toml` file:
 
 ```toml
 [versions]
-appolydroidToolbox = "1.8.1" # Replace with the latest version
+appolydroidToolbox = "1.8.2" # Replace with the latest version
 
 [libraries]
 appolydroid-toolbox-bom = { group = "com.github.appoly.AppolyDroid-Toolbox", name = "AppolyDroid-Toolbox-bom", version.ref = "appolydroidToolbox" }
@@ -129,7 +157,7 @@ In your module's `build.gradle.kts`:
 ```gradle.kts
 dependencies {
     // Import the BOM
-    implementation(platform("com.github.appoly.AppolyDroid-Toolbox:AppolyDroid-Toolbox-bom:1.8.1"))
+    implementation(platform("com.github.appoly.AppolyDroid-Toolbox:AppolyDroid-Toolbox-bom:1.8.2"))
 
     // Now you can use AppolyDroid modules without specifying versions
     implementation("com.github.appoly.AppolyDroid-Toolbox:BaseRepo")
@@ -166,7 +194,7 @@ In your `libs.versions.toml` file:
 
 ```toml
 [versions]
-appolydroidToolbox = "1.8.1" # Replace with the latest version
+appolydroidToolbox = "1.8.2" # Replace with the latest version
 
 [libraries]
 #AppolyDroid-Toolbox
@@ -234,7 +262,7 @@ In your module's `build.gradle.kts`:
 
 ```gradle.kts
 dependencies {
-    val appolydroidToolbox = "1.8.1" // Replace with the latest version
+    val appolydroidToolbox = "1.8.2" // Replace with the latest version
     // Add only the modules you need
     implementation("com.github.appoly.AppolyDroid-Toolbox:BaseRepo:$appolydroidToolbox")
     implementation("com.github.appoly.AppolyDroid-Toolbox:BaseRepo-AppolyJson:$appolydroidToolbox")

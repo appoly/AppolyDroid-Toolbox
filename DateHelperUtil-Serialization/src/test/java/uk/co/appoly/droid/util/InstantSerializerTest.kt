@@ -16,7 +16,6 @@ import java.time.ZoneOffset
  * Verifies wire-format invariance (UTC moments render as "...Z", byte-identical to the
  * legacy format) and round-trip parity through [Json].
  */
-@Suppress("DEPRECATION")
 class InstantSerializerTest {
 
 	@Serializable
