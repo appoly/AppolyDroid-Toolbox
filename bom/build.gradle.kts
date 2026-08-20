@@ -3,7 +3,7 @@ plugins {
 	`maven-publish`
 }
 
-group = "com.github.appoly"
+group = "com.github.appoly.AppolyDroid-Toolbox"
 
 javaPlatform {
 	allowDependencies()
@@ -61,7 +61,7 @@ publishing {
 	publications {
 		create<MavenPublication>("bom") {
 			from(components["javaPlatform"])
-			groupId = "com.github.appoly"
+			groupId = "com.github.appoly.AppolyDroid-Toolbox"
 			artifactId = "AppolyDroid-Toolbox-bom"
 			version = BuildConfig.TOOLBOX_VERSION
 		}

@@ -6,7 +6,7 @@ plugins {
 	`maven-publish`
 }
 
-group = "com.github.appoly"
+group = "com.github.appoly.AppolyDroid-Toolbox"
 
 configure<LibraryExtension> {
 	namespace = "uk.co.appoly.droid.baserepo.s3"
@@ -65,7 +65,7 @@ publishing {
 			afterEvaluate {
 				from(components["release"])
 			}
-			groupId = "com.github.appoly"
+			groupId = "com.github.appoly.AppolyDroid-Toolbox"
 			artifactId = project.name
 			version = BuildConfig.TOOLBOX_VERSION
 		}
