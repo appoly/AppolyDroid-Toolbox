@@ -6,7 +6,7 @@ Extension module for DateHelperUtil that provides kotlinx.serialization integrat
 
 - Serializers for `Instant`, `LocalDate`, `LocalDateTime`, and `ZonedDateTime`
 - **Zone-safe `Instant` serialization** — UTC enforced at the type level, no caller-side conversion required
-- Support for both nullable and non-nullable date-time values
+- Works for both nullable and non-nullable properties — one serializer per type
 - Standardized date/time formatting using ISO-8601 formats
 - Timezone preservation for `ZonedDateTime` values
 - Automatic UTC conversion for consistent serialization
@@ -16,8 +16,8 @@ Extension module for DateHelperUtil that provides kotlinx.serialization integrat
 
 ```gradle.kts
 // Requires base DateHelperUtil module
-implementation("com.github.appoly.AppolyDroid-Toolbox:DateHelperUtil:1.8.0")
-implementation("com.github.appoly.AppolyDroid-Toolbox:DateHelperUtil-Serialization:1.8.0")
+implementation("com.github.appoly.AppolyDroid-Toolbox:DateHelperUtil:1.8.1")
+implementation("com.github.appoly.AppolyDroid-Toolbox:DateHelperUtil-Serialization:1.8.1")
 
 // Required kotlinx.serialization dependencies
 implementation("org.jetbrains.kotlinx:kotlinx-serialization-core:1.11.0")
@@ -43,7 +43,7 @@ Use the provided typealiases to simplify declarations without annotations:
 
 ```kotlin
 import kotlinx.serialization.Serializable
-import uk.co.appoly.droid.util.NullableSerializableDateTime
+import uk.co.appoly.droid.util.SerializableDateTime
 import uk.co.appoly.droid.util.SerializableInstant
 import uk.co.appoly.droid.util.SerializableLocalDate
 import uk.co.appoly.droid.util.SerializableZonedDateTime
@@ -56,8 +56,8 @@ data class Event(
     // Non-nullable LocalDate
     val eventDate: SerializableLocalDate,
 
-    // Nullable LocalDateTime
-    val startTime: NullableSerializableDateTime,
+    // Nullable LocalDateTime — just add `?`, no separate typealias needed
+    val startTime: SerializableDateTime?,
 
     // ZonedDateTime (with timezone preservation)
     val createdAt: SerializableZonedDateTime,
@@ -68,9 +68,15 @@ data class Event(
 ```
 
 > [!TIP]
-> For new fields representing a moment in time, prefer `SerializableInstant` /
-> `NullableSerializableInstant` over the `LocalDateTime` variants. `Instant` carries UTC at
-> the type level so the serializer cannot accidentally emit device-local digits.
+> For new fields representing a moment in time, prefer `SerializableInstant` over the
+> `LocalDateTime` variants. `Instant` carries UTC at the type level so the serializer cannot
+> accidentally emit device-local digits.
+
+> [!IMPORTANT]
+> **There is one serializer per type — use it for nullable properties too.** Write
+> `SerializableInstant?` (or `@Serializable(with = InstantSerializer::class) val x: Instant?`)
+> and kotlinx wraps the serializer to handle the null itself. The `Nullable*` family is
+> deprecated as of 1.8.1; see [Deprecated: the `Nullable*` family](#deprecated-the-nullable-family).
 
 > **Note:** These typealiases are equivalent to their underlying types (e.g., `SerializableLocalDate` is just `LocalDate` with built-in serialization). You can assign and use them interchangeably with standard `LocalDate`, `LocalDateTime`, or `ZonedDateTime` values without any conversion.
 
@@ -91,8 +97,8 @@ data class Event(
     @Serializable(with = LocalDateSerializer::class)
     val eventDate: LocalDate,
 
-    // Nullable LocalDateTime
-    @Serializable(with = NullableDateTimeSerializer::class)
+    // Nullable LocalDateTime — the same serializer; kotlinx wraps it for the null
+    @Serializable(with = DateTimeSerializer::class)
     val startTime: LocalDateTime?,
 
     // ZonedDateTime (with timezone preservation)
@@ -128,16 +134,46 @@ val parsedEvent = jsonFormat.decodeFromString(Event.serializer(), jsonString)
 
 ## Available Serializers
 
+Each serializer covers both the non-nullable and the nullable form of its type — append `?`
+to the typealias, or annotate the nullable property with the same serializer.
+
 | Serializer | TypeAlias | Type | Description |
 |------------|-----------|------|-------------|
-| `LocalDateSerializer` | `SerializableLocalDate` | `LocalDate` | Non-nullable date |
-| `NullableLocalDateSerializer` | `NullableSerializableLocalDate` | `LocalDate?` | Nullable date |
-| `DateTimeSerializer` | `SerializableDateTime` | `LocalDateTime` | Non-nullable date-time (zone-naive) |
-| `NullableDateTimeSerializer` | `NullableSerializableDateTime` | `LocalDateTime?` | Nullable date-time (zone-naive) |
-| `ZonedDateTimeSerializer` | `SerializableZonedDateTime` | `ZonedDateTime` | Non-nullable date-time with timezone |
-| `NullableZonedDateTimeSerializer` | `NullableSerializableZonedDateTime` | `ZonedDateTime?` | Nullable date-time with timezone |
-| `InstantSerializer` | `SerializableInstant` | `Instant` | **Recommended** — non-nullable UTC moment in time |
-| `NullableInstantSerializer` | `NullableSerializableInstant` | `Instant?` | **Recommended** — nullable UTC moment in time |
+| `LocalDateSerializer` | `SerializableLocalDate` | `LocalDate` / `LocalDate?` | Date |
+| `DateTimeSerializer` | `SerializableDateTime` | `LocalDateTime` / `LocalDateTime?` | Date-time (zone-naive) |
+| `ZonedDateTimeSerializer` | `SerializableZonedDateTime` | `ZonedDateTime` / `ZonedDateTime?` | Date-time with timezone |
+| `InstantSerializer` | `SerializableInstant` | `Instant` / `Instant?` | **Recommended** — UTC moment in time |
+
+### Deprecated: the `Nullable*` family
+
+`NullableLocalDateSerializer`, `NullableDateTimeSerializer`, `NullableZonedDateTimeSerializer`,
+`NullableInstantSerializer` and their `NullableSerializable*` typealiases are **deprecated as of
+1.8.1** and will be removed in a future release.
+
+They were always redundant: because they did not declare a nullable descriptor, kotlinx wrapped
+them in its own `NullableSerializer` on the property path exactly as it wraps the non-nullable
+serializers — so `@Serializable(with = InstantSerializer::class) val x: Instant?` and
+`@Serializable(with = NullableInstantSerializer::class) val x: Instant?` produced byte-identical
+JSON. Their own null branches were unreachable there, and **incorrect** off that path: used
+directly (`Json.encodeToString(NullableInstantSerializer, null)`, or inside a `ListSerializer`)
+`serialize` emitted nothing at all — yielding malformed JSON such as `["2026-06-05",,"2026-01-02"]`
+— and `deserialize` threw on a `null` token. See
+[issue #106](https://github.com/appoly/AppolyDroid-Toolbox/issues/106).
+
+Migration is a one-line swap per field, with no wire-format change:
+
+```kotlin
+// Before
+val deletedAt: NullableSerializableInstant
+@Serializable(with = NullableInstantSerializer::class) val reminderAt: ZonedDateTime?
+
+// After
+val deletedAt: SerializableInstant?
+@Serializable(with = ZonedDateTimeSerializer::class) val reminderAt: ZonedDateTime?
+```
+
+Until they are removed, the deprecated serializers now declare nullable descriptors and handle
+`null` correctly, so direct use no longer corrupts output.
 
 ## Serialization Format
 
@@ -155,9 +191,9 @@ The serializers use the standard date formats defined in DateHelper:
 > carries a trailing `Z`. The honest no-zone format reflects that `LocalDateTime` carries
 > no zone information.
 >
-> Reading legacy data is fully backward-compatible: `DateTimeSerializer` and
-> `NullableDateTimeSerializer` accept both the new no-Z format and the legacy `...Z` format
-> (plus any explicit ISO-8601 offset and the short `yyyy-MM-dd HH:mm:ss` format).
+> Reading legacy data is fully backward-compatible: `DateTimeSerializer` accepts both the new
+> no-Z format and the legacy `...Z` format (plus any explicit ISO-8601 offset and the short
+> `yyyy-MM-dd HH:mm:ss` format).
 >
 > If you need byte-identical `...Z` output for backend compat, migrate the field type to
 > `Instant` and use `InstantSerializer` — the wire bytes for UTC moments are unchanged.
