@@ -20,6 +20,11 @@ import uk.co.appoly.droid.s3upload.multipart.interfaces.UploadNotificationProvid
  *                                default system notifications. See [UploadNotificationProvider] for details.
  * @property lifecycleCallbacks Callbacks for upload lifecycle events (before/after upload, pause/resume).
  *                              See [UploadLifecycleCallbacks] for available hooks.
+ * @property progressUpdateIntervalMs How often, in milliseconds, the byte-level progress of an
+ *                                   in-flight part is persisted so observers see smooth movement
+ *                                   between part completions. Default is 500ms. Each tick is one
+ *                                   small UPDATE per in-flight part, so raise it to trade progress
+ *                                   smoothness for fewer database writes.
  */
 data class MultipartUploadConfig(
 	val chunkSize: Long = DEFAULT_CHUNK_SIZE,
@@ -29,7 +34,8 @@ data class MultipartUploadConfig(
 	val useExponentialBackoff: Boolean = true,
 	val defaultConstraints: UploadConstraints = UploadConstraints.DEFAULT,
 	val notificationProvider: UploadNotificationProvider? = null,
-	val lifecycleCallbacks: UploadLifecycleCallbacks? = null
+	val lifecycleCallbacks: UploadLifecycleCallbacks? = null,
+	val progressUpdateIntervalMs: Long = DEFAULT_PROGRESS_UPDATE_INTERVAL_MS
 ) {
 	init {
 		require(chunkSize >= MIN_CHUNK_SIZE) {
@@ -43,6 +49,9 @@ data class MultipartUploadConfig(
 		}
 		require(retryDelayMs >= 0) {
 			"Retry delay must be non-negative"
+		}
+		require(progressUpdateIntervalMs >= MIN_PROGRESS_UPDATE_INTERVAL_MS) {
+			"Progress update interval must be at least ${MIN_PROGRESS_UPDATE_INTERVAL_MS}ms"
 		}
 	}
 
@@ -85,6 +94,12 @@ data class MultipartUploadConfig(
 
 		/** Default retry delay: 1 second */
 		const val DEFAULT_RETRY_DELAY_MS: Long = 1000L
+
+		/** Default interval for persisting byte-level part progress: 500ms */
+		const val DEFAULT_PROGRESS_UPDATE_INTERVAL_MS: Long = 500L
+
+		/** Minimum interval for persisting byte-level part progress, to bound database writes */
+		const val MIN_PROGRESS_UPDATE_INTERVAL_MS: Long = 100L
 
 		/** Default configuration */
 		val DEFAULT = MultipartUploadConfig()

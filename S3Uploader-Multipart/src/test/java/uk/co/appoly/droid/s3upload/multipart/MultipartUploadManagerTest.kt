@@ -100,9 +100,15 @@ class MultipartUploadManagerTest {
 		if (parts.isNotEmpty()) dao.insertParts(parts)
 	}
 
-	private fun part(sessionId: String, number: Int, status: PartUploadStatus) = UploadPartEntity(
+	private fun part(
+		sessionId: String,
+		number: Int,
+		status: PartUploadStatus,
+		uploadedBytes: Long = 0
+	) = UploadPartEntity(
 		partId = "${sessionId}_$number", sessionId = sessionId, partNumber = number,
-		startByte = 0, endByte = 50, partSize = 50, status = status, updatedAt = 1_000
+		startByte = 0, endByte = 50, partSize = 50, status = status,
+		uploadedBytes = uploadedBytes, updatedAt = 1_000
 	)
 
 	@Test
@@ -223,5 +229,80 @@ class MultipartUploadManagerTest {
 		assertEquals(UploadNetworkType.UNMETERED, manager.getDefaultConstraints().networkType)
 		manager.setAllowCellularUploads(true)
 		assertEquals(UploadNetworkType.CONNECTED, manager.getDefaultConstraints().networkType)
+	}
+
+	@Test
+	fun `observeProgress counts partial bytes of an in-flight part`() = runTest {
+		// Session is 100 bytes in two 50-byte parts: one done, one 20 bytes in.
+		seedSession(
+			"s1", UploadSessionStatus.IN_PROGRESS,
+			parts = listOf(
+				part("s1", 1, PartUploadStatus.UPLOADED),
+				part("s1", 2, PartUploadStatus.UPLOADING, uploadedBytes = 20)
+			)
+		)
+
+		val progress = manager.observeProgress("s1").first()!!
+
+		assertEquals(70L, progress.uploadedBytes)
+		assertEquals(70f, progress.overallProgress, 0.001f)
+		assertEquals(1, progress.uploadedParts)
+		assertEquals(2, progress.currentPartNumber)
+		assertEquals(40f, progress.currentPartProgress, 0.001f)
+	}
+
+	@Test
+	fun `observeProgress ignores bytes recorded against a part that is not in flight`() = runTest {
+		// Guards the invariant the byte accounting leans on: only UPLOADED and UPLOADING parts
+		// contribute, so a stale count on a PENDING part cannot inflate progress.
+		seedSession(
+			"s1", UploadSessionStatus.IN_PROGRESS,
+			parts = listOf(
+				part("s1", 1, PartUploadStatus.UPLOADED),
+				part("s1", 2, PartUploadStatus.PENDING, uploadedBytes = 20)
+			)
+		)
+
+		val progress = manager.observeProgress("s1").first()!!
+
+		assertEquals(50L, progress.uploadedBytes)
+		assertNull(progress.currentPartNumber)
+		assertEquals(0f, progress.currentPartProgress, 0.001f)
+	}
+
+	@Test
+	fun `observeProgress reports the lowest numbered in-flight part as current`() = runTest {
+		// With maxConcurrentParts > 1 several parts are UPLOADING at once; "current" must be
+		// stable between emissions rather than whichever row the query happened to return first.
+		seedSession(
+			"s1", UploadSessionStatus.IN_PROGRESS,
+			parts = listOf(
+				part("s1", 2, PartUploadStatus.UPLOADING, uploadedBytes = 30),
+				part("s1", 1, PartUploadStatus.UPLOADING, uploadedBytes = 10)
+			)
+		)
+
+		val progress = manager.observeProgress("s1").first()!!
+
+		assertEquals(1, progress.currentPartNumber)
+		assertEquals(20f, progress.currentPartProgress, 0.001f)
+		assertEquals(40L, progress.uploadedBytes)
+	}
+
+	@Test
+	fun `observeProgress never reports more than the total file size`() = runTest {
+		seedSession(
+			"s1", UploadSessionStatus.IN_PROGRESS,
+			parts = listOf(
+				part("s1", 1, PartUploadStatus.UPLOADED),
+				part("s1", 2, PartUploadStatus.UPLOADING, uploadedBytes = 500)
+			)
+		)
+
+		val progress = manager.observeProgress("s1").first()!!
+
+		assertEquals(100L, progress.uploadedBytes)
+		assertEquals(100f, progress.overallProgress, 0.001f)
+		assertEquals(100f, progress.currentPartProgress, 0.001f)
 	}
 }

@@ -16,7 +16,7 @@ Advanced S3 upload module with pause, resume, and recovery support using AWS S3 
 ## Installation
 
 ```gradle.kts
-implementation("com.github.appoly.AppolyDroid-Toolbox:S3Uploader-Multipart:1.8.2")
+implementation("com.github.appoly.AppolyDroid-Toolbox:S3Uploader-Multipart:1.8.3")
 ```
 
 This module depends on `S3Uploader` and includes it transitively.
@@ -630,11 +630,16 @@ val config = MultipartUploadConfig(
     chunkSize = 10 * 1024 * 1024L, // 10MB chunks (minimum 5MB for S3)
     maxConcurrentParts = 4,        // Upload 4 parts simultaneously
     maxRetries = 5,                // Retry failed parts up to 5 times
-    retryDelayMs = 2000L           // Initial retry delay
+    retryDelayMs = 2000L,          // Initial retry delay
+    progressUpdateIntervalMs = 500L // How often in-flight byte progress is persisted
 )
 
 val uploadManager = MultipartUploadManager.getInstance(context, config)
 ```
+
+> **Memory:** part data is streamed from disk straight to the network, so heap use does **not**
+> scale with `chunkSize` or `maxConcurrentParts`. Tune both for throughput and S3 part limits
+> (10,000 parts max per upload) rather than to keep memory down.
 
 ### 7. Worker Extensibility
 
@@ -1007,6 +1012,16 @@ data class MultipartUploadProgress(
 )
 ```
 
+`uploadedBytes` and `overallProgress` include partial progress on parts that are still in flight,
+so they advance smoothly rather than jumping a whole chunk each time a part lands.
+`currentPartNumber` is the lowest-numbered part currently uploading (several run at once when
+`maxConcurrentParts > 1`), and `currentPartProgress` is that part's own 0-100 completion.
+
+Progress is persisted roughly every `progressUpdateIntervalMs`, so the values are near-live rather
+than exact. They can also move backwards: a part that has to be retried restarts from zero, and
+reporting the bytes actually sent is more honest than holding a high-water mark that no longer
+reflects what S3 has.
+
 ### MultipartUploadConfig
 
 ```kotlin
@@ -1016,6 +1031,7 @@ data class MultipartUploadConfig(
     val maxRetries: Int = 3,
     val retryDelayMs: Long = 1000L,
     val useExponentialBackoff: Boolean = true,
+    val progressUpdateIntervalMs: Long = 500L,
     val defaultConstraints: UploadConstraints = UploadConstraints.DEFAULT,
     val notificationProvider: UploadNotificationProvider? = null,
     val lifecycleCallbacks: UploadLifecycleCallbacks? = null
