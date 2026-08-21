@@ -227,6 +227,10 @@ interface MultipartUploadDao {
 		return part
 	}
 
+	/**
+	 * Total bytes uploaded for a session, including partial progress on parts that are still
+	 * in flight. Relies on the invariant that a PENDING or FAILED part has `uploaded_bytes = 0`.
+	 */
 	@Query("SELECT COALESCE(SUM(uploaded_bytes), 0) FROM multipart_upload_parts WHERE session_id = :sessionId")
 	suspend fun getTotalUploadedBytes(sessionId: String): Long
 
@@ -245,10 +249,23 @@ interface MultipartUploadDao {
 		updatedAt: Long
 	)
 
-	@Query("UPDATE multipart_upload_parts SET status = 'PENDING', retry_count = 0 WHERE session_id = :sessionId AND status = 'FAILED'")
+	/**
+	 * Records how many bytes of an in-flight part have reached S3.
+	 *
+	 * Deliberately narrower than [updatePartStatus]: progress updates land while the part is
+	 * UPLOADING and must not disturb its status or ETag.
+	 */
+	@Query("UPDATE multipart_upload_parts SET uploaded_bytes = :uploadedBytes, updated_at = :updatedAt WHERE part_id = :partId")
+	suspend fun updatePartUploadedBytes(
+		partId: String,
+		uploadedBytes: Long,
+		updatedAt: Long
+	)
+
+	@Query("UPDATE multipart_upload_parts SET status = 'PENDING', retry_count = 0, uploaded_bytes = 0 WHERE session_id = :sessionId AND status = 'FAILED'")
 	suspend fun resetFailedParts(sessionId: String)
 
-	@Query("UPDATE multipart_upload_parts SET status = 'PENDING' WHERE session_id = :sessionId AND status = 'UPLOADING'")
+	@Query("UPDATE multipart_upload_parts SET status = 'PENDING', uploaded_bytes = 0 WHERE session_id = :sessionId AND status = 'UPLOADING'")
 	suspend fun resetUploadingParts(sessionId: String)
 
 	// ==================== Combined Queries ====================

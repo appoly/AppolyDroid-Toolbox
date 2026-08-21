@@ -18,9 +18,7 @@ configure<LibraryExtension> {
 	}
 
 	publishing {
-		singleVariant("release") {
-			withSourcesJar()
-		}
+		singleVariant("release")
 	}
 
 	defaultConfig {

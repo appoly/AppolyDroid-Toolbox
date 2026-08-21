@@ -12,7 +12,13 @@ import androidx.work.ForegroundInfo
 import androidx.work.WorkerParameters
 import androidx.work.workDataOf
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.firstOrNull
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import uk.co.appoly.droid.s3upload.multipart.MultipartUploadManager
@@ -226,8 +232,13 @@ open class MultipartUploadWorker(
 
 		MultipartUploadLog.d(this@MultipartUploadWorker, "Starting work: sessionId=$sessionId, isResume=$isResume")
 
+		// Repaints the foreground notification as the upload progresses. Started once a session
+		// exists, because observeProgress has nothing to read before that.
+		var progressJob: Job? = null
+
 		try {
-			// Set foreground for long-running upload
+			// Set foreground for long-running upload. No progress exists yet, so this renders the
+			// provider's "preparing" state; launchProgressUpdates takes over once a session exists.
 			setForeground(createForegroundInfo(sessionId ?: "upload"))
 
 			val manager = MultipartUploadManager.getInstance(context)
@@ -240,6 +251,7 @@ open class MultipartUploadWorker(
 				if (resumeResult.isSuccess) {
 					// Invoke onUploadResumed lifecycle hook
 					onUploadResumed(sessionId)
+					progressJob = launchProgressUpdates(manager, sessionId)
 					manager.executeUpload(sessionId)
 				} else {
 					return@withContext Result.failure(
@@ -295,12 +307,19 @@ open class MultipartUploadWorker(
 				currentSessionId = newSessionId
 
 				// Execute the upload (worker manages execution separately from initialization)
+				progressJob = launchProgressUpdates(manager, newSessionId)
 				manager.executeUpload(newSessionId)
 			} else {
 				return@withContext Result.failure(
 					workDataOf(KEY_ERROR_MESSAGE to "No session ID or file path provided")
 				)
 			}
+
+			// Stop repainting before the terminal state is handled, so an emission already in
+			// flight cannot paint a mid-upload percentage over a finished upload. Same ordering as
+			// the manager's per-part progress ticker.
+			progressJob?.cancelAndJoin()
+			progressJob = null
 
 			// Get session ID from result for callbacks
 			val resultSessionId = when (result) {
@@ -309,6 +328,15 @@ open class MultipartUploadWorker(
 				is MultipartUploadResult.Paused -> result.sessionId
 				is MultipartUploadResult.Cancelled -> result.sessionId
 			}
+
+			// One deliberate repaint from the authoritative final state. Cancelling the collector
+			// above leaves the last painted frame as the final in-progress one — 100% with a
+			// transfer rate and "0s remaining" still attached — which then lingers until
+			// WorkManager tears the foreground down. Observed on device. The rate tracker reports
+			// nothing for a session that is no longer IN_PROGRESS, so re-rendering here produces a
+			// terminal frame with no speed or ETA, while keeping the guard that made the
+			// cancellation necessary in the first place.
+			renderTerminalNotification(manager, resultSessionId)
 
 			// Invoke onUploadComplete lifecycle hook
 			onUploadComplete(resultSessionId, result)
@@ -391,8 +419,81 @@ open class MultipartUploadWorker(
 		} finally {
 			// Clear session ID tracking when work completes normally
 			// (CancellationException case already handles this before rethrowing)
+			progressJob?.cancel()
 			currentSessionId = null
 		}
+	}
+
+	/**
+	 * Repaints the foreground notification once from the session's final state.
+	 *
+	 * Leaves the notification untouched if no progress can be read — a cancelled or aborted
+	 * session may already have had its row removed, and rendering the provider's null-progress
+	 * "preparing" branch at the end of an upload would be worse than a slightly stale frame.
+	 */
+	private suspend fun renderTerminalNotification(
+		manager: MultipartUploadManager,
+		sessionId: String
+	) {
+		if (isStopped) return
+		try {
+			val finalProgress = manager.observeProgress(sessionId).firstOrNull() ?: return
+			setForeground(createForegroundInfo(sessionId, finalProgress))
+		} catch (e: CancellationException) {
+			throw e
+		} catch (e: Exception) {
+			MultipartUploadLog.w(this, "Could not render the terminal notification for $sessionId", e)
+		}
+	}
+
+	/**
+	 * Streams progress for [sessionId] into the foreground notification and the
+	 * [onProgressUpdate] hook until cancelled.
+	 *
+	 * Before this existed, [setForeground] was called exactly once — with no progress argument, so
+	 * the provider rendered its null-progress branch — and never again. Every field the library
+	 * computes was therefore unreachable from a notification for the whole upload.
+	 *
+	 * The notification is repainted only when the displayed whole percent changes. Progress lands
+	 * in the database every `progressUpdateIntervalMs` (500ms by default), which is a sensible rate
+	 * for durable state but wasteful for a notification, and visibly janky on some OEMs.
+	 * [onProgressUpdate] still fires on every emission, since a consumer may want the byte counts
+	 * and transfer rate between percent boundaries.
+	 */
+	private fun CoroutineScope.launchProgressUpdates(
+		manager: MultipartUploadManager,
+		sessionId: String
+	): Job = launch {
+		var lastRenderedPercent: Int? = null
+
+		manager.observeProgress(sessionId)
+			.filterNotNull()
+			.collect { progress ->
+				// Once WorkManager has stopped us the foreground service is gone; repainting it
+				// throws rather than merely failing.
+				if (isStopped) return@collect
+
+				val percent = progress.overallProgress.toInt()
+				if (percent != lastRenderedPercent) {
+					lastRenderedPercent = percent
+					try {
+						setForeground(createForegroundInfo(sessionId, progress))
+					} catch (e: CancellationException) {
+						throw e
+					} catch (e: Exception) {
+						// IllegalStateException, or ForegroundServiceStartNotAllowedException on
+						// newer APIs, if the worker was stopped between the check and the call. A
+						// refused repaint must never fail an upload that is transferring fine.
+						MultipartUploadLog.w(
+							this@MultipartUploadWorker,
+							"Could not update upload notification for $sessionId",
+							e
+						)
+					}
+				}
+
+				onProgressUpdate(sessionId, progress)
+			}
 	}
 
 	/**

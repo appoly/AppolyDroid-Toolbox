@@ -1,4 +1,6 @@
-import org.gradle.api.publish.tasks.GenerateModuleMetadata
+import org.gradle.api.publish.PublishingExtension
+import org.gradle.api.publish.maven.MavenPublication
+import org.gradle.jvm.tasks.Jar
 
 // Top-level build file where you can add configuration options common to all sub-projects/modules.
 plugins {
@@ -29,31 +31,48 @@ subprojects {
 	}
 }
 
-// Publish POM-only: no Gradle Module Metadata.
+// Publish Gradle Module Metadata, but keep the sources jar out of it.
 //
-// JitPack rewrites the published `.module` and drops the `-sources` classifier from the sources
-// variant's file name — it records `BaseRepo-<ver>.jar` where the artifact it is describing is
-// actually `BaseRepo-<ver>-sources.jar` (same size, same checksums). Gradle then requests a file
-// that does not exist, gives up silently, and Android Studio falls back to showing decompiled
-// classes. That is why consumers have to keep clicking "Choose Sources" after every version bump.
+// 1.8.2 published POM-only to stop JitPack mangling the sources variant (see 24f40ef for that
+// story). It fixed source navigation and broke Android consumers. Without a `.module`, a module's
+// POM records the *resolved* platform artifact of each multiplatform dependency instead of the
+// variant-aware root coordinate: `MockInterceptor` recorded `okhttp-jvm` and `flexilogger-jvm`, so
+// consuming it from an Android app dragged those onto a classpath that had already correctly
+// resolved the `-android` artifacts — 13 duplicate `okhttp3.internal.ws.*` classes and a failed
+// `checkDuplicateClasses`. Consumer-side excludes are unbounded whack-a-mole, since every
+// multiplatform dependency reachable through a JVM-published module has the same shape.
 //
-// The strip is unconditional, not a side effect of coordinate rewriting: `CryptoRoomDB` declares
-// coordinates that match JitPack's hosting exactly, has an unmodified `component` block, and still
-// loses the classifier. So it cannot be fixed by correcting what we publish — only by not
-// publishing metadata JitPack will mangle.
+// So the metadata has to come back. The sources problem is avoided differently: never give JitPack
+// a sources *variant* to mangle. No module calls `withSourcesJar()` — that would register one in
+// GMM. Each publication instead attaches a plain `-sources` classifier artifact, which Gradle finds
+// through the POM classifier convention, the same route 24f40ef proved works.
 //
-// Without a `.module`, Gradle resolves through the POM, where sources are found by the `-sources`
-// classifier convention. That artifact *is* published correctly, so source navigation works.
+// The load-bearing assumption is that Gradle falls back to the classifier when GMM carries no
+// sources variant. That CANNOT be verified locally: mavenLocal never reproduces JitPack's
+// rewriting, so publishing here looks perfect either way. It needs a real JitPack build of a branch
+// snapshot or pre-release tag, checking *source navigation* — not merely that consumers compile.
 //
-// Trade-off: no variant-aware resolution for consumers. Acceptable here — every module publishes a
-// single release variant, and the BOM is a `java-platform` whose constraints travel in the POM's
-// `<dependencyManagement>`.
-//
-// Verified 2026-08-20. See issue #106 / the 1.8.2 release notes.
+// If that check fails, the fallback is reverting to GMM-with-sources-variant (the 1.8.1 shape):
+// builds work for everyone, source navigation needs "Choose Sources". Broken navigation is an
+// annoyance; a classpath that will not assemble is a hard block.
 subprojects {
 	plugins.withId("maven-publish") {
-		tasks.withType<GenerateModuleMetadata>().configureEach {
-			enabled = false
+		afterEvaluate {
+			// The BOM is a java-platform: no sources exist to publish.
+			if (plugins.hasPlugin("java-platform")) return@afterEvaluate
+
+			val sourcesJar = tasks.register<Jar>("toolboxSourcesJar") {
+				archiveClassifier.set("sources")
+				// Conventional layout; this repo keeps Kotlin under src/main/java. Directories that
+				// do not exist simply contribute nothing.
+				from("src/main/java", "src/main/kotlin")
+			}
+
+			extensions.configure<PublishingExtension> {
+				publications.withType<MavenPublication>().configureEach {
+					artifact(sourcesJar)
+				}
+			}
 		}
 	}
 }

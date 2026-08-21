@@ -13,8 +13,7 @@ import kotlinx.coroutines.cancelChildren
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
@@ -23,7 +22,6 @@ import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.RequestBody
-import okhttp3.RequestBody.Companion.toRequestBody
 import uk.co.appoly.droid.s3upload.S3Uploader
 import uk.co.appoly.droid.s3upload.multipart.config.MultipartUploadConfig
 import uk.co.appoly.droid.s3upload.multipart.config.UploadConstraints
@@ -34,24 +32,26 @@ import uk.co.appoly.droid.s3upload.multipart.database.entity.SessionWithParts
 import uk.co.appoly.droid.s3upload.multipart.database.entity.UploadPartEntity
 import uk.co.appoly.droid.s3upload.multipart.database.entity.UploadSessionEntity
 import uk.co.appoly.droid.s3upload.multipart.database.entity.UploadSessionStatus
+import uk.co.appoly.droid.s3upload.multipart.network.FilePartRequestBody
 import uk.co.appoly.droid.s3upload.multipart.network.MultipartApiService
 import uk.co.appoly.droid.s3upload.multipart.network.MultipartRetrofitClient
 import uk.co.appoly.droid.s3upload.multipart.network.model.CompletedPart
 import uk.co.appoly.droid.s3upload.multipart.network.model.MultipartApiUrls
 import uk.co.appoly.droid.s3upload.multipart.network.model.S3PartUploadResult
 import uk.co.appoly.droid.s3upload.multipart.result.MultipartUploadProgress
+import uk.co.appoly.droid.s3upload.multipart.result.TransferRateTracker
 import uk.co.appoly.droid.s3upload.multipart.result.MultipartUploadResult
 import uk.co.appoly.droid.s3upload.multipart.utils.MultipartUploadLog
 import uk.co.appoly.droid.s3upload.multipart.utils.MultipartUploadLogger
 import uk.co.appoly.droid.s3upload.multipart.worker.S3UploadWorkManager
 import java.io.File
-import java.io.RandomAccessFile
 import java.net.ConnectException
 import java.net.SocketException
 import java.net.SocketTimeoutException
 import java.net.UnknownHostException
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicLong
 
 /**
  * Manager class for handling multipart uploads with pause/resume/recovery support.
@@ -82,7 +82,6 @@ class MultipartUploadManager internal constructor(
 
 	private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 	private val activeJobs = ConcurrentHashMap<String, Job>()
-	private val progressFlows = ConcurrentHashMap<String, MutableStateFlow<MultipartUploadProgress>>()
 
 	private val json = Json {
 		ignoreUnknownKeys = true
@@ -260,9 +259,12 @@ class MultipartUploadManager internal constructor(
 	 * @param sessionId The session ID
 	 * @return Flow of progress updates
 	 */
-	fun observeProgress(sessionId: String): Flow<MultipartUploadProgress?> {
-		return dao.observeSessionWithParts(sessionId).map { sessionWithParts ->
-			sessionWithParts?.toProgress()
+	fun observeProgress(sessionId: String): Flow<MultipartUploadProgress?> = flow {
+		// One tracker per collector: a transfer rate is derived from consecutive emissions, and two
+		// observers sampling at their own pace must not share a baseline.
+		val rateTracker = TransferRateTracker()
+		dao.observeSessionWithParts(sessionId).collect { sessionWithParts ->
+			emit(sessionWithParts?.toProgress()?.let(rateTracker::track))
 		}
 	}
 
@@ -271,9 +273,12 @@ class MultipartUploadManager internal constructor(
 	 *
 	 * @return Flow of all active upload progress
 	 */
-	fun observeAllUploads(): Flow<List<MultipartUploadProgress>> {
-		return dao.observeActiveSessionsWithParts().map { sessions ->
-			sessions.map { it.toProgress() }
+	fun observeAllUploads(): Flow<List<MultipartUploadProgress>> = flow {
+		val rateTracker = TransferRateTracker()
+		dao.observeActiveSessionsWithParts().collect { sessions ->
+			val progress = sessions.map { rateTracker.track(it.toProgress()) }
+			rateTracker.retainOnly(progress.mapTo(mutableSetOf()) { it.sessionId })
+			emit(progress)
 		}
 	}
 
@@ -850,50 +855,48 @@ class MultipartUploadManager internal constructor(
 		val semaphore = Semaphore(config.maxConcurrentParts)
 		val resultHolder = java.util.concurrent.atomic.AtomicReference<PartUploadResult?>(null)
 
-		RandomAccessFile(file, "r").use { raf ->
-			coroutineScope {
-				while (resultHolder.get() == null) {
-					// Check if we should stop
-					val currentSession = dao.getSession(session.sessionId)
-					if (currentSession?.status == UploadSessionStatus.PAUSED) {
-						// Signal pause and cancel all running jobs
-						resultHolder.set(PartUploadResult.Paused)
-						coroutineContext.cancelChildren()
-						break
-					}
+		coroutineScope {
+			while (resultHolder.get() == null) {
+				// Check if we should stop
+				val currentSession = dao.getSession(session.sessionId)
+				if (currentSession?.status == UploadSessionStatus.PAUSED) {
+					// Signal pause and cancel all running jobs
+					resultHolder.set(PartUploadResult.Paused)
+					coroutineContext.cancelChildren()
+					break
+				}
 
-					// Atomically claim the next pending part (SELECT + UPDATE in transaction)
-					val part = dao.claimNextPendingPart(session.sessionId) ?: break
+				// Atomically claim the next pending part (SELECT + UPDATE in transaction)
+				val part = dao.claimNextPendingPart(session.sessionId) ?: break
 
-					// Launch part upload in parallel, limited by semaphore
-					launch {
-						semaphore.withPermit {
-							// Check again if we should stop (might have been set while waiting for permit)
-							if (resultHolder.get() != null) {
-								// Reset part to pending if we're stopping
-								dao.updatePartStatus(
-									partId = part.partId,
-									status = PartUploadStatus.PENDING,
-									etag = null,
-									uploadedBytes = 0,
-									updatedAt = System.currentTimeMillis()
-								)
-								return@withPermit
-							}
+				// Launch part upload in parallel, limited by semaphore
+				launch {
+					semaphore.withPermit {
+						// Check again if we should stop (might have been set while waiting for permit)
+						if (resultHolder.get() != null) {
+							// Reset part to pending if we're stopping
+							dao.updatePartStatus(
+								partId = part.partId,
+								status = PartUploadStatus.PENDING,
+								etag = null,
+								uploadedBytes = 0,
+								updatedAt = System.currentTimeMillis()
+							)
+							return@withPermit
+						}
 
-							val result = uploadSinglePart(session, part, raf)
-							if (result is SinglePartResult.Failed && !result.shouldRetry) {
-								resultHolder.set(
-									PartUploadResult.Failed(result.message, result.throwable, result.isRecoverable)
-								)
-								// Cancel sibling coroutines
-								coroutineContext.cancelChildren()
-							}
+						val result = uploadSinglePart(session, part, file)
+						if (result is SinglePartResult.Failed && !result.shouldRetry) {
+							resultHolder.set(
+								PartUploadResult.Failed(result.message, result.throwable, result.isRecoverable)
+							)
+							// Cancel sibling coroutines
+							coroutineContext.cancelChildren()
 						}
 					}
 				}
-				// coroutineScope waits for all children to complete
 			}
+			// coroutineScope waits for all children to complete
 		}
 
 		// Check if there was a failure or pause
@@ -916,7 +919,7 @@ class MultipartUploadManager internal constructor(
 	private suspend fun uploadSinglePart(
 		session: UploadSessionEntity,
 		part: UploadPartEntity,
-		raf: RandomAccessFile
+		file: File
 	): SinglePartResult {
 		var lastError: Throwable? = null
 
@@ -963,22 +966,57 @@ class MultipartUploadManager internal constructor(
 					}
 				}
 
-				// Read part data
-				val buffer = ByteArray(part.partSize.toInt())
-				synchronized(raf) {
-					raf.seek(part.startByte)
-					raf.readFully(buffer)
-				}
-
+				// Stream the part straight from disk rather than buffering it on the heap:
+				// buffering cost chunkSize bytes per in-flight part, multiplied by every concurrent worker.
 				val contentType = session.contentType.toMediaTypeOrNull()
-				val requestBody: RequestBody = buffer.toRequestBody(contentType)
+				val bytesWritten = AtomicLong(0L)
+				val requestBody: RequestBody = FilePartRequestBody(
+					file = file,
+					offset = part.startByte,
+					byteCount = part.partSize,
+					contentType = contentType,
+					onBytesWritten = bytesWritten::set,
+				).also { it.requireReadable() }
 
-				// Upload to S3
-				val uploadResult = apiService.uploadPartToS3(
-					presignedUrl = presignData.presignedUrl,
-					headers = presignData.headers,
-					body = requestBody
-				)
+				// Upload to S3. A ticker persists the part's byte progress while it streams, so
+				// observers see movement within a part instead of only at part boundaries. The
+				// callback itself cannot touch the database (it runs on the network thread, and
+				// writing per segment would mean thousands of updates per part).
+				val uploadResult = coroutineScope {
+					val progressReporter = launch {
+						while (true) {
+							delay(config.progressUpdateIntervalMs)
+							try {
+								dao.updatePartUploadedBytes(
+									partId = part.partId,
+									uploadedBytes = bytesWritten.get(),
+									updatedAt = System.currentTimeMillis()
+								)
+							} catch (e: CancellationException) {
+								throw e
+							} catch (e: Exception) {
+								// Progress is cosmetic. Letting this escape would cancel the
+								// enclosing scope and fail a part that is uploading perfectly well.
+								MultipartUploadLog.w(
+									this@MultipartUploadManager,
+									"Failed to record progress for part ${part.partNumber}",
+									e
+								)
+							}
+						}
+					}
+					try {
+						apiService.uploadPartToS3(
+							presignedUrl = presignData.presignedUrl,
+							headers = presignData.headers,
+							body = requestBody
+						)
+					} finally {
+						// Stop reporting before the caller writes the part's authoritative
+						// terminal state, so a late tick cannot resurrect a stale byte count.
+						progressReporter.cancel()
+					}
+				}
 
 				when (uploadResult) {
 					is S3PartUploadResult.Success -> {
@@ -1125,10 +1163,26 @@ class MultipartUploadManager internal constructor(
 
 	private fun SessionWithParts.toProgress(): MultipartUploadProgress {
 		val uploadedParts = parts.count { it.status == PartUploadStatus.UPLOADED }
-		val uploadedBytes = parts.filter { it.status == PartUploadStatus.UPLOADED }.sumOf { it.partSize }
-		val currentPart = parts.find { it.status == PartUploadStatus.UPLOADING }
+		val completedBytes = parts.filter { it.status == PartUploadStatus.UPLOADED }.sumOf { it.partSize }
+
+		// In-flight parts contribute their partial byte count, so progress advances smoothly rather
+		// than jumping a whole chunk when a part lands. Relies on the invariant that a PENDING or
+		// FAILED part has uploadedBytes = 0, so only genuinely-sent bytes are counted.
+		val inFlightParts = parts.filter { it.status == PartUploadStatus.UPLOADING }
+		val uploadedBytes = (completedBytes + inFlightParts.sumOf { it.uploadedBytes })
+			.coerceAtMost(session.totalFileSize)
+
+		// Lowest part number rather than an arbitrary row: with maxConcurrentParts > 1 several
+		// parts are UPLOADING at once, and "current" should at least be stable between emissions.
+		val currentPart = inFlightParts.minByOrNull { it.partNumber }
+		val currentPartProgress = currentPart?.let { inFlight ->
+			if (inFlight.partSize > 0) {
+				((inFlight.uploadedBytes.toFloat() / inFlight.partSize.toFloat()) * 100f).coerceIn(0f, 100f)
+			} else 0f
+		} ?: 0f
+
 		val overallProgress = if (session.totalFileSize > 0) {
-			(uploadedBytes.toFloat() / session.totalFileSize.toFloat()) * 100f
+			((uploadedBytes.toFloat() / session.totalFileSize.toFloat()) * 100f).coerceIn(0f, 100f)
 		} else 0f
 
 		return MultipartUploadProgress(
@@ -1139,7 +1193,7 @@ class MultipartUploadManager internal constructor(
 			totalParts = session.totalParts,
 			uploadedParts = uploadedParts,
 			currentPartNumber = currentPart?.partNumber,
-			currentPartProgress = 0f, // Would need real-time tracking for this
+			currentPartProgress = currentPartProgress,
 			overallProgress = overallProgress,
 			status = session.status,
 			errorMessage = session.errorMessage

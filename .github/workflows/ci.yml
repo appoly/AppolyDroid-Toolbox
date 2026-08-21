@@ -44,6 +44,17 @@ jobs:
       - name: Verify consumer R8 keep rules
         run: ./gradlew :app:verifyConsumerKeepRules
 
+      # Publishes locally, then resolves the JVM-published modules the way an Android app would and
+      # asserts no platform-variant duplicates (`okhttp-jvm` beside `okhttp-android`). This is the
+      # check that would have caught the 1.8.2 regression: the toolbox built and published fine, and
+      # only a consumer could see it — and then only a consumer that happened to pull MockInterceptor.
+      # Runs as a separate build because the library build forbids project repositories and must not
+      # gain mavenLocal, where stale artifacts could shadow real dependencies.
+      - name: Verify published metadata resolves for an Android consumer
+        run: |
+          ./gradlew publishToMavenLocal
+          ./gradlew -p publishing-check verifyPublishedVariantResolution --refresh-dependencies
+
       - name: Upload Kover coverage report
         if: always()
         uses: actions/upload-artifact@v4

@@ -23,6 +23,7 @@ import uk.co.appoly.droid.s3upload.network.ErrorBody
 import uk.co.appoly.droid.s3upload.network.GetPreSignedUrlResponse
 import uk.co.appoly.droid.s3upload.network.PreSignedURLData
 import uk.co.appoly.droid.s3upload.network.ProgressRequestBody
+import uk.co.appoly.droid.s3upload.network.requireReadableForUpload
 import uk.co.appoly.droid.s3upload.network.RetrofitClient
 import uk.co.appoly.droid.s3upload.utils.S3UploadLog
 import uk.co.appoly.droid.s3upload.utils.S3UploadLogger
@@ -402,6 +403,10 @@ object S3Uploader {
 			} else {
 				file.asRequestBody(mediaType)
 			}
+			// Fail fast with a clear message if the source vanished or is unreadable. Otherwise the
+			// declared Content-Length disagrees with what actually gets streamed and OkHttp surfaces
+			// an opaque transport error with nothing pointing at the real cause.
+			file.requireReadableForUpload(requestBody.contentLength())
 			val response = RetrofitClient.apiService.uploadToS3(
 				uploadUrl = presignedUrl,
 				headers = headers,

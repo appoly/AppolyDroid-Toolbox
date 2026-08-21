@@ -36,10 +36,17 @@ data class MultipartUploadProgress(
 	/** Current status of the upload */
 	val status: UploadSessionStatus,
 
-	/** Upload speed in bytes per second (null if not calculated) */
+	/**
+	 * Smoothed upload speed in bytes per second, derived from consecutive emissions of
+	 * [uk.co.appoly.droid.s3upload.multipart.MultipartUploadManager.observeProgress].
+	 *
+	 * Null until two samples far enough apart exist, and again whenever a rate would be
+	 * misleading: while the session is not actively uploading, immediately after a retrying part
+	 * rewinds its byte count, and below one byte per second.
+	 */
 	val bytesPerSecond: Long? = null,
 
-	/** Estimated time remaining in milliseconds (null if not calculated) */
+	/** Estimated time remaining in milliseconds. Null whenever [bytesPerSecond] is. */
 	val estimatedTimeRemainingMs: Long? = null,
 
 	/** Error message if status is FAILED */
