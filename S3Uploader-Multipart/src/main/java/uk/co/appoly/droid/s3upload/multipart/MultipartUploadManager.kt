@@ -13,7 +13,7 @@ import kotlinx.coroutines.cancelChildren
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
@@ -39,6 +39,7 @@ import uk.co.appoly.droid.s3upload.multipart.network.model.CompletedPart
 import uk.co.appoly.droid.s3upload.multipart.network.model.MultipartApiUrls
 import uk.co.appoly.droid.s3upload.multipart.network.model.S3PartUploadResult
 import uk.co.appoly.droid.s3upload.multipart.result.MultipartUploadProgress
+import uk.co.appoly.droid.s3upload.multipart.result.TransferRateTracker
 import uk.co.appoly.droid.s3upload.multipart.result.MultipartUploadResult
 import uk.co.appoly.droid.s3upload.multipart.utils.MultipartUploadLog
 import uk.co.appoly.droid.s3upload.multipart.utils.MultipartUploadLogger
@@ -258,9 +259,12 @@ class MultipartUploadManager internal constructor(
 	 * @param sessionId The session ID
 	 * @return Flow of progress updates
 	 */
-	fun observeProgress(sessionId: String): Flow<MultipartUploadProgress?> {
-		return dao.observeSessionWithParts(sessionId).map { sessionWithParts ->
-			sessionWithParts?.toProgress()
+	fun observeProgress(sessionId: String): Flow<MultipartUploadProgress?> = flow {
+		// One tracker per collector: a transfer rate is derived from consecutive emissions, and two
+		// observers sampling at their own pace must not share a baseline.
+		val rateTracker = TransferRateTracker()
+		dao.observeSessionWithParts(sessionId).collect { sessionWithParts ->
+			emit(sessionWithParts?.toProgress()?.let(rateTracker::track))
 		}
 	}
 
@@ -269,9 +273,12 @@ class MultipartUploadManager internal constructor(
 	 *
 	 * @return Flow of all active upload progress
 	 */
-	fun observeAllUploads(): Flow<List<MultipartUploadProgress>> {
-		return dao.observeActiveSessionsWithParts().map { sessions ->
-			sessions.map { it.toProgress() }
+	fun observeAllUploads(): Flow<List<MultipartUploadProgress>> = flow {
+		val rateTracker = TransferRateTracker()
+		dao.observeActiveSessionsWithParts().collect { sessions ->
+			val progress = sessions.map { rateTracker.track(it.toProgress()) }
+			rateTracker.retainOnly(progress.mapTo(mutableSetOf()) { it.sessionId })
+			emit(progress)
 		}
 	}
 

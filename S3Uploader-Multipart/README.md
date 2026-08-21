@@ -1008,6 +1008,8 @@ data class MultipartUploadProgress(
     val currentPartProgress: Float,
     val overallProgress: Float,     // 0-100
     val status: UploadSessionStatus,
+    val bytesPerSecond: Long?,          // smoothed, null until measurable
+    val estimatedTimeRemainingMs: Long?, // null whenever bytesPerSecond is
     val errorMessage: String?
 )
 ```
@@ -1021,6 +1023,14 @@ Progress is persisted roughly every `progressUpdateIntervalMs`, so the values ar
 than exact. They can also move backwards: a part that has to be retried restarts from zero, and
 reporting the bytes actually sent is more honest than holding a high-water mark that no longer
 reflects what S3 has.
+
+`bytesPerSecond` and `estimatedTimeRemainingMs` — surfaced by `toSpeedString()` and
+`toEtaString()` — are computed from consecutive emissions, exponentially smoothed so the ETA does
+not jump around with normal network jitter. They are deliberately null rather than wrong whenever a
+figure would mislead: before two samples far enough apart exist, while the session is not actively
+uploading (including both pause states), immediately after a retrying part rewinds its byte count,
+and below one byte per second. The state behind them is per-collector, so each observer measures at
+its own pace without disturbing the others.
 
 ### MultipartUploadConfig
 
