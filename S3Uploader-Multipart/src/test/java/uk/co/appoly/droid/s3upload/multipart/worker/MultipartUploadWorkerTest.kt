@@ -19,6 +19,7 @@ import uk.co.appoly.droid.s3upload.interfaces.HeaderProvider
 import uk.co.appoly.droid.s3upload.multipart.MultipartUploadManager
 import uk.co.appoly.droid.s3upload.multipart.config.MultipartUploadConfig
 import uk.co.appoly.droid.s3upload.multipart.database.S3UploaderDatabase
+import uk.co.appoly.droid.s3upload.multipart.database.entity.UploadSessionStatus
 import uk.co.appoly.droid.s3upload.multipart.interfaces.BeforeUploadResult
 import uk.co.appoly.droid.s3upload.multipart.interfaces.UploadLifecycleCallbacks
 import uk.co.appoly.droid.s3upload.multipart.interfaces.UploadNotificationProvider
@@ -26,6 +27,7 @@ import uk.co.appoly.droid.s3upload.multipart.network.model.MultipartApiUrls
 import uk.co.appoly.droid.s3upload.multipart.result.MultipartUploadProgress
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -235,6 +237,15 @@ class MultipartUploadWorkerTest {
 				assertEquals(file.length(), progress.totalBytes)
 				assertTrue("progress out of range: ${progress.overallProgress}", progress.overallProgress in 0f..100f)
 			}
+
+			// The last frame must be the terminal one. Cancelling the progress collector before the
+			// terminal state is handled otherwise leaves a completed upload showing its final
+			// in-progress frame — 100% with a transfer rate and "0s remaining" attached, observed
+			// lingering on device for several seconds.
+			val last = withProgress.last()
+			assertEquals("last render should be the terminal state", UploadSessionStatus.COMPLETED, last.status)
+			assertNull("a finished upload must not still advertise a transfer rate", last.bytesPerSecond)
+			assertNull("a finished upload must not still advertise an ETA", last.estimatedTimeRemainingMs)
 
 			file.delete()
 		} finally {

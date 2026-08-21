@@ -17,6 +17,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
@@ -314,9 +315,9 @@ open class MultipartUploadWorker(
 				)
 			}
 
-			// Stop repainting before the terminal state is handled, so a late emission cannot
-			// paint a mid-upload percentage over a finished upload. Same ordering as the manager's
-			// per-part progress ticker.
+			// Stop repainting before the terminal state is handled, so an emission already in
+			// flight cannot paint a mid-upload percentage over a finished upload. Same ordering as
+			// the manager's per-part progress ticker.
 			progressJob?.cancelAndJoin()
 			progressJob = null
 
@@ -327,6 +328,15 @@ open class MultipartUploadWorker(
 				is MultipartUploadResult.Paused -> result.sessionId
 				is MultipartUploadResult.Cancelled -> result.sessionId
 			}
+
+			// One deliberate repaint from the authoritative final state. Cancelling the collector
+			// above leaves the last painted frame as the final in-progress one — 100% with a
+			// transfer rate and "0s remaining" still attached — which then lingers until
+			// WorkManager tears the foreground down. Observed on device. The rate tracker reports
+			// nothing for a session that is no longer IN_PROGRESS, so re-rendering here produces a
+			// terminal frame with no speed or ETA, while keeping the guard that made the
+			// cancellation necessary in the first place.
+			renderTerminalNotification(manager, resultSessionId)
 
 			// Invoke onUploadComplete lifecycle hook
 			onUploadComplete(resultSessionId, result)
@@ -411,6 +421,28 @@ open class MultipartUploadWorker(
 			// (CancellationException case already handles this before rethrowing)
 			progressJob?.cancel()
 			currentSessionId = null
+		}
+	}
+
+	/**
+	 * Repaints the foreground notification once from the session's final state.
+	 *
+	 * Leaves the notification untouched if no progress can be read — a cancelled or aborted
+	 * session may already have had its row removed, and rendering the provider's null-progress
+	 * "preparing" branch at the end of an upload would be worse than a slightly stale frame.
+	 */
+	private suspend fun renderTerminalNotification(
+		manager: MultipartUploadManager,
+		sessionId: String
+	) {
+		if (isStopped) return
+		try {
+			val finalProgress = manager.observeProgress(sessionId).firstOrNull() ?: return
+			setForeground(createForegroundInfo(sessionId, finalProgress))
+		} catch (e: CancellationException) {
+			throw e
+		} catch (e: Exception) {
+			MultipartUploadLog.w(this, "Could not render the terminal notification for $sessionId", e)
 		}
 	}
 
