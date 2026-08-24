@@ -3,10 +3,9 @@ import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 plugins {
 	id("java-library")
 	alias(libs.plugins.kotlin.jvm)
-	`maven-publish`
+	alias(libs.plugins.vanniktech.publish)
 }
 
-group = "com.github.appoly.AppolyDroid-Toolbox"
 
 java {
 	sourceCompatibility = JavaVersion.VERSION_11
@@ -27,14 +26,9 @@ dependencies {
 	testImplementation(libs.junit)
 	testImplementation(libs.retrofit)
 }
-
-publishing {
-	publications {
-		create<MavenPublication>("release") {
-			from(components["java"])
-			groupId = "com.github.appoly.AppolyDroid-Toolbox"
-			artifactId = project.name
-			version = BuildConfig.TOOLBOX_VERSION
-		}
-	}
+mavenPublishing {
+    pom {
+        name.set("MockInterceptor-Retrofit")
+        description.set("Registers MockInterceptor routes automatically by reflecting over Retrofit annotations.")
+    }
 }

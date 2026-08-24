@@ -5,19 +5,14 @@ plugins {
 	alias(libs.plugins.android.library)
 	alias(libs.plugins.kotlin.compose)
 	alias(libs.plugins.kotlinxSerialization)
-	`maven-publish`
+	alias(libs.plugins.vanniktech.publish)
 }
 
-group = "com.github.appoly.AppolyDroid-Toolbox"
 
 configure<LibraryExtension> {
 	namespace = "uk.co.appoly.droid.nav3"
 	compileSdk {
 		version = release(BuildConfig.Sdk.COMPILE)
-	}
-
-	publishing {
-		singleVariant("release")
 	}
 
 	defaultConfig {
@@ -89,16 +84,9 @@ dependencies {
 	androidTestImplementation(libs.androidx.activity.compose)
 	debugImplementation(libs.androidx.ui.test.manifest)
 }
-
-publishing {
-	publications {
-		create<MavenPublication>("release") {
-			afterEvaluate {
-				from(components["release"])
-			}
-			groupId = "com.github.appoly.AppolyDroid-Toolbox"
-			artifactId = project.name
-			version = BuildConfig.TOOLBOX_VERSION
-		}
-	}
+mavenPublishing {
+    pom {
+        name.set("Nav3Navigation")
+        description.set("Voyager-style screens on androidx Navigation 3, with an ambient navigator and screen host.")
+    }
 }

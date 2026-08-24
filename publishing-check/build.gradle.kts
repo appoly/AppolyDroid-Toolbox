@@ -40,10 +40,10 @@ val toolboxVersion: String = (findProperty("toolboxVersion") as String?)
 	?: error("Could not determine TOOLBOX_VERSION; pass -PtoolboxVersion=x.y.z")
 
 val jvmPublishedModules = listOf(
-	"MockInterceptor",
-	"MockInterceptor-Serialization",
-	"MockInterceptor-AppolyJson",
-	"MockInterceptor-Retrofit",
+	"mockinterceptor",
+	"mockinterceptor-serialization",
+	"mockinterceptor-appolyjson",
+	"mockinterceptor-retrofit",
 )
 
 // A configuration shaped like an Android app's runtime classpath.
@@ -62,7 +62,7 @@ val androidConsumerProbe: Configuration by configurations.creating {
 
 dependencies {
 	jvmPublishedModules.forEach { module ->
-		androidConsumerProbe("com.github.appoly.AppolyDroid-Toolbox:$module:$toolboxVersion")
+		androidConsumerProbe("uk.co.appoly.droid:$module:$toolboxVersion")
 	}
 }
 
@@ -94,7 +94,7 @@ tasks.register("verifyPublishedVariantResolution") {
 		val notes = mutableListOf<String>()
 
 		// --- floors: prove the machinery ran, so the absences below mean something ---
-		val toolbox = resolved.filter { it.group == "com.github.appoly.AppolyDroid-Toolbox" }
+		val toolbox = resolved.filter { it.group == "uk.co.appoly.droid" }
 		if (toolbox.size < jvmPublishedModules.size) {
 			failures += "only ${toolbox.size} of ${jvmPublishedModules.size} probed toolbox modules resolved " +
 				"(${toolbox.map { it.name }.sorted()}) — absence assertions would be vacuous"
@@ -106,7 +106,7 @@ tasks.register("verifyPublishedVariantResolution") {
 		} else {
 			notes += "${resolved.size} components on the probe classpath"
 		}
-		resolved.filter { it.group == "com.github.appoly.AppolyDroid-Toolbox" && it.version != toolboxVersion }
+		resolved.filter { it.group == "uk.co.appoly.droid" && it.version != toolboxVersion }
 			.takeIf { it.isNotEmpty() }
 			?.let { failures += "toolbox modules at unexpected versions: ${it.map { m -> "${m.name}:${m.version}" }.sorted()}" }
 

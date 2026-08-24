@@ -3,20 +3,15 @@ import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
     alias(libs.plugins.android.library)
-    `maven-publish`
+    alias(libs.plugins.vanniktech.publish)
 }
 
-group = "com.github.appoly.AppolyDroid-Toolbox"
 
 configure<LibraryExtension> {
     namespace = "uk.co.appoly.droid.connectivitymonitor"
 	compileSdk {
 		version = release(BuildConfig.Sdk.COMPILE)
 	}
-
-    publishing {
-        singleVariant("release")
-    }
 
     defaultConfig {
         minSdk = BuildConfig.MinSdk.CONNECTIVITY_MONITOR
@@ -57,17 +52,9 @@ dependencies {
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
 }
-
-
-publishing {
-    publications {
-        create<MavenPublication>("release") {
-            afterEvaluate {
-                from(components["release"])
-            }
-            groupId = "com.github.appoly.AppolyDroid-Toolbox"
-            artifactId = project.name
-            version = BuildConfig.TOOLBOX_VERSION
-        }
+mavenPublishing {
+    pom {
+        name.set("ConnectivityMonitor")
+        description.set("Network connectivity state monitoring for Android.")
     }
 }

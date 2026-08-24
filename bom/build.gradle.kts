@@ -1,84 +1,70 @@
 plugins {
 	`java-platform`
-	`maven-publish`
+	alias(libs.plugins.vanniktech.publish)
 }
 
-group = "com.github.appoly.AppolyDroid-Toolbox"
-
-// The version this BOM publishes at, and the version its constraints demand — they must be the
-// same, or the BOM asks for modules that were never published.
+// Constraints pin every toolbox module to a single version, so a consumer importing this platform
+// gets a coherent set without naming versions itself.
 //
-// JitPack builds a branch with `-Pversion=<branch>-SNAPSHOT` and rewrites each artifact's own
-// version to match, but it does NOT rewrite the versions inside this BOM's <dependencyManagement>.
-// Hardcoding TOOLBOX_VERSION here therefore published a snapshot BOM demanding release modules
-// (e.g. a `...-SNAPSHOT` BOM requiring BaseRepo:1.8.2), which made every branch and PR snapshot
-// unresolvable through the BOM — precisely the workflow needed to verify a publishing change.
-//
-// Honour -Pversion when present; fall back to TOOLBOX_VERSION for local and tagged builds.
-val publishedVersion: String =
-	(project.findProperty("version") as? String)
-		?.takeIf { it.isNotBlank() && it != "unspecified" }
-		?: BuildConfig.TOOLBOX_VERSION
+// The version is simply TOOLBOX_VERSION. The previous `-Pversion` juggling existed only because
+// JitPack rewrote each artifact's version to the branch or tag being built while leaving these
+// constraints untouched, which made snapshot BOMs demand release modules. Maven Central publishes
+// what it is given, so the workaround is gone.
 
 javaPlatform {
 	allowDependencies()
 }
 
 dependencies {
-	// Define constraints for all AppolyDroid modules
 	constraints {
 		// Core modules
-		api("com.github.appoly.AppolyDroid-Toolbox:BaseRepo:${publishedVersion}")
-		api("com.github.appoly.AppolyDroid-Toolbox:BaseRepo-S3Uploader:${publishedVersion}")
-		api("com.github.appoly.AppolyDroid-Toolbox:BaseRepo-Paging:${publishedVersion}")
+		api("uk.co.appoly.droid:baserepo:${BuildConfig.TOOLBOX_VERSION}")
+		api("uk.co.appoly.droid:baserepo-s3uploader:${BuildConfig.TOOLBOX_VERSION}")
+		api("uk.co.appoly.droid:baserepo-paging:${BuildConfig.TOOLBOX_VERSION}")
 
 		// Core Appoly specific modules
-		api("com.github.appoly.AppolyDroid-Toolbox:BaseRepo-AppolyJson:${publishedVersion}")
-		api("com.github.appoly.AppolyDroid-Toolbox:BaseRepo-Paging-AppolyJson:${publishedVersion}")
+		api("uk.co.appoly.droid:baserepo-appolyjson:${BuildConfig.TOOLBOX_VERSION}")
+		api("uk.co.appoly.droid:baserepo-paging-appolyjson:${BuildConfig.TOOLBOX_VERSION}")
 
 		// UI State modules
-		api("com.github.appoly.AppolyDroid-Toolbox:UiState:${publishedVersion}")
-		api("com.github.appoly.AppolyDroid-Toolbox:AppSnackBar:${publishedVersion}")
-		api("com.github.appoly.AppolyDroid-Toolbox:AppSnackBar-UiState:${publishedVersion}")
+		api("uk.co.appoly.droid:uistate:${BuildConfig.TOOLBOX_VERSION}")
+		api("uk.co.appoly.droid:appsnackbar:${BuildConfig.TOOLBOX_VERSION}")
+		api("uk.co.appoly.droid:appsnackbar-uistate:${BuildConfig.TOOLBOX_VERSION}")
 
 		// Date/Time modules
-		api("com.github.appoly.AppolyDroid-Toolbox:DateHelperUtil:${publishedVersion}")
-		api("com.github.appoly.AppolyDroid-Toolbox:DateHelperUtil-Room:${publishedVersion}")
-		api("com.github.appoly.AppolyDroid-Toolbox:DateHelperUtil-Serialization:${publishedVersion}")
+		api("uk.co.appoly.droid:datehelperutil:${BuildConfig.TOOLBOX_VERSION}")
+		api("uk.co.appoly.droid:datehelperutil-room:${BuildConfig.TOOLBOX_VERSION}")
+		api("uk.co.appoly.droid:datehelperutil-serialization:${BuildConfig.TOOLBOX_VERSION}")
 
 		// Compose & Pagination modules
-		api("com.github.appoly.AppolyDroid-Toolbox:ComposeExtensions:${publishedVersion}")
-		api("com.github.appoly.AppolyDroid-Toolbox:SegmentedControl:${publishedVersion}")
-		api("com.github.appoly.AppolyDroid-Toolbox:LazyListPagingExtensions:${publishedVersion}")
-		api("com.github.appoly.AppolyDroid-Toolbox:LazyGridPagingExtensions:${publishedVersion}")
-		api("com.github.appoly.AppolyDroid-Toolbox:PagingExtensions:${publishedVersion}")
+		api("uk.co.appoly.droid:composeextensions:${BuildConfig.TOOLBOX_VERSION}")
+		api("uk.co.appoly.droid:segmentedcontrol:${BuildConfig.TOOLBOX_VERSION}")
+		api("uk.co.appoly.droid:lazylistpagingextensions:${BuildConfig.TOOLBOX_VERSION}")
+		api("uk.co.appoly.droid:lazygridpagingextensions:${BuildConfig.TOOLBOX_VERSION}")
+		api("uk.co.appoly.droid:pagingextensions:${BuildConfig.TOOLBOX_VERSION}")
 
 		// S3 & Utility modules
-		api("com.github.appoly.AppolyDroid-Toolbox:S3Uploader:${publishedVersion}")
-		api("com.github.appoly.AppolyDroid-Toolbox:S3Uploader-Multipart:${publishedVersion}")
-		api("com.github.appoly.AppolyDroid-Toolbox:BaseRepo-S3Uploader-Multipart:${publishedVersion}")
+		api("uk.co.appoly.droid:s3uploader:${BuildConfig.TOOLBOX_VERSION}")
+		api("uk.co.appoly.droid:s3uploader-multipart:${BuildConfig.TOOLBOX_VERSION}")
+		api("uk.co.appoly.droid:baserepo-s3uploader-multipart:${BuildConfig.TOOLBOX_VERSION}")
 
 		// Connectivity Monitor
-		api("com.github.appoly.AppolyDroid-Toolbox:ConnectivityMonitor:${publishedVersion}")
+		api("uk.co.appoly.droid:connectivitymonitor:${BuildConfig.TOOLBOX_VERSION}")
 
 		// Navigation modules
-		api("com.github.appoly.AppolyDroid-Toolbox:Nav3Navigation:${publishedVersion}")
+		api("uk.co.appoly.droid:nav3navigation:${BuildConfig.TOOLBOX_VERSION}")
 
 		// Mock Interceptor modules
-		api("com.github.appoly.AppolyDroid-Toolbox:MockInterceptor:${publishedVersion}")
-		api("com.github.appoly.AppolyDroid-Toolbox:MockInterceptor-Serialization:${publishedVersion}")
-		api("com.github.appoly.AppolyDroid-Toolbox:MockInterceptor-AppolyJson:${publishedVersion}")
-		api("com.github.appoly.AppolyDroid-Toolbox:MockInterceptor-Retrofit:${publishedVersion}")
+		api("uk.co.appoly.droid:mockinterceptor:${BuildConfig.TOOLBOX_VERSION}")
+		api("uk.co.appoly.droid:mockinterceptor-serialization:${BuildConfig.TOOLBOX_VERSION}")
+		api("uk.co.appoly.droid:mockinterceptor-appolyjson:${BuildConfig.TOOLBOX_VERSION}")
+		api("uk.co.appoly.droid:mockinterceptor-retrofit:${BuildConfig.TOOLBOX_VERSION}")
 	}
 }
 
-publishing {
-	publications {
-		create<MavenPublication>("bom") {
-			from(components["javaPlatform"])
-			groupId = "com.github.appoly.AppolyDroid-Toolbox"
-			artifactId = "AppolyDroid-Toolbox-bom"
-			version = publishedVersion
-		}
+mavenPublishing {
+	pom {
+		name.set("AppolyDroid Toolbox BOM")
+		description.set("Bill of Materials pinning a coherent set of AppolyDroid Toolbox module versions.")
 	}
 }

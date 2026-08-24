@@ -114,10 +114,24 @@ flow.collect { state ->
 
 ## Publishing
 
-Published to JitPack via `com.github.appoly`. Each module has:
-- Maven publication configuration
-- Sources JAR
-- Consumer ProGuard rules (`consumer-rules.pro`)
+Published to **Maven Central** under `uk.co.appoly.droid`, with lowercase artifact IDs
+(`uk.co.appoly.droid:s3uploader-multipart`). Versions up to 1.8.3 were on JitPack under
+`com.github.appoly.AppolyDroid-Toolbox` with PascalCase names; 1.9.0 is the first Central release.
+
+- `com.vanniktech.maven.publish` handles signing, sources and javadoc. Shared POM metadata and
+  coordinates live in the root `build.gradle.kts`; a module declares only its name and description.
+- Central rejects an incomplete POM — a missing `developers` block is a hard rejection.
+- Credentials come from 1Password (*Appoly Shared → Appoly Maven Central Signing*), never from
+  `~/.gradle/gradle.properties`. Gradle reads them only under the `ORG_GRADLE_PROJECT_` prefix with
+  exact camelCase.
+- `./scripts/publish.sh --local` publishes signed artifacts to `~/.m2`; without `--local` it
+  releases to Central. Pushing a version tag runs the same thing in CI.
+- Releases are **immutable** — a version cannot be re-uploaded. Iterate with local installs or
+  snapshots, not by retagging.
+- `./gradlew -p publishing-check verifyPublishedVariantResolution` resolves the published modules as
+  an Android consumer and fails on platform-variant duplicates. It reads mavenLocal only, so run
+  `publishToMavenLocal` first.
+- Each module also ships consumer ProGuard rules (`consumer-rules.pro`).
 
 ## Knowledge Graph (graphify)
 

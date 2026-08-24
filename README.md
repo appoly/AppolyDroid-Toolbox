@@ -2,7 +2,7 @@
 
 Appoly's Android development toolbox - a collection of utilities and components to accelerate Android app development
 
-[![Release](https://jitpack.io/v/appoly/AppolyDroid-Toolbox.svg)](https://jitpack.io/#appoly/AppolyDroid-Toolbox)
+[![Maven Central](https://img.shields.io/maven-central/v/uk.co.appoly.droid/baserepo)](https://central.sonatype.com/namespace/uk.co.appoly.droid)
 
 ## Overview
 
@@ -25,52 +25,49 @@ Add the JitPack repository to your project build file:
 ```gradle.kts
 dependencyResolutionManagement {
     repositories {
-        ...
-        maven {
-            url = uri("https://jitpack.io")
-        }
+        mavenCentral()
     }
 }
 ```
 
-or in your `settings.gradle` with:
+The toolbox is published to Maven Central, so no custom repository is required — if `mavenCentral()`
+is already in your repositories list, there is nothing to add.
 
-```gradle
-allprojects {
-    repositories {
-        ...
-        maven { url "https://jitpack.io" }
-    }
-}
+> **Migrating from 1.8.3 or earlier?** Those versions were published on JitPack under
+> `com.github.appoly.AppolyDroid-Toolbox` with PascalCase artifact names. From 1.9.0 the coordinates
+> are `uk.co.appoly.droid` with lowercase names — for example
+> `com.github.appoly.AppolyDroid-Toolbox:BaseRepo` becomes `uk.co.appoly.droid:baserepo`, and
+> `AppolyDroid-Toolbox-bom` becomes `bom`. The `jitpack.io` repository entry can be removed unless
+> something else needs it.
+
+### Testing an unreleased change
+
+Maven Central publishes only what is released, so there is no equivalent of JitPack's
+build-any-branch behaviour. Two options replace it.
+
+**Install locally.** From a checkout of the branch you want to test:
+
+```bash
+./scripts/publish.sh --local
 ```
 
-### Testing an unreleased branch
+That publishes every module to `~/.m2` — signed, and needing no upload credentials, only access to
+the shared 1Password vault. Add `mavenLocal()` to the consuming project's repositories, ahead of
+`mavenCentral()`.
 
-JitPack can build any branch, which is useful for trying a fix before it is tagged. Two things
-catch people out:
+> Take `mavenLocal()` out again before committing, and before drawing any conclusion about a
+> released version. A locally published build carries the same version string as the real one, so
+> leaving it in means resolving your own artifacts while believing you are testing the release.
 
-**Use `<branch>-SNAPSHOT`, not the build id JitPack reports.** JitPack shows a build id like
-`bugfix~My-Fix-24f40efabe-1`, but the POM it serves declares its own version as
-`bugfix~My-Fix-SNAPSHOT`. Requesting the build id fails with a confusing error, because the build
-genuinely succeeded and the artifacts genuinely exist:
-
-```
-inconsistent module metadata found. Descriptor: ...:BaseRepo:bugfix~My-Fix-SNAPSHOT
-Errors: bad version: expected='bugfix~My-Fix-24f40efabe-1' found='bugfix~My-Fix-SNAPSHOT'
-```
-
-Slashes in the branch name become `~`:
+**Publish a snapshot.** Snapshot versions go to Central's snapshot repository rather than the main
+one, and need it adding explicitly:
 
 ```kotlin
-implementation("com.github.appoly.AppolyDroid-Toolbox:BaseRepo:bugfix~My-Fix-SNAPSHOT")
+maven { url = uri("https://central.sonatype.com/repository/maven-snapshots/") }
 ```
 
-**Pass `--refresh-dependencies`.** `-SNAPSHOT` is a changing module, so Gradle caches it for 24
-hours by default — without it you can silently keep testing a stale copy. Alternatively:
-
-```kotlin
-configurations.all { resolutionStrategy.cacheChangingModulesFor(0, "seconds") }
-```
+Snapshots are changing modules, so pass `--refresh-dependencies` or Gradle will cache one for 24
+hours and you may silently keep testing a stale copy.
 
 ### Using the BOM (Bill of Materials)
 
@@ -82,36 +79,36 @@ In your `libs.versions.toml` file:
 
 ```toml
 [versions]
-appolydroidToolbox = "1.8.3" # Replace with the latest version
+appolydroidToolbox = "1.9.0" # Replace with the latest version
 
 [libraries]
-appolydroid-toolbox-bom = { group = "com.github.appoly.AppolyDroid-Toolbox", name = "AppolyDroid-Toolbox-bom", version.ref = "appolydroidToolbox" }
+appolydroid-toolbox-bom = { group = "uk.co.appoly.droid", name = "bom", version.ref = "appolydroidToolbox" }
 # AppolyDroid modules (versions managed by BOM)
-appolydroid-toolbox-baseRepo = { group = "com.github.appoly.AppolyDroid-Toolbox", name = "BaseRepo" }
-appolydroid-toolbox-baseRepo-appolyJson = { group = "com.github.appoly.AppolyDroid-Toolbox", name = "BaseRepo-AppolyJson" }
-appolydroid-toolbox-baseRepo-s3 = { group = "com.github.appoly.AppolyDroid-Toolbox", name = "BaseRepo-S3Uploader" }
-appolydroid-toolbox-baseRepo-s3-multipart = { group = "com.github.appoly.AppolyDroid-Toolbox", name = "BaseRepo-S3Uploader-Multipart" }
-appolydroid-toolbox-baseRepo-paging = { group = "com.github.appoly.AppolyDroid-Toolbox", name = "BaseRepo-Paging" }
-appolydroid-toolbox-baseRepo-paging-AppolyJson = { group = "com.github.appoly.AppolyDroid-Toolbox", name = "BaseRepo-Paging-AppolyJson" }
-appolydroid-toolbox-uiState = { group = "com.github.appoly.AppolyDroid-Toolbox", name = "UiState" }
-appolydroid-toolbox-appSnackBar = { group = "com.github.appoly.AppolyDroid-Toolbox", name = "AppSnackBar" }
-appolydroid-toolbox-appSnackBar-uiState = { group = "com.github.appoly.AppolyDroid-Toolbox", name = "AppSnackBar-UiState" }
-appolydroid-toolbox-dateHelper = { group = "com.github.appoly.AppolyDroid-Toolbox", name = "DateHelperUtil" }
-appolydroid-toolbox-dateHelper-room = { group = "com.github.appoly.AppolyDroid-Toolbox", name = "DateHelperUtil-Room" }
-appolydroid-toolbox-dateHelper-serialization = { group = "com.github.appoly.AppolyDroid-Toolbox", name = "DateHelperUtil-Serialization" }
-appolydroid-toolbox-compose-extensions = { group = "com.github.appoly.AppolyDroid-Toolbox", name = "ComposeExtensions" }
-appolydroid-toolbox-segmentedControl = { group = "com.github.appoly.AppolyDroid-Toolbox", name = "SegmentedControl" }
-appolydroid-toolbox-lazyListPagingExtensions = { group = "com.github.appoly.AppolyDroid-Toolbox", name = "LazyListPagingExtensions" }
-appolydroid-toolbox-lazyGridPagingExtensions = { group = "com.github.appoly.AppolyDroid-Toolbox", name = "LazyGridPagingExtensions" }
-appolydroid-toolbox-pagingExtensions = { group = "com.github.appoly.AppolyDroid-Toolbox", name = "PagingExtensions" }
-appolydroid-toolbox-s3Uploader = { group = "com.github.appoly.AppolyDroid-Toolbox", name = "S3Uploader" }
-appolydroid-toolbox-s3Uploader-multipart = { group = "com.github.appoly.AppolyDroid-Toolbox", name = "S3Uploader-Multipart" }
-appolydroid-toolbox-connectivityMonitor = { group = "com.github.appoly.AppolyDroid-Toolbox", name = "ConnectivityMonitor" }
-appolydroid-toolbox-nav3Navigation = { group = "com.github.appoly.AppolyDroid-Toolbox", name = "Nav3Navigation" }
-appolydroid-toolbox-mockInterceptor = { group = "com.github.appoly.AppolyDroid-Toolbox", name = "MockInterceptor" }
-appolydroid-toolbox-mockInterceptor-serialization = { group = "com.github.appoly.AppolyDroid-Toolbox", name = "MockInterceptor-Serialization" }
-appolydroid-toolbox-mockInterceptor-appolyjson = { group = "com.github.appoly.AppolyDroid-Toolbox", name = "MockInterceptor-AppolyJson" }
-appolydroid-toolbox-mockInterceptor-retrofit = { group = "com.github.appoly.AppolyDroid-Toolbox", name = "MockInterceptor-Retrofit" }
+appolydroid-toolbox-baseRepo = { group = "uk.co.appoly.droid", name = "baserepo" }
+appolydroid-toolbox-baseRepo-appolyJson = { group = "uk.co.appoly.droid", name = "baserepo-appolyjson" }
+appolydroid-toolbox-baseRepo-s3 = { group = "uk.co.appoly.droid", name = "baserepo-s3uploader" }
+appolydroid-toolbox-baseRepo-s3-multipart = { group = "uk.co.appoly.droid", name = "baserepo-s3uploader-multipart" }
+appolydroid-toolbox-baseRepo-paging = { group = "uk.co.appoly.droid", name = "baserepo-paging" }
+appolydroid-toolbox-baseRepo-paging-AppolyJson = { group = "uk.co.appoly.droid", name = "baserepo-paging-appolyjson" }
+appolydroid-toolbox-uiState = { group = "uk.co.appoly.droid", name = "uistate" }
+appolydroid-toolbox-appSnackBar = { group = "uk.co.appoly.droid", name = "appsnackbar" }
+appolydroid-toolbox-appSnackBar-uiState = { group = "uk.co.appoly.droid", name = "appsnackbar-uistate" }
+appolydroid-toolbox-dateHelper = { group = "uk.co.appoly.droid", name = "datehelperutil" }
+appolydroid-toolbox-dateHelper-room = { group = "uk.co.appoly.droid", name = "datehelperutil-room" }
+appolydroid-toolbox-dateHelper-serialization = { group = "uk.co.appoly.droid", name = "datehelperutil-serialization" }
+appolydroid-toolbox-compose-extensions = { group = "uk.co.appoly.droid", name = "composeextensions" }
+appolydroid-toolbox-segmentedControl = { group = "uk.co.appoly.droid", name = "segmentedcontrol" }
+appolydroid-toolbox-lazyListPagingExtensions = { group = "uk.co.appoly.droid", name = "lazylistpagingextensions" }
+appolydroid-toolbox-lazyGridPagingExtensions = { group = "uk.co.appoly.droid", name = "lazygridpagingextensions" }
+appolydroid-toolbox-pagingExtensions = { group = "uk.co.appoly.droid", name = "pagingextensions" }
+appolydroid-toolbox-s3Uploader = { group = "uk.co.appoly.droid", name = "s3uploader" }
+appolydroid-toolbox-s3Uploader-multipart = { group = "uk.co.appoly.droid", name = "s3uploader-multipart" }
+appolydroid-toolbox-connectivityMonitor = { group = "uk.co.appoly.droid", name = "connectivitymonitor" }
+appolydroid-toolbox-nav3Navigation = { group = "uk.co.appoly.droid", name = "nav3navigation" }
+appolydroid-toolbox-mockInterceptor = { group = "uk.co.appoly.droid", name = "mockinterceptor" }
+appolydroid-toolbox-mockInterceptor-serialization = { group = "uk.co.appoly.droid", name = "mockinterceptor-serialization" }
+appolydroid-toolbox-mockInterceptor-appolyjson = { group = "uk.co.appoly.droid", name = "mockinterceptor-appolyjson" }
+appolydroid-toolbox-mockInterceptor-retrofit = { group = "uk.co.appoly.droid", name = "mockinterceptor-retrofit" }
 ```
 
 Then in your module's `build.gradle.kts`:
@@ -157,34 +154,34 @@ In your module's `build.gradle.kts`:
 ```gradle.kts
 dependencies {
     // Import the BOM
-    implementation(platform("com.github.appoly.AppolyDroid-Toolbox:AppolyDroid-Toolbox-bom:1.8.3"))
+    implementation(platform("uk.co.appoly.droid:bom:1.9.0"))
 
     // Now you can use AppolyDroid modules without specifying versions
-    implementation("com.github.appoly.AppolyDroid-Toolbox:BaseRepo")
-    implementation("com.github.appoly.AppolyDroid-Toolbox:BaseRepo-AppolyJson")
-    implementation("com.github.appoly.AppolyDroid-Toolbox:BaseRepo-S3Uploader")
-    implementation("com.github.appoly.AppolyDroid-Toolbox:BaseRepo-S3Uploader-Multipart")
-    implementation("com.github.appoly.AppolyDroid-Toolbox:BaseRepo-Paging")
-    implementation("com.github.appoly.AppolyDroid-Toolbox:BaseRepo-Paging-AppolyJson")
-    implementation("com.github.appoly.AppolyDroid-Toolbox:UiState")
-    implementation("com.github.appoly.AppolyDroid-Toolbox:AppSnackBar")
-    implementation("com.github.appoly.AppolyDroid-Toolbox:AppSnackBar-UiState")
-    implementation("com.github.appoly.AppolyDroid-Toolbox:DateHelperUtil")
-    implementation("com.github.appoly.AppolyDroid-Toolbox:DateHelperUtil-Room")
-    implementation("com.github.appoly.AppolyDroid-Toolbox:DateHelperUtil-Serialization")
-    implementation("com.github.appoly.AppolyDroid-Toolbox:ComposeExtensions")
-    implementation("com.github.appoly.AppolyDroid-Toolbox:SegmentedControl")
-    implementation("com.github.appoly.AppolyDroid-Toolbox:LazyListPagingExtensions")
-    implementation("com.github.appoly.AppolyDroid-Toolbox:LazyGridPagingExtensions")
-    implementation("com.github.appoly.AppolyDroid-Toolbox:PagingExtensions")
-    implementation("com.github.appoly.AppolyDroid-Toolbox:S3Uploader")
-    implementation("com.github.appoly.AppolyDroid-Toolbox:S3Uploader-Multipart")
-    implementation("com.github.appoly.AppolyDroid-Toolbox:ConnectivityMonitor")
-    implementation("com.github.appoly.AppolyDroid-Toolbox:Nav3Navigation")
-    implementation("com.github.appoly.AppolyDroid-Toolbox:MockInterceptor")
-    implementation("com.github.appoly.AppolyDroid-Toolbox:MockInterceptor-Serialization")
-    implementation("com.github.appoly.AppolyDroid-Toolbox:MockInterceptor-AppolyJson")
-    implementation("com.github.appoly.AppolyDroid-Toolbox:MockInterceptor-Retrofit")
+    implementation("uk.co.appoly.droid:baserepo")
+    implementation("uk.co.appoly.droid:baserepo-appolyjson")
+    implementation("uk.co.appoly.droid:baserepo-s3uploader")
+    implementation("uk.co.appoly.droid:baserepo-s3uploader-multipart")
+    implementation("uk.co.appoly.droid:baserepo-paging")
+    implementation("uk.co.appoly.droid:baserepo-paging-appolyjson")
+    implementation("uk.co.appoly.droid:uistate")
+    implementation("uk.co.appoly.droid:appsnackbar")
+    implementation("uk.co.appoly.droid:appsnackbar-uistate")
+    implementation("uk.co.appoly.droid:datehelperutil")
+    implementation("uk.co.appoly.droid:datehelperutil-room")
+    implementation("uk.co.appoly.droid:datehelperutil-serialization")
+    implementation("uk.co.appoly.droid:composeextensions")
+    implementation("uk.co.appoly.droid:segmentedcontrol")
+    implementation("uk.co.appoly.droid:lazylistpagingextensions")
+    implementation("uk.co.appoly.droid:lazygridpagingextensions")
+    implementation("uk.co.appoly.droid:pagingextensions")
+    implementation("uk.co.appoly.droid:s3uploader")
+    implementation("uk.co.appoly.droid:s3uploader-multipart")
+    implementation("uk.co.appoly.droid:connectivitymonitor")
+    implementation("uk.co.appoly.droid:nav3navigation")
+    implementation("uk.co.appoly.droid:mockinterceptor")
+    implementation("uk.co.appoly.droid:mockinterceptor-serialization")
+    implementation("uk.co.appoly.droid:mockinterceptor-appolyjson")
+    implementation("uk.co.appoly.droid:mockinterceptor-retrofit")
 }
 ```
 
@@ -194,34 +191,34 @@ In your `libs.versions.toml` file:
 
 ```toml
 [versions]
-appolydroidToolbox = "1.8.3" # Replace with the latest version
+appolydroidToolbox = "1.9.0" # Replace with the latest version
 
 [libraries]
 #AppolyDroid-Toolbox
-appolydroid-toolbox-baseRepo = { group = "com.github.appoly.AppolyDroid-Toolbox", name = "BaseRepo", version.ref = "appolydroidToolbox" }
-appolydroid-toolbox-baseRepo-appolyJson = { group = "com.github.appoly.AppolyDroid-Toolbox", name = "BaseRepo-AppolyJson", version.ref = "appolydroidToolbox" }
-appolydroid-toolbox-baseRepo-s3 = { group = "com.github.appoly.AppolyDroid-Toolbox", name = "BaseRepo-S3Uploader", version.ref = "appolydroidToolbox" }
-appolydroid-toolbox-baseRepo-s3-multipart = { group = "com.github.appoly.AppolyDroid-Toolbox", name = "BaseRepo-S3Uploader-Multipart", version.ref = "appolydroidToolbox" }
-appolydroid-toolbox-baseRepo-paging = { group = "com.github.appoly.AppolyDroid-Toolbox", name = "BaseRepo-Paging", version.ref = "appolydroidToolbox" }
-appolydroid-toolbox-baseRepo-paging-AppolyJson = { group = "com.github.appoly.AppolyDroid-Toolbox", name = "BaseRepo-Paging-AppolyJson", version.ref = "appolydroidToolbox" }
-appolydroid-toolbox-uiState = { group = "com.github.appoly.AppolyDroid-Toolbox", name = "UiState", version.ref = "appolydroidToolbox" }
-appolydroid-toolbox-appSnackBar = { group = "com.github.appoly.AppolyDroid-Toolbox", name = "AppSnackBar", version.ref = "appolydroidToolbox" }
-appolydroid-toolbox-appSnackBar-uiState = { group = "com.github.appoly.AppolyDroid-Toolbox", name = "AppSnackBar-UiState", version.ref = "appolydroidToolbox" }
-appolydroid-toolbox-dateHelper = { group = "com.github.appoly.AppolyDroid-Toolbox", name = "DateHelperUtil", version.ref = "appolydroidToolbox" }
-appolydroid-toolbox-dateHelper-room = { group = "com.github.appoly.AppolyDroid-Toolbox", name = "DateHelperUtil-Room", version.ref = "appolydroidToolbox" }
-appolydroid-toolbox-dateHelper-serialization = { group = "com.github.appoly.AppolyDroid-Toolbox", name = "DateHelperUtil-Serialization", version.ref = "appolydroidToolbox" }
-appolydroid-toolbox-compose-extensions = { group = "com.github.appoly.AppolyDroid-Toolbox", name = "ComposeExtensions", version.ref = "appolydroidToolbox" }
-appolydroid-toolbox-segmentedControl = { group = "com.github.appoly.AppolyDroid-Toolbox", name = "SegmentedControl", version.ref = "appolydroidToolbox" }
-appolydroid-toolbox-lazyListPagingExtensions = { group = "com.github.appoly.AppolyDroid-Toolbox", name = "LazyListPagingExtensions", version.ref = "appolydroidToolbox" }
-appolydroid-toolbox-lazyGridPagingExtensions = { group = "com.github.appoly.AppolyDroid-Toolbox", name = "LazyGridPagingExtensions", version.ref = "appolydroidToolbox" }
-appolydroid-toolbox-s3Uploader = { group = "com.github.appoly.AppolyDroid-Toolbox", name = "S3Uploader", version.ref = "appolydroidToolbox" }
-appolydroid-toolbox-s3Uploader-multipart = { group = "com.github.appoly.AppolyDroid-Toolbox", name = "S3Uploader-Multipart", version.ref = "appolydroidToolbox" }
-appolydroid-toolbox-connectivityMonitor = { group = "com.github.appoly.AppolyDroid-Toolbox", name = "ConnectivityMonitor", version.ref = "appolydroidToolbox" }
-appolydroid-toolbox-nav3Navigation = { group = "com.github.appoly.AppolyDroid-Toolbox", name = "Nav3Navigation", version.ref = "appolydroidToolbox" }
-appolydroid-toolbox-mockInterceptor = { group = "com.github.appoly.AppolyDroid-Toolbox", name = "MockInterceptor", version.ref = "appolydroidToolbox" }
-appolydroid-toolbox-mockInterceptor-serialization = { group = "com.github.appoly.AppolyDroid-Toolbox", name = "MockInterceptor-Serialization", version.ref = "appolydroidToolbox" }
-appolydroid-toolbox-mockInterceptor-appolyjson = { group = "com.github.appoly.AppolyDroid-Toolbox", name = "MockInterceptor-AppolyJson", version.ref = "appolydroidToolbox" }
-appolydroid-toolbox-mockInterceptor-retrofit = { group = "com.github.appoly.AppolyDroid-Toolbox", name = "MockInterceptor-Retrofit", version.ref = "appolydroidToolbox" }
+appolydroid-toolbox-baseRepo = { group = "uk.co.appoly.droid", name = "baserepo", version.ref = "appolydroidToolbox" }
+appolydroid-toolbox-baseRepo-appolyJson = { group = "uk.co.appoly.droid", name = "baserepo-appolyjson", version.ref = "appolydroidToolbox" }
+appolydroid-toolbox-baseRepo-s3 = { group = "uk.co.appoly.droid", name = "baserepo-s3uploader", version.ref = "appolydroidToolbox" }
+appolydroid-toolbox-baseRepo-s3-multipart = { group = "uk.co.appoly.droid", name = "baserepo-s3uploader-multipart", version.ref = "appolydroidToolbox" }
+appolydroid-toolbox-baseRepo-paging = { group = "uk.co.appoly.droid", name = "baserepo-paging", version.ref = "appolydroidToolbox" }
+appolydroid-toolbox-baseRepo-paging-AppolyJson = { group = "uk.co.appoly.droid", name = "baserepo-paging-appolyjson", version.ref = "appolydroidToolbox" }
+appolydroid-toolbox-uiState = { group = "uk.co.appoly.droid", name = "uistate", version.ref = "appolydroidToolbox" }
+appolydroid-toolbox-appSnackBar = { group = "uk.co.appoly.droid", name = "appsnackbar", version.ref = "appolydroidToolbox" }
+appolydroid-toolbox-appSnackBar-uiState = { group = "uk.co.appoly.droid", name = "appsnackbar-uistate", version.ref = "appolydroidToolbox" }
+appolydroid-toolbox-dateHelper = { group = "uk.co.appoly.droid", name = "datehelperutil", version.ref = "appolydroidToolbox" }
+appolydroid-toolbox-dateHelper-room = { group = "uk.co.appoly.droid", name = "datehelperutil-room", version.ref = "appolydroidToolbox" }
+appolydroid-toolbox-dateHelper-serialization = { group = "uk.co.appoly.droid", name = "datehelperutil-serialization", version.ref = "appolydroidToolbox" }
+appolydroid-toolbox-compose-extensions = { group = "uk.co.appoly.droid", name = "composeextensions", version.ref = "appolydroidToolbox" }
+appolydroid-toolbox-segmentedControl = { group = "uk.co.appoly.droid", name = "segmentedcontrol", version.ref = "appolydroidToolbox" }
+appolydroid-toolbox-lazyListPagingExtensions = { group = "uk.co.appoly.droid", name = "lazylistpagingextensions", version.ref = "appolydroidToolbox" }
+appolydroid-toolbox-lazyGridPagingExtensions = { group = "uk.co.appoly.droid", name = "lazygridpagingextensions", version.ref = "appolydroidToolbox" }
+appolydroid-toolbox-s3Uploader = { group = "uk.co.appoly.droid", name = "s3uploader", version.ref = "appolydroidToolbox" }
+appolydroid-toolbox-s3Uploader-multipart = { group = "uk.co.appoly.droid", name = "s3uploader-multipart", version.ref = "appolydroidToolbox" }
+appolydroid-toolbox-connectivityMonitor = { group = "uk.co.appoly.droid", name = "connectivitymonitor", version.ref = "appolydroidToolbox" }
+appolydroid-toolbox-nav3Navigation = { group = "uk.co.appoly.droid", name = "nav3navigation", version.ref = "appolydroidToolbox" }
+appolydroid-toolbox-mockInterceptor = { group = "uk.co.appoly.droid", name = "mockinterceptor", version.ref = "appolydroidToolbox" }
+appolydroid-toolbox-mockInterceptor-serialization = { group = "uk.co.appoly.droid", name = "mockinterceptor-serialization", version.ref = "appolydroidToolbox" }
+appolydroid-toolbox-mockInterceptor-appolyjson = { group = "uk.co.appoly.droid", name = "mockinterceptor-appolyjson", version.ref = "appolydroidToolbox" }
+appolydroid-toolbox-mockInterceptor-retrofit = { group = "uk.co.appoly.droid", name = "mockinterceptor-retrofit", version.ref = "appolydroidToolbox" }
 ```
 
 Then in your module's `build.gradle.kts`:
@@ -262,32 +259,32 @@ In your module's `build.gradle.kts`:
 
 ```gradle.kts
 dependencies {
-    val appolydroidToolbox = "1.8.3" // Replace with the latest version
+    val appolydroidToolbox = "1.9.0" // Replace with the latest version
     // Add only the modules you need
-    implementation("com.github.appoly.AppolyDroid-Toolbox:BaseRepo:$appolydroidToolbox")
-    implementation("com.github.appoly.AppolyDroid-Toolbox:BaseRepo-AppolyJson:$appolydroidToolbox")
-    implementation("com.github.appoly.AppolyDroid-Toolbox:BaseRepo-S3Uploader:$appolydroidToolbox")
-    implementation("com.github.appoly.AppolyDroid-Toolbox:BaseRepo-S3Uploader-Multipart:$appolydroidToolbox")
-    implementation("com.github.appoly.AppolyDroid-Toolbox:BaseRepo-Paging:$appolydroidToolbox")
-    implementation("com.github.appoly.AppolyDroid-Toolbox:BaseRepo-Paging-AppolyJson:$appolydroidToolbox")
-    implementation("com.github.appoly.AppolyDroid-Toolbox:UiState:$appolydroidToolbox")
-    implementation("com.github.appoly.AppolyDroid-Toolbox:AppSnackBar:$appolydroidToolbox")
-    implementation("com.github.appoly.AppolyDroid-Toolbox:AppSnackBar-UiState:$appolydroidToolbox")
-    implementation("com.github.appoly.AppolyDroid-Toolbox:DateHelperUtil:$appolydroidToolbox")
-    implementation("com.github.appoly.AppolyDroid-Toolbox:DateHelperUtil-Room:$appolydroidToolbox")
-    implementation("com.github.appoly.AppolyDroid-Toolbox:DateHelperUtil-Serialization:$appolydroidToolbox")
-    implementation("com.github.appoly.AppolyDroid-Toolbox:ComposeExtensions:$appolydroidToolbox")
-    implementation("com.github.appoly.AppolyDroid-Toolbox:SegmentedControl:$appolydroidToolbox")
-    implementation("com.github.appoly.AppolyDroid-Toolbox:LazyListPagingExtensions:$appolydroidToolbox")
-    implementation("com.github.appoly.AppolyDroid-Toolbox:LazyGridPagingExtensions:$appolydroidToolbox")
-    implementation("com.github.appoly.AppolyDroid-Toolbox:S3Uploader:$appolydroidToolbox")
-    implementation("com.github.appoly.AppolyDroid-Toolbox:S3Uploader-Multipart:$appolydroidToolbox")
-    implementation("com.github.appoly.AppolyDroid-Toolbox:ConnectivityMonitor:$appolydroidToolbox")
-    implementation("com.github.appoly.AppolyDroid-Toolbox:Nav3Navigation:$appolydroidToolbox")
-    implementation("com.github.appoly.AppolyDroid-Toolbox:MockInterceptor:$appolydroidToolbox")
-    implementation("com.github.appoly.AppolyDroid-Toolbox:MockInterceptor-Serialization:$appolydroidToolbox")
-    implementation("com.github.appoly.AppolyDroid-Toolbox:MockInterceptor-AppolyJson:$appolydroidToolbox")
-    implementation("com.github.appoly.AppolyDroid-Toolbox:MockInterceptor-Retrofit:$appolydroidToolbox")
+    implementation("uk.co.appoly.droid:baserepo:$appolydroidToolbox")
+    implementation("uk.co.appoly.droid:baserepo-appolyjson:$appolydroidToolbox")
+    implementation("uk.co.appoly.droid:baserepo-s3uploader:$appolydroidToolbox")
+    implementation("uk.co.appoly.droid:baserepo-s3uploader-multipart:$appolydroidToolbox")
+    implementation("uk.co.appoly.droid:baserepo-paging:$appolydroidToolbox")
+    implementation("uk.co.appoly.droid:baserepo-paging-appolyjson:$appolydroidToolbox")
+    implementation("uk.co.appoly.droid:uistate:$appolydroidToolbox")
+    implementation("uk.co.appoly.droid:appsnackbar:$appolydroidToolbox")
+    implementation("uk.co.appoly.droid:appsnackbar-uistate:$appolydroidToolbox")
+    implementation("uk.co.appoly.droid:datehelperutil:$appolydroidToolbox")
+    implementation("uk.co.appoly.droid:datehelperutil-room:$appolydroidToolbox")
+    implementation("uk.co.appoly.droid:datehelperutil-serialization:$appolydroidToolbox")
+    implementation("uk.co.appoly.droid:composeextensions:$appolydroidToolbox")
+    implementation("uk.co.appoly.droid:segmentedcontrol:$appolydroidToolbox")
+    implementation("uk.co.appoly.droid:lazylistpagingextensions:$appolydroidToolbox")
+    implementation("uk.co.appoly.droid:lazygridpagingextensions:$appolydroidToolbox")
+    implementation("uk.co.appoly.droid:s3uploader:$appolydroidToolbox")
+    implementation("uk.co.appoly.droid:s3uploader-multipart:$appolydroidToolbox")
+    implementation("uk.co.appoly.droid:connectivitymonitor:$appolydroidToolbox")
+    implementation("uk.co.appoly.droid:nav3navigation:$appolydroidToolbox")
+    implementation("uk.co.appoly.droid:mockinterceptor:$appolydroidToolbox")
+    implementation("uk.co.appoly.droid:mockinterceptor-serialization:$appolydroidToolbox")
+    implementation("uk.co.appoly.droid:mockinterceptor-appolyjson:$appolydroidToolbox")
+    implementation("uk.co.appoly.droid:mockinterceptor-retrofit:$appolydroidToolbox")
 }
 ```
 

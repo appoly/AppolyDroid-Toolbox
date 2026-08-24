@@ -13,7 +13,7 @@ A customizable Jetpack Compose Snackbar implementation with support for differen
 ## Installation
 
 ```gradle.kts
-implementation("com.github.appoly.AppolyDroid-Toolbox:AppSnackBar:1.8.3")
+implementation("uk.co.appoly.droid:appsnackbar:1.9.0")
 ```
 
 ## Usage
