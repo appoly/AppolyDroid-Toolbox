@@ -37,36 +37,12 @@ dependencyResolutionManagement {
 > `com.github.appoly.AppolyDroid-Toolbox:BaseRepo` becomes `uk.co.appoly.droid:baserepo`, and
 > `AppolyDroid-Toolbox-bom` becomes `bom`. Keep your `jitpack.io` entry unless you have checked
 > that nothing else needs it — the toolbox no longer does, but other dependencies may, and a group
-> like `com.github.projectdelta6` looks deceptively like the toolbox's old coordinates.
+> like `com.github.projectdelta6` looks deceptively like the toolbox's old coordinates. The
+> [1.9.0 release notes](https://github.com/appoly/AppolyDroid-Toolbox/releases/tag/1.9.0) cover the
+> full move, including a transitive FlexiLogger bump that arrives with it.
 
-### Testing an unreleased change
-
-Maven Central publishes only what is released, so there is no equivalent of JitPack's
-build-any-branch behaviour. Two options replace it.
-
-**Install locally.** From a checkout of the branch you want to test:
-
-```bash
-./scripts/publish.sh --local
-```
-
-That publishes every module to `~/.m2` — signed, and needing no upload credentials, only access to
-the shared 1Password vault. Add `mavenLocal()` to the consuming project's repositories, ahead of
-`mavenCentral()`.
-
-> Take `mavenLocal()` out again before committing, and before drawing any conclusion about a
-> released version. A locally published build carries the same version string as the real one, so
-> leaving it in means resolving your own artifacts while believing you are testing the release.
-
-**Publish a snapshot.** Snapshot versions go to Central's snapshot repository rather than the main
-one, and need it adding explicitly:
-
-```kotlin
-maven { url = uri("https://central.sonatype.com/repository/maven-snapshots/") }
-```
-
-Snapshots are changing modules, so pass `--refresh-dependencies` or Gradle will cache one for 24
-hours and you may silently keep testing a stale copy.
+Need to test a change before it is released, or release the toolbox yourself? See
+[CONTRIBUTING.md](CONTRIBUTING.md).
 
 ### Using the BOM (Bill of Materials)
 

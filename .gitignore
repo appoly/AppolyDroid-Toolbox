@@ -28,3 +28,6 @@ local.properties
 graphify-out/*
 !graphify-out/memory/
 !graphify-out/GRAPH_REPORT.md
+
+# Fork-specific publishing settings (see CONTRIBUTING.md)
+scripts/publish.conf

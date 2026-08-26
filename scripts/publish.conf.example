@@ -1,0 +1,32 @@
+# Local publishing settings for scripts/publish.sh.
+#
+# Copy to `scripts/publish.conf` and edit. That filename is git-ignored: this repository is
+# public, so deployment-specific details — which 1Password account and vault item hold the
+# signing key — deliberately do not live in version control.
+#
+#   cp scripts/publish.conf.example scripts/publish.conf
+#
+# None of this is required if you supply credentials through the environment instead. Export
+# the five ORG_GRADLE_PROJECT_* variables (see CONTRIBUTING.md) and publish.sh never touches
+# 1Password at all — that is the simplest path for a fork or for CI.
+
+# --- 1Password (optional) ---------------------------------------------------
+# The item holding the signing key and Central portal token. Its fields must be named
+# exactly: private-key, key-id, passphrase, portal-username, portal-token.
+#
+# Hyphens, no spaces: a field label containing a space or parenthesis cannot be read through
+# an op:// reference at all.
+#
+# PUBLISH_VAULT_ITEM="op://<vault>/<item>"
+
+# Needed where more than one 1Password account is registered on the machine; omitting it then
+# fails with a misleading "no account found for filter".
+#
+# OP_ACCOUNT="<your-account>.1password.com"
+
+# --- Coordinates (optional) -------------------------------------------------
+# Defaults suit this repository. A fork publishing under its own group sets these, and should
+# also update the POM metadata and coordinates(...) in the root build.gradle.kts.
+#
+# PUBLISH_GROUP="uk.co.appoly.droid"
+# PUBLISH_RELEASE_BRANCH="main"
