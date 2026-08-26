@@ -103,7 +103,7 @@ flow.collect { state ->
 
 ## Tech Stack
 
-- Kotlin 2.4.10, AGP 9.3.1, Gradle 9.7.0
+- Kotlin 2.4.10, AGP 9.3.2, Gradle 9.7.1
 - Target/Compile SDK 37, Java 11
 - Jetpack Compose BOM 2026.08.00
 - OkHttp 5.5.0, Retrofit 3.0.0
@@ -114,10 +114,34 @@ flow.collect { state ->
 
 ## Publishing
 
-Published to JitPack via `com.github.appoly`. Each module has:
-- Maven publication configuration
-- Sources JAR
-- Consumer ProGuard rules (`consumer-rules.pro`)
+Published to **Maven Central** under `uk.co.appoly.droid`, with lowercase artifact IDs
+(`uk.co.appoly.droid:s3uploader-multipart`). Versions up to 1.8.3 were on JitPack under
+`com.github.appoly.AppolyDroid-Toolbox` with PascalCase names; 1.9.0 is the first Central release.
+
+- `com.vanniktech.maven.publish` handles signing, sources and javadoc. Shared POM metadata and
+  coordinates live in the root `build.gradle.kts`; a module declares only its name and description.
+- Central rejects an incomplete POM — a missing `developers` block is a hard rejection.
+- Credentials come from 1Password (*Appoly Shared → Appoly Maven Central Signing*), never from
+  `~/.gradle/gradle.properties`. Gradle reads them only under the `ORG_GRADLE_PROJECT_` prefix with
+  exact camelCase.
+- `./scripts/publish.sh --local` publishes signed artifacts to `~/.m2`; without `--local` it
+  releases to Central. **Releases are run manually and locally** — there is no release CI job and
+  no Maven Central secrets in the repo, so a version tag publishes nothing on its own.
+- PR CI runs `publishToMavenLocal` with no signing key, so `signAllPublications()` is applied only
+  when a key is present. A task-graph guard refuses any Central upload without one, so the
+  relaxation cannot reach a real release.
+- Releases are **immutable** — a version cannot be re-uploaded. Iterate with local installs or
+  snapshots, not by retagging.
+- `./gradlew -p publishing-check verifyPublishedVariantResolution` resolves the published modules as
+  an Android consumer and fails on platform-variant duplicates. It reads mavenLocal only, so run
+  `publishToMavenLocal` first.
+- Each module also ships consumer ProGuard rules (`consumer-rules.pro`).
+
+## Publishing migration
+
+`docs/maven-central-migration.md` is the working plan and status for the JitPack → Central move:
+what has landed, what is deliberate deviation, and what remains (publish 1.9.0, then migrate the
+four in-house consumers). Update it as phases complete rather than letting it drift.
 
 ## Knowledge Graph (graphify)
 

@@ -4,10 +4,9 @@ plugins {
 	id("java-library")
 	alias(libs.plugins.kotlin.jvm)
 	alias(libs.plugins.kotlinxSerialization)
-	`maven-publish`
+	alias(libs.plugins.vanniktech.publish)
 }
 
-group = "com.github.appoly.AppolyDroid-Toolbox"
 
 java {
 	sourceCompatibility = JavaVersion.VERSION_11
@@ -25,14 +24,9 @@ dependencies {
 
 	testImplementation(libs.junit)
 }
-
-publishing {
-	publications {
-		create<MavenPublication>("release") {
-			from(components["java"])
-			groupId = "com.github.appoly.AppolyDroid-Toolbox"
-			artifactId = project.name
-			version = BuildConfig.TOOLBOX_VERSION
-		}
-	}
+mavenPublishing {
+    pom {
+        name.set("MockInterceptor-AppolyJson")
+        description.set("MockInterceptor helpers for Appoly's standard JSON envelope.")
+    }
 }

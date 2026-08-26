@@ -111,7 +111,7 @@ abstract class UpdateReadmeVersions : DefaultTask() {
                 // or match Kotlin type annotations (e.g. `HomeScreen : Nav3Screen`) when a
                 // BOM-style unversioned `implementation("…:Module")` appears earlier in the file.
                 val toolboxPattern = Pattern.compile(
-                    "(implementation\\([\"']com\\.github\\.appoly\\.AppolyDroid-Toolbox:[^:\"'\\s)]+:)([\\w.-]+)([\"')])"
+                    "(implementation\\([\"']uk\\.co\\.appoly\\.droid:[^:\"'\\s)]+:)([\\w.-]+)([\"')])"
                 )
                 val beforeResult = updateVersions(
                     content = beforeBom,
@@ -141,7 +141,7 @@ abstract class UpdateReadmeVersions : DefaultTask() {
                 updateVersions(
                     content = content,
                     pattern = Pattern.compile(
-                        "(implementation\\([\"']com\\.github\\.appoly\\.AppolyDroid-Toolbox:[^:\"'\\s)]+:)([\\w.-]+)([\"')])"
+                        "(implementation\\([\"']uk\\.co\\.appoly\\.droid:[^:\"'\\s)]+:)([\\w.-]+)([\"')])"
                     ).toMatchProcessor(1, 3) { it == toolboxVersion },
                     file = file,
                     versionName = "toolbox",
@@ -159,7 +159,7 @@ abstract class UpdateReadmeVersions : DefaultTask() {
             val bomResult = updateVersions(
                 content = content,
                 pattern = Pattern.compile(
-                    "(implementation\\(platform\\([\"']com\\.github\\.appoly\\.AppolyDroid-Toolbox:AppolyDroid-Toolbox-bom:)([\\w.-]+)([\"')])"
+                    "(implementation\\(platform\\([\"']uk\\.co\\.appoly\\.droid:bom:)([\\w.-]+)([\"')])"
                 ).toMatchProcessor(1, 3) { it == toolboxVersion },
                 file = file,
                 versionName = "bom",

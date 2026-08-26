@@ -3,19 +3,14 @@ import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
 	alias(libs.plugins.android.library)
-	`maven-publish`
+	alias(libs.plugins.vanniktech.publish)
 }
 
-group = "com.github.appoly.AppolyDroid-Toolbox"
 
 configure<LibraryExtension> {
 	namespace = "uk.co.appoly.droid.baserepo.s3"
 	compileSdk {
 		version = release(BuildConfig.Sdk.COMPILE)
-	}
-
-	publishing {
-		singleVariant("release")
 	}
 
 	defaultConfig {
@@ -56,16 +51,9 @@ dependencies {
 	androidTestImplementation(libs.androidx.junit)
 	androidTestImplementation(libs.androidx.espresso.core)
 }
-
-publishing {
-	publications {
-		create<MavenPublication>("release") {
-			afterEvaluate {
-				from(components["release"])
-			}
-			groupId = "com.github.appoly.AppolyDroid-Toolbox"
-			artifactId = project.name
-			version = BuildConfig.TOOLBOX_VERSION
-		}
-	}
+mavenPublishing {
+    pom {
+        name.set("BaseRepo-S3Uploader")
+        description.set("S3 upload integration for BaseRepo.")
+    }
 }

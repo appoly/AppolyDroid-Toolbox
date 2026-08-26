@@ -6,19 +6,14 @@ plugins {
     alias(libs.plugins.kotlinKSP)
     alias(libs.plugins.kotlinxSerialization)
     alias(libs.plugins.room)
-    `maven-publish`
+    alias(libs.plugins.vanniktech.publish)
 }
 
-group = "com.github.appoly.AppolyDroid-Toolbox"
 
 configure<LibraryExtension> {
     namespace = "uk.co.appoly.droid.s3upload.multipart"
     compileSdk {
         version = release(BuildConfig.Sdk.COMPILE)
-    }
-
-    publishing {
-        singleVariant("release")
     }
 
     defaultConfig {
@@ -91,16 +86,9 @@ dependencies {
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(libs.androidx.room.testing)
 }
-
-publishing {
-    publications {
-        create<MavenPublication>("release") {
-            afterEvaluate {
-                from(components["release"])
-            }
-            groupId = "com.github.appoly.AppolyDroid-Toolbox"
-            artifactId = project.name
-            version = BuildConfig.TOOLBOX_VERSION
-        }
+mavenPublishing {
+    pom {
+        name.set("S3Uploader-Multipart")
+        description.set("Pausable and resumable Android uploads built on the AWS S3 multipart upload API.")
     }
 }

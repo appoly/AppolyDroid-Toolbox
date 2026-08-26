@@ -5,19 +5,14 @@ plugins {
 	alias(libs.plugins.android.library)
 	alias(libs.plugins.kotlinKSP)
 	alias(libs.plugins.kotlin.compose)
-	`maven-publish`
+	alias(libs.plugins.vanniktech.publish)
 }
 
-group = "com.github.appoly.AppolyDroid-Toolbox"
 
 configure<LibraryExtension> {
 	namespace = "uk.co.appoly.droid.lazygridpagingextensions"
 	compileSdk {
 		version = release(BuildConfig.Sdk.COMPILE)
-	}
-
-	publishing {
-		singleVariant("release")
 	}
 
 	defaultConfig {
@@ -73,16 +68,9 @@ dependencies {
 	androidTestImplementation(libs.androidx.junit)
 	androidTestImplementation(libs.androidx.espresso.core)
 }
-
-publishing {
-	publications {
-		create<MavenPublication>("release") {
-			afterEvaluate {
-				from(components["release"])
-			}
-			groupId = "com.github.appoly.AppolyDroid-Toolbox"
-			artifactId = project.name
-			version = BuildConfig.TOOLBOX_VERSION
-		}
-	}
+mavenPublishing {
+    pom {
+        name.set("LazyGridPagingExtensions")
+        description.set("Paging helpers for Compose lazy grids.")
+    }
 }

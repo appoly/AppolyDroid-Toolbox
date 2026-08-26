@@ -12,7 +12,7 @@ Extension for [MockInterceptor](../MockInterceptor/) that adds type-safe JSON re
 
 ```gradle.kts
 // MockInterceptor is included transitively
-implementation("com.github.appoly.AppolyDroid-Toolbox:MockInterceptor-Serialization:1.8.3")
+implementation("uk.co.appoly.droid:mockinterceptor-serialization:1.9.0")
 ```
 
 ## Usage

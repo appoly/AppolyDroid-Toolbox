@@ -15,8 +15,8 @@ Extension functions for easy integration of Jetpack Paging 3 with Compose LazyCo
 
 ```gradle.kts
 // Requires the base PagingExtensions module
-implementation("com.github.appoly.AppolyDroid-Toolbox:PagingExtensions:1.8.3")
-implementation("com.github.appoly.AppolyDroid-Toolbox:LazyListPagingExtensions:1.8.3")
+implementation("uk.co.appoly.droid:pagingextensions:1.9.0")
+implementation("uk.co.appoly.droid:lazylistpagingextensions:1.9.0")
 
 // Make sure to include Jetpack Paging Compose
 implementation("androidx.paging:paging-compose:3.5.1")
