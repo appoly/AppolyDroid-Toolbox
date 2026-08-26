@@ -57,7 +57,7 @@ import uk.co.appoly.droid.data.remote.BaseService
  * ```json
  * {
  *   "email": "user@example.com",
- *   "password": "secret123"
+ *   "password": "<password>"
  * }
  * ```
  *
@@ -83,9 +83,13 @@ import uk.co.appoly.droid.data.remote.BaseService
  * ```
  *
  * ## Test Credentials
- * The test server accepts these credentials:
- * - Email: `bradley@appoly.co.uk`
- * - Password: `secret123`
+ * None are published here. The backend this demo was written against
+ * (a throwaway server used while building the multipart uploader) has been decommissioned, and
+ * real credentials do not belong in a public repository regardless — an email and password
+ * committed together are what credential-stuffing lists are built from.
+ *
+ * To exercise this against a live backend, point [TestBackendRetrofitClient.BASE_URL] at your own
+ * server and supply your own account.
  *
  * @see LoginRequest
  * @see LoginResponse
