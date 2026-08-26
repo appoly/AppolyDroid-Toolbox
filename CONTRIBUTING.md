@@ -59,9 +59,20 @@ The script resolves credentials in two ways, in this order:
 1. **Already in the environment.** If all of the variables below are exported, they are used as-is
    and 1Password is never invoked. This is the path for forks, other secret managers, and CI.
 2. **1Password.** Otherwise they are read from a vault item via the `op` CLI. Which item is
-   deployment-specific and deliberately not in version control: copy
-   `scripts/publish.conf.example` to `scripts/publish.conf` and set `PUBLISH_VAULT_ITEM`.
-   Appoly maintainers can get the value from the team.
+   deployment-specific and deliberately not in version control, since this repository is public.
+
+**Appoly maintainers, one-time setup.** The config lives in the same 1Password item as the
+credentials — search the shared vault for *Maven Central* and copy its `publish-conf` field into
+`scripts/publish.conf`. It is kept there rather than in a wiki because anyone who can release
+already has that item: the audience for the config is exactly the set of people who can read it,
+and it cannot drift out of sync with what it points at.
+
+```bash
+op read "op://<vault>/<item>/publish-conf" > scripts/publish.conf
+```
+
+**Everyone else:** copy `scripts/publish.conf.example` to `scripts/publish.conf` and set
+`PUBLISH_VAULT_ITEM` to your own item — or skip 1Password entirely and export the five variables.
 
 Gradle reads these only under the `ORG_GRADLE_PROJECT_` prefix, with exact camelCase:
 
