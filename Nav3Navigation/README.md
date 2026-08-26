@@ -660,4 +660,4 @@ Two traps that produce false failures:
 - **Use `am kill`, never `force-stop`.** `force-stop` discards saved instance state, so it proves
   nothing about restore.
 
-Thanks to the Accelerate Android team for the cold-restore verification and both traps above.
+Thanks to the consuming-app team who ran the cold-restore verification and found both traps above.
