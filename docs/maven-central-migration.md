@@ -177,6 +177,29 @@ as the last release there.
 Worth pairing deliberately: WenWe and AssistantHood exercise different module sets, so a
 single green consumer proves little about the other.
 
+**WenWe migrated first, 26 Aug — passed.** Three findings that apply to the remaining three:
+
+1. **FlexiLogger moves 2.1.3 → 2.1.4.** The toolbox's own source is unchanged from 1.8.3 apart
+   from publishing config, but `81d5aac` bumped FlexiLogger, and it arrives transitively via
+   `baserepo`, `datehelperutil`, `connectivitymonitor` and `s3uploader`. A consumer that does
+   not declare a FlexiLogger version inherits the bump silently — and it is the layer logging
+   and crash reporting go through. A resolved-classpath diff on WenWe (949 → 948 coordinates)
+   showed this and the toolbox group/case swap were the *only* changes.
+
+2. **Do not remove `jitpack.io` by default.** The toolbox no longer needs it, but consumers may:
+   WenWe still resolves `com.github.projectdelta6:PrefsHelperBase` and `ComposeReorderable`
+   from JitPack. Removing it there would have broken the build. Check per consumer; assume it
+   stays until proven otherwise.
+
+3. **The `mavenLocal()` warning is per-consumer, not universal.** WenWe never declares it, so
+   the stale local 1.9.0 in `~/.m2/repository/uk/co/appoly` could not shadow anything. Check
+   before advising anyone to clear it.
+
+Also confirmed in WenWe: `okhttp-android` resolving beside `okhttp` is pre-existing (the normal
+okhttp 5.x split, present on both sides of the diff), not a migration artefact; no `-jvm` beside
+an `-android`; and `assembleStagingRelease` passes under R8 with no new missing-class warnings,
+which is the honest duplicate-class test since dexing is what would fail.
+
 Owner: per-app sessions, roughly 30 minutes each.
 
 ---
