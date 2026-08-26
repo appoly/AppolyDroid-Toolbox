@@ -20,7 +20,8 @@ AppolyDroid Toolbox is a comprehensive collection of Android utility modules tha
 
 ## Installation
 
-Add the JitPack repository to your project build file:
+The toolbox is published to Maven Central, so no custom repository is required — if
+`mavenCentral()` is already in your repositories list, there is nothing to add:
 
 ```gradle.kts
 dependencyResolutionManagement {
@@ -30,15 +31,13 @@ dependencyResolutionManagement {
 }
 ```
 
-The toolbox is published to Maven Central, so no custom repository is required — if `mavenCentral()`
-is already in your repositories list, there is nothing to add.
-
 > **Migrating from 1.8.3 or earlier?** Those versions were published on JitPack under
 > `com.github.appoly.AppolyDroid-Toolbox` with PascalCase artifact names. From 1.9.0 the coordinates
 > are `uk.co.appoly.droid` with lowercase names — for example
 > `com.github.appoly.AppolyDroid-Toolbox:BaseRepo` becomes `uk.co.appoly.droid:baserepo`, and
-> `AppolyDroid-Toolbox-bom` becomes `bom`. The `jitpack.io` repository entry can be removed unless
-> something else needs it.
+> `AppolyDroid-Toolbox-bom` becomes `bom`. Keep your `jitpack.io` entry unless you have checked
+> that nothing else needs it — the toolbox no longer does, but other dependencies may, and a group
+> like `com.github.projectdelta6` looks deceptively like the toolbox's old coordinates.
 
 ### Testing an unreleased change
 
