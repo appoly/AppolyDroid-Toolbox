@@ -30,6 +30,26 @@ subprojects {
 	}
 }
 
+// A signing key is supplied by scripts/publish.sh (from 1Password) and by the release workflow's
+// secrets. Pull-request CI has neither, deliberately — a PR build must not hold the release key —
+// yet it still runs publishToMavenLocal to feed the variant-resolution gate, which reads module
+// metadata and POMs and never looks at a signature. Calling signAllPublications() unconditionally
+// therefore failed that step with "no configured signatory". Signing is enabled only when a key is
+// actually present; the task-graph guard below makes an unsigned Central upload impossible rather
+// than merely unlikely, so the relaxation cannot leak into a real release.
+val hasSigningKey = providers.gradleProperty("signingInMemoryKey").isPresent ||
+	providers.gradleProperty("signing.keyId").isPresent
+
+gradle.taskGraph.whenReady {
+	if (!hasSigningKey && allTasks.any { it.name.contains("MavenCentral") || it.name == "releaseRepository" }) {
+		throw GradleException(
+			"Refusing to upload to Maven Central without a signing key: Central rejects unsigned " +
+				"artifacts, and a partial upload cannot be undone. Publish with ./scripts/publish.sh, " +
+				"or set ORG_GRADLE_PROJECT_signingInMemoryKey/KeyId/KeyPassword."
+		)
+	}
+}
+
 // Shared Maven Central publishing configuration.
 //
 // Replaces the JitPack-era machinery entirely: the POM-only workaround, the hand-rolled sources
@@ -44,7 +64,9 @@ subprojects {
 	plugins.withId("com.vanniktech.maven.publish") {
 		extensions.configure<MavenPublishBaseExtension> {
 			publishToMavenCentral()
-			signAllPublications()
+			if (hasSigningKey) {
+				signAllPublications()
+			}
 
 			// Artifact IDs are lowercased module names: uk.co.appoly.droid:s3uploader-multipart.
 			coordinates(
@@ -84,7 +106,7 @@ subprojects {
 }
 
 tasks.wrapper {
-	gradleVersion = "9.7.0"
+	gradleVersion = "9.7.1"
 	distributionType = Wrapper.DistributionType.ALL
 }
 

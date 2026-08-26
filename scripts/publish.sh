@@ -100,9 +100,11 @@ read_field() {
 
 command -v op >/dev/null || { fail "1Password CLI not found. Install it and enable desktop-app integration."; exit 1; }
 
-# Signing is needed in EVERY mode, dry run included: the metadata gate below runs
-# publishToMavenLocal, and an unsigned publication fails with "no configured signatory". Only the
-# upload token is release-only.
+# Signing is read in EVERY mode, dry run included, even though the root build now skips signing
+# when no key is present (so that keyless PR CI can run publishToMavenLocal for the metadata gate).
+# A dry run that skipped signing would stop exercising the one step a real release cannot survive
+# failing, and --local exists precisely to test the signed artifacts. Only the upload token is
+# release-only.
 info "Reading signing credentials from 1Password..."
 ORG_GRADLE_PROJECT_signingInMemoryKey=$(read_field private-key)
 ORG_GRADLE_PROJECT_signingInMemoryKeyId=$(read_field key-id)

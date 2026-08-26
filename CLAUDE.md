@@ -103,7 +103,7 @@ flow.collect { state ->
 
 ## Tech Stack
 
-- Kotlin 2.4.10, AGP 9.3.1, Gradle 9.7.0
+- Kotlin 2.4.10, AGP 9.3.2, Gradle 9.7.1
 - Target/Compile SDK 37, Java 11
 - Jetpack Compose BOM 2026.08.00
 - OkHttp 5.5.0, Retrofit 3.0.0
