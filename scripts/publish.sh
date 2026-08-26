@@ -111,7 +111,12 @@ ORG_GRADLE_PROJECT_signingInMemoryKeyId=$(read_field key-id)
 ORG_GRADLE_PROJECT_signingInMemoryKeyPassword=$(read_field passphrase)
 export ORG_GRADLE_PROJECT_signingInMemoryKey ORG_GRADLE_PROJECT_signingInMemoryKeyId ORG_GRADLE_PROJECT_signingInMemoryKeyPassword
 
-if [[ "$MODE" == "release" ]]; then
+# Read in dry-run mode too, not just release. A dry run exists to fail before the immutable
+# step does, and a missing or misnamed portal field is exactly the kind of thing it should
+# catch — reading it here costs nothing and means the first real release is not the first
+# time these two fields have ever been fetched. Nothing uploads in dry-run mode regardless.
+# --local skips them: it needs no upload credentials at all.
+if [[ "$MODE" != "local" ]]; then
     info "Reading Maven Central token from 1Password..."
     ORG_GRADLE_PROJECT_mavenCentralUsername=$(read_field portal-username)
     ORG_GRADLE_PROJECT_mavenCentralPassword=$(read_field portal-token)
