@@ -141,6 +141,17 @@ module — not just the one JVM module.
 **Immutability bites here.** A released version can never be re-uploaded or corrected.
 Iterate with `--local` *before* the release, not after.
 
+A full `--dry-run` passed on 26 Aug: all five vault fields read, tests and coverage green,
+consumer keep rules intact, 26 modules signed and installed to `~/.m2`, and the variant gate
+clean (4 toolbox modules at 1.9.0, no `-jvm` duplicates). The only untested step is the
+upload itself — reading the portal token proves it is fetchable, not that Central accepts it.
+
+Note the script pins `GRADLE_OPTS` for its own Gradle runs. Publishing drives Dokka across all
+26 modules in a single daemon, which exceeds the 1 GiB metaspace a typical personal
+`~/.gradle/gradle.properties` sets — and user-level properties beat the repo's, so the project
+cannot fix this itself. Unpinned, the release fails with a bare `Metaspace` error on an
+arbitrary module, naming the real cause nowhere.
+
 Owner: Bradley to run `./scripts/publish.sh`; one consumer session to verify.
 
 ### 5. Migrate consumers

@@ -20,6 +20,15 @@ readonly VAULT_ITEM="op://Appoly Shared/Appoly Maven Central Signing"
 readonly RELEASE_BRANCH="main"
 readonly GROUP="uk.co.appoly.droid"
 
+# Pin the daemon's memory for this script's Gradle invocations rather than inheriting whatever
+# each developer keeps in ~/.gradle/gradle.properties — which takes precedence over the repo's
+# own value, so the project cannot set this itself. Publishing runs Dokka across all 26 modules
+# in one daemon, which needs well over the 1 GiB metaspace a typical personal config sets; the
+# failure is a bare "Metaspace" on an arbitrary module, with the real cause named nowhere.
+# A release must not succeed or fail depending on whose machine it runs on.
+export GRADLE_OPTS="-Dorg.gradle.jvmargs=-Xmx4096m -XX:MaxMetaspaceSize=2048m -Dfile.encoding=UTF-8"
+
+
 # Some machines have two 1Password accounts registered; omitting this fails with a misleading
 # "no account found for filter".
 export OP_ACCOUNT="${OP_ACCOUNT:-appoly.1password.com}"
@@ -150,7 +159,7 @@ info "Verifying consumer R8 keep rules..."
 ./gradlew :app:verifyConsumerKeepRules || { fail "Consumer keep rules regressed."; exit 1; }
 
 info "Verifying published metadata resolves for an Android consumer..."
-./gradlew publishToMavenLocal
+./gradlew publishToMavenLocal || { fail "Publishing to ~/.m2 failed; the metadata gate cannot run."; exit 1; }
 ./gradlew -p publishing-check verifyPublishedVariantResolution --refresh-dependencies \
     || { fail "Published metadata would break an Android consumer."; exit 1; }
 
