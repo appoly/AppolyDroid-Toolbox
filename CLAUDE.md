@@ -121,12 +121,16 @@ Published to **Maven Central** under `uk.co.appoly.droid`, with lowercase artifa
 - `com.vanniktech.maven.publish` handles signing, sources and javadoc. Shared POM metadata and
   coordinates live in the root `build.gradle.kts`; a module declares only its name and description.
 - Central rejects an incomplete POM — a missing `developers` block is a hard rejection.
-- Credentials come from 1Password (*Appoly Shared → Appoly Maven Central Signing*), never from
-  `~/.gradle/gradle.properties`. Gradle reads them only under the `ORG_GRADLE_PROJECT_` prefix with
-  exact camelCase.
+- Credentials come from the environment or 1Password, never from `~/.gradle/gradle.properties`.
+  Gradle reads them only under the `ORG_GRADLE_PROJECT_` prefix with exact camelCase. The vault
+  item is set in the git-ignored `scripts/publish.conf` — this repo is public, so it is not
+  committed. See `scripts/publish.conf.example`.
 - `./scripts/publish.sh --local` publishes signed artifacts to `~/.m2`; without `--local` it
   releases to Central. **Releases are run manually and locally** — there is no release CI job and
   no Maven Central secrets in the repo, so a version tag publishes nothing on its own.
+- **`CONTRIBUTING.md` is the source of truth for the release process** — credentials, fork config,
+  and why every module shares one version. Update it there rather than restating it here. The
+  JitPack → Central migration is complete; its history lives in the 1.9.0 release notes.
 - PR CI runs `publishToMavenLocal` with no signing key, so `signAllPublications()` is applied only
   when a key is present. A task-graph guard refuses any Central upload without one, so the
   relaxation cannot reach a real release.
@@ -136,12 +140,6 @@ Published to **Maven Central** under `uk.co.appoly.droid`, with lowercase artifa
   an Android consumer and fails on platform-variant duplicates. It reads mavenLocal only, so run
   `publishToMavenLocal` first.
 - Each module also ships consumer ProGuard rules (`consumer-rules.pro`).
-
-## Publishing migration
-
-`docs/maven-central-migration.md` is the working plan and status for the JitPack → Central move:
-what has landed, what is deliberate deviation, and what remains (publish 1.9.0, then migrate the
-four in-house consumers). Update it as phases complete rather than letting it drift.
 
 ## Knowledge Graph (graphify)
 
