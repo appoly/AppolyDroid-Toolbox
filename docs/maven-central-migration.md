@@ -17,10 +17,11 @@ Publishing to Maven Central removes the rewriter rather than working around it.
 | Namespace `uk.co.appoly` | TXT record absent from authoritative NS | **Verified** on the Central portal |
 | Publishing configuration | 26 hand-written blocks, JitPack workarounds | **Landed** — `e48652e` |
 | Release path | Planned as a tag-triggered CI job | **Superseded** — manual local run |
-| 1.9.0 on Central | Not started | **Not published** — no tag, Central 404s |
+| 1.9.0 on Central | Not started | **Blocked** — portal token missing from the vault |
 
-Nothing blocks cutting 1.9.0 except the decision to run it. After that, four in-house
-consumers move over.
+One thing blocks cutting 1.9.0: the Central portal token is not in the vault yet (see
+phase 1). Everything else is ready — `--dry-run` and `--local` run clean today. After the
+release, four in-house consumers move over.
 
 ---
 
@@ -76,9 +77,22 @@ hand-rolled sources-jar machinery was deleted rather than fixed.
   clean keyring rather than trusting `--send-keys`, whose exit code reports success
   regardless. That keyserver only — which is the one Central checks.
 
-Unverified: whether `portal-username` and `portal-token` are populated in the vault item.
-`scripts/publish.sh` reads both by those exact names and fails clearly if either is missing,
-so the first release run will say so immediately.
+**Outstanding: the portal token does not exist yet.** Confirmed 26 Aug by listing the vault
+item's field labels: it holds `private-key`, `passphrase`, `key-id`, `fingerprint`,
+`master-key`, `signing-subkey`, `uid`, `revoke-retired`, `revoke-compromised` and
+`keyserver` — but no `portal-username` and no `portal-token`.
+
+`scripts/publish.sh` reads those two by exactly those names, and only in release mode, so:
+
+- `--dry-run` and `--local` work today — they need only the three signing fields.
+- A real release fails immediately, before any gate runs, with
+  `Could not read 'portal-username' from 1Password.`
+
+To unblock: generate a user token on the Central portal (Account → Generate User Token) as
+`android@appoly.co.uk`, then add its two halves to the *Appoly Maven Central Signing* item as
+fields named exactly `portal-username` and `portal-token`. Hyphens, no spaces — a label
+containing a space or parenthesis cannot be read by an `op://` reference at all, which is why
+FlexiLogger's `private key (armored)` needs a JSON workaround its wrapper carries.
 
 ### 2. Publishing configuration — done (`e48652e`)
 
@@ -126,7 +140,7 @@ export OP_ACCOUNT=appoly.1password.com   # required: two accounts are registered
 
 A minor bump, not a patch — the coordinates change, so consumers must act.
 `TOOLBOX_VERSION` is already `1.9.0`; no `1.9.0` tag exists and Central returns 404 for the
-coordinates, so nothing has been claimed yet.
+coordinates, so nothing has been claimed yet. Needs the portal token from phase 1 first.
 
 Verification drops the parts that existed only to catch JitPack's rewriting. What remains is
 the check 1.8.3's verification missed: confirm the served `.module` carries a sources variant
