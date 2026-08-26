@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-AppolyDroid Toolbox is a multi-module Android library published via JitPack. It provides utilities for API handling, UI state management, Compose pagination, S3 uploads, and date utilities.
+AppolyDroid Toolbox is a multi-module Android library published to Maven Central under `uk.co.appoly.droid`. It provides utilities for API handling, UI state management, Compose pagination, S3 uploads, and date utilities. The repository is public, so treat anything committed here as published.
 
 ## Build Commands
 
