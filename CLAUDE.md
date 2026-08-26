@@ -125,13 +125,23 @@ Published to **Maven Central** under `uk.co.appoly.droid`, with lowercase artifa
   `~/.gradle/gradle.properties`. Gradle reads them only under the `ORG_GRADLE_PROJECT_` prefix with
   exact camelCase.
 - `./scripts/publish.sh --local` publishes signed artifacts to `~/.m2`; without `--local` it
-  releases to Central. Pushing a version tag runs the same thing in CI.
+  releases to Central. **Releases are run manually and locally** — there is no release CI job and
+  no Maven Central secrets in the repo, so a version tag publishes nothing on its own.
+- PR CI runs `publishToMavenLocal` with no signing key, so `signAllPublications()` is applied only
+  when a key is present. A task-graph guard refuses any Central upload without one, so the
+  relaxation cannot reach a real release.
 - Releases are **immutable** — a version cannot be re-uploaded. Iterate with local installs or
   snapshots, not by retagging.
 - `./gradlew -p publishing-check verifyPublishedVariantResolution` resolves the published modules as
   an Android consumer and fails on platform-variant duplicates. It reads mavenLocal only, so run
   `publishToMavenLocal` first.
 - Each module also ships consumer ProGuard rules (`consumer-rules.pro`).
+
+## Publishing migration
+
+`docs/maven-central-migration.md` is the working plan and status for the JitPack → Central move:
+what has landed, what is deliberate deviation, and what remains (publish 1.9.0, then migrate the
+four in-house consumers). Update it as phases complete rather than letting it drift.
 
 ## Knowledge Graph (graphify)
 

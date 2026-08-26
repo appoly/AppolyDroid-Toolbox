@@ -1,0 +1,207 @@
+# Leaving JitPack
+
+Migration of AppolyDroid Toolbox publishing from JitPack to Maven Central.
+
+**Status as of 26 Aug 2026** — phases 1–3 complete, 1.9.0 not yet released.
+Current release: 1.8.3 on JitPack. 26 published modules.
+
+Two attempts to fix AAR source navigation were defeated by the same JitPack rewrite.
+Publishing to Maven Central removes the rewriter rather than working around it.
+
+---
+
+## Where this stands
+
+| Item | Then (24 Aug) | Now |
+|------|---------------|-----|
+| Namespace `uk.co.appoly` | TXT record absent from authoritative NS | **Verified** on the Central portal |
+| Publishing configuration | 26 hand-written blocks, JitPack workarounds | **Landed** — `e48652e` |
+| Release path | Planned as a tag-triggered CI job | **Superseded** — manual local run |
+| 1.9.0 on Central | Not started | **Not published** — no tag, Central 404s |
+
+Nothing blocks cutting 1.9.0 except the decision to run it. After that, four in-house
+consumers move over.
+
+---
+
+## Why JitPack can't be fixed from our side
+
+JitPack strips the `-sources` classifier from the file entry inside a sources-typed variant
+in the published `.module`. Both available shapes were tried against real JitPack builds:
+
+| Version | Shape | Result for AAR modules | |
+|---------|-------|------------------------|---|
+| 1.8.1 | Sources variant published | Variant's file entry stripped; Gradle requests a name that 404s and gives up silently | broken |
+| 1.8.2 | No module metadata at all | Sources work — but POMs pin platform artifacts, so consumers get duplicate classes and cannot build | worse |
+| 1.8.3 | Metadata restored, sources as POM classifier only | Builds fixed. Android Studio binds AAR sources from the variant, so with no variant it decompiles 25 of 26 modules | broken |
+| 1.8.4-alpha01 | Sources variant restored for AARs | Stripped again. Android Studio requests ~25 non-existent files per sync, each timing out after 30s against a shared rate limit | worse |
+
+The two reachable states on JitPack are "no AAR source navigation" and "no AAR source
+navigation, plus 25 doomed requests every sync". 1.8.3 is the better of those, and it is
+where the library sits today.
+
+## What Central changes
+
+| | JitPack | Maven Central |
+|---|---------|---------------|
+| Metadata fidelity | Rewritten on serve | Byte-for-byte as uploaded |
+| AAR source navigation | Not achievable | Works via the standard sources variant |
+| Rate limits | Shared per-IP; has blocked us repeatedly | CDN-backed, no practical limit |
+| First resolve | Builds on demand; minutes of latency | Already built and hosted |
+| Release mutability | Retag and rebuild freely | **Immutable once released** |
+| Credentials | None | Portal token + GPG signing key |
+
+Immutability cuts both ways. It is a discipline improvement, but the alpha-retag loop used
+throughout the 1.8.3 work stops being possible.
+
+One incidental benefit: the whole `withSourcesJar()` question disappears. The publishing
+plugin configures sources and javadoc for Android library variants itself, so the
+hand-rolled sources-jar machinery was deleted rather than fixed.
+
+---
+
+## Phases
+
+### 1. Portal and namespace — done
+
+- **Namespace verified.** `uk.co.appoly` shows as Verified on the Central portal under org
+  *Appoly*. The TXT record that was genuinely absent from `appoly.co.uk`'s authoritative
+  nameservers is now live. A verified namespace covers its subgroups, so
+  `uk.co.appoly.droid` needs no separate claim.
+- **Signing key.** RSA 4096, no expiry, `2FF86BD312C381D279FA36F23F4AD175B7176969`, uid
+  `Appoly (Maven Central Signing)`. In 1Password under *Appoly Shared → Appoly Maven
+  Central Signing*, with both revocation certificates pre-generated and no copy on disk.
+  The key belongs to the organisation, not a person — anyone with vault access can publish.
+- **Public half** on `hkps://keyserver.ubuntu.com`, verified by fetching it back into a
+  clean keyring rather than trusting `--send-keys`, whose exit code reports success
+  regardless. That keyserver only — which is the one Central checks.
+
+Unverified: whether `portal-username` and `portal-token` are populated in the vault item.
+`scripts/publish.sh` reads both by those exact names and fails clearly if either is missing,
+so the first release run will say so immediately.
+
+### 2. Publishing configuration — done (`e48652e`)
+
+All 26 modules carry `com.vanniktech.maven.publish` 0.37.0. Shared POM metadata — licence,
+developers, SCM, URL — lives once in the root build, so a module declares only its own name
+and description. No hand-written `publishing { }` block survives anywhere in the tree.
+
+Central rejects an incomplete POM, and a missing `developers` block is a hard rejection.
+
+- Sources-jar machinery and module-metadata workarounds **deleted**, not ported. They
+  existed only to fight the rewriter.
+- The BOM's constraints are rewritten to the new coordinates.
+- `publishing-check` is kept. Platform-variant leakage is a defect class independent of the
+  host, and it runs in CI on every PR.
+
+### 3. Release path — done, revised
+
+**Superseded.** This phase originally specified a tag-triggered GitHub Actions release job.
+That is not the chosen path: **releases are run manually, locally, by a developer** for now.
+No release CI, and no Maven Central secrets in the repository — repo-level Actions secrets
+are empty, which is correct rather than missing. `.github/workflows/release.yml` has been
+deleted to match.
+
+The wrapper lives **in the repo**, not a personal shell profile. FlexiLogger's equivalent
+sits in one person's `~/.zshrc`, which is single-user by construction; `scripts/publish.sh`
+reads the shared vault, so anyone with access can release. It offers `--dry-run` (every
+gate, no publish, no tag) and `--local` (signed install to `~/.m2`).
+
+Gradle reads these only under the `ORG_GRADLE_PROJECT_` prefix with exact camelCase — the
+script exports all five:
+
+| 1Password field | Environment variable |
+|-----------------|----------------------|
+| `portal-username` | `ORG_GRADLE_PROJECT_mavenCentralUsername` |
+| `portal-token` | `ORG_GRADLE_PROJECT_mavenCentralPassword` |
+| `private-key` | `ORG_GRADLE_PROJECT_signingInMemoryKey` |
+| `key-id` | `ORG_GRADLE_PROJECT_signingInMemoryKeyId` |
+| `passphrase` | `ORG_GRADLE_PROJECT_signingInMemoryKeyPassword` |
+
+```bash
+export OP_ACCOUNT=appoly.1password.com   # required: two accounts are registered
+```
+
+### 4. Publish 1.9.0 and verify — next
+
+A minor bump, not a patch — the coordinates change, so consumers must act.
+`TOOLBOX_VERSION` is already `1.9.0`; no `1.9.0` tag exists and Central returns 404 for the
+coordinates, so nothing has been claimed yet.
+
+Verification drops the parts that existed only to catch JitPack's rewriting. What remains is
+the check 1.8.3's verification missed: confirm the served `.module` carries a sources variant
+whose file entry ends `-sources.jar`, then confirm cmd+B lands on real source for an **AAR**
+module — not just the one JVM module.
+
+**Immutability bites here.** A released version can never be re-uploaded or corrected.
+Iterate with `--local` *before* the release, not after.
+
+Owner: Bradley to run `./scripts/publish.sh`; one consumer session to verify.
+
+### 5. Migrate consumers
+
+All known consumers are in-house — WenWe, AssistantHood, AIM Capture, Accelerate-Android —
+so a clean cut is simpler than dual-publishing. 1.8.3 stays available on JitPack indefinitely
+as the last release there.
+
+Worth pairing deliberately: WenWe and AssistantHood exercise different module sets, so a
+single green consumer proves little about the other.
+
+Owner: per-app sessions, roughly 30 minutes each.
+
+---
+
+## One deliberate deviation: keyless local publishing
+
+This plan originally warned that once signing was configured, a bare
+`./gradlew publishToMavenLocal` would fail with "no configured signatory", and called that
+intended. It has since been relaxed, because it broke pull-request CI.
+
+PR CI runs `publishToMavenLocal` to feed the variant-resolution gate, and deliberately holds
+no signing key — a pull-request build must not carry the release key. With
+`signAllPublications()` unconditional, the gate died at `:bom:signMavenPublication` before
+the check it exists to run. Signing is now enabled only when a key is present; the gate reads
+module metadata and POMs and never looks at a signature.
+
+The safety property is preserved by a task-graph guard rather than by accident: any Maven
+Central upload without a key fails at configuration time with an explicit refusal, instead of
+uploading artifacts Central would reject in a release that cannot be undone.
+
+Side effect worth knowing: a keyless local publish leaves *stale* `.asc` files from earlier
+signed runs sitting beside freshly-written unsigned artifacts in `~/.m2`. Listing the
+directory looks signed. Timestamps are the only honest signal.
+
+---
+
+## What consumers change
+
+| Before | After |
+|--------|-------|
+| `com.github.appoly.AppolyDroid-Toolbox:BaseRepo` | `uk.co.appoly.droid:baserepo` |
+| `com.github.appoly.AppolyDroid-Toolbox:S3Uploader-Multipart` | `uk.co.appoly.droid:s3uploader-multipart` |
+| `com.github.appoly.AppolyDroid-Toolbox:AppolyDroid-Toolbox-bom` | `uk.co.appoly.droid:bom` |
+| `maven { url = "https://jitpack.io" }` | Removable, if nothing else needs it |
+
+## Risks and gotchas
+
+- **No more retagging.** Released versions are immutable. Pre-release iteration happens
+  through `--local`, which behaves differently from the alpha tags used during 1.8.3.
+- **The key is on one keyserver only.** `keyserver.ubuntu.com`, which is what Central checks.
+  Do not assume it resolves elsewhere.
+- **Coordinated cutover.** Four apps need updating; 1.8.3 and 1.9.0 will briefly coexist
+  across the estate.
+- **Release runs on one machine.** With no CI release job, publishing depends on a
+  developer's local toolchain and an unlocked 1Password. That is the accepted trade for now,
+  not an oversight.
+
+### Dead ends — do not resurrect
+
+- **"GPG Appoly key"** in the Appoly *Employee* vault (2023) holds a username and passphrase
+  but no key material, and the key exists nowhere reachable. Abandoned earlier attempt.
+- **"Nexus Staging"** in Appoly Shared (2020) belongs to Calum and is explicitly out of
+  scope. Unrelated to this migration.
+
+---
+
+1.8.3 remains the current JitPack release and is unaffected; its heap, progress, notification
+and duplicate-class fixes are all verified and unrelated to the sources question.
