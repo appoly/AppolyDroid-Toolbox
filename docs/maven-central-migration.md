@@ -2,7 +2,7 @@
 
 Migration of AppolyDroid Toolbox publishing from JitPack to Maven Central.
 
-**Status as of 26 Aug 2026** — phases 1–3 complete, 1.9.0 not yet released.
+**Status as of 26 Aug 2026** — 1.9.0 released to Maven Central. Phase 5 (consumers) remains.
 Current release: 1.8.3 on JitPack. 26 published modules.
 
 Two attempts to fix AAR source navigation were defeated by the same JitPack rewrite.
@@ -17,10 +17,9 @@ Publishing to Maven Central removes the rewriter rather than working around it.
 | Namespace `uk.co.appoly` | TXT record absent from authoritative NS | **Verified** on the Central portal |
 | Publishing configuration | 26 hand-written blocks, JitPack workarounds | **Landed** — `e48652e` |
 | Release path | Planned as a tag-triggered CI job | **Superseded** — manual local run |
-| 1.9.0 on Central | Not started | **Ready to publish** — nothing outstanding |
+| 1.9.0 on Central | Not started | **Released** — 26 coordinates live, sources verified |
 
-Nothing blocks cutting 1.9.0 except the decision to run it. After the release, four
-in-house consumers move over.
+1.9.0 is released and serving. All that remains is moving the four in-house consumers.
 
 ---
 
@@ -127,7 +126,7 @@ script exports all five:
 export OP_ACCOUNT=appoly.1password.com   # required: two accounts are registered
 ```
 
-### 4. Publish 1.9.0 and verify — next
+### 4. Publish 1.9.0 and verify — done
 
 A minor bump, not a patch — the coordinates change, so consumers must act.
 `TOOLBOX_VERSION` is already `1.9.0`; no `1.9.0` tag exists and Central returns 404 for the
@@ -141,7 +140,22 @@ module — not just the one JVM module.
 **Immutability bites here.** A released version can never be re-uploaded or corrected.
 Iterate with `--local` *before* the release, not after.
 
-A full `--dry-run` passed on 26 Aug: all five vault fields read, tests and coverage green,
+**Released 26 Aug 2026.** Deployment `6dde9178-1023-4072-b6a4-d920bdae35bd`, 48/48 components
+validated by Central, tag `1.9.0` → `e400b22`. Verified against the bytes Central actually
+serves, not against the local build:
+
+- All 26 coordinates return their POM from `repo1.maven.org`.
+- `baserepo` — an **AAR** module, the case that defeated JitPack twice — serves a
+  `releaseVariantReleaseSourcePublication` variant whose file entry is
+  `baserepo-1.9.0-sources.jar`, classifier intact. This is precisely what JitPack stripped.
+- That sources jar downloads (19,981 bytes) and is a valid archive containing 14 `.kt` files,
+  so it is real source rather than an empty placeholder.
+
+The remaining check is human: cmd+B in a consuming project should land on source rather than
+decompiled bytecode. Do it against an AAR module — 1.8.3 passed verification because only the
+one JVM module was checked.
+
+The earlier `--dry-run` passed on 26 Aug: all five vault fields read, tests and coverage green,
 consumer keep rules intact, 26 modules signed and installed to `~/.m2`, and the variant gate
 clean (4 toolbox modules at 1.9.0, no `-jvm` duplicates). The only untested step is the
 upload itself — reading the portal token proves it is fetchable, not that Central accepts it.
@@ -162,6 +176,29 @@ as the last release there.
 
 Worth pairing deliberately: WenWe and AssistantHood exercise different module sets, so a
 single green consumer proves little about the other.
+
+**WenWe migrated first, 26 Aug — passed.** Three findings that apply to the remaining three:
+
+1. **FlexiLogger moves 2.1.3 → 2.1.4.** The toolbox's own source is unchanged from 1.8.3 apart
+   from publishing config, but `81d5aac` bumped FlexiLogger, and it arrives transitively via
+   `baserepo`, `datehelperutil`, `connectivitymonitor` and `s3uploader`. A consumer that does
+   not declare a FlexiLogger version inherits the bump silently — and it is the layer logging
+   and crash reporting go through. A resolved-classpath diff on WenWe (949 → 948 coordinates)
+   showed this and the toolbox group/case swap were the *only* changes.
+
+2. **Do not remove `jitpack.io` by default.** The toolbox no longer needs it, but consumers may:
+   WenWe still resolves `com.github.projectdelta6:PrefsHelperBase` and `ComposeReorderable`
+   from JitPack. Removing it there would have broken the build. Check per consumer; assume it
+   stays until proven otherwise.
+
+3. **The `mavenLocal()` warning is per-consumer, not universal.** WenWe never declares it, so
+   the stale local 1.9.0 in `~/.m2/repository/uk/co/appoly` could not shadow anything. Check
+   before advising anyone to clear it.
+
+Also confirmed in WenWe: `okhttp-android` resolving beside `okhttp` is pre-existing (the normal
+okhttp 5.x split, present on both sides of the diff), not a migration artefact; no `-jvm` beside
+an `-android`; and `assembleStagingRelease` passes under R8 with no new missing-class warnings,
+which is the honest duplicate-class test since dexing is what would fail.
 
 Owner: per-app sessions, roughly 30 minutes each.
 
