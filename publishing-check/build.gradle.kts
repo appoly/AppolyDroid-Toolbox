@@ -12,10 +12,10 @@ import org.gradle.api.attributes.java.TargetJvmEnvironment
 //
 // The 1.8.2 duplicate-class regression was invisible to the toolbox's own build: the library
 // compiled and published perfectly, and only an Android *consumer* resolving the published metadata
-// could see the problem. It was also invisible to most consumers — WenWe was green on identical
-// artifacts because it does not depend on MockInterceptor, and AssistantHood's `live` flavour built
-// fine because it only pulls MockInterceptor into `staging`. A defect visible only to consumers who
-// happen to pull one particular module should not be discovered by consumers.
+// could see the problem. It was also invisible to most consumers — one was green on identical
+// artifacts because it does not depend on MockInterceptor, and another's release flavour built fine
+// because it only pulls MockInterceptor into a debug-side flavour. A defect visible only to
+// consumers who happen to pull one particular module should not be discovered by consumers.
 //
 // So: resolve the published modules the way an Android app would, and assert the outcome.
 //

@@ -75,6 +75,11 @@ class TestBackendRetrofitClient(
          * This server provides:
          * - `/api/login` - Authentication endpoint
          * - `/api/s3/multipart/x` - Multipart upload endpoints
+         *
+         * **This host is no longer running.** It was a throwaway backend stood up while building
+         * the multipart uploader and has since been decommissioned, so the network-backed parts of
+         * this demo will fail until you point this at a server of your own implementing the two
+         * endpoint groups above. The rest of the demo app does not depend on it.
          */
         const val BASE_URL = "https://multipart-uploader.on-forge.com/"
 
