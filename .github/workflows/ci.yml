@@ -3,6 +3,10 @@ name: CI
 on:
   pull_request:
     branches: [ main ]
+    # `ready_for_review` is NOT in the default type set (opened/synchronize/reopened).
+    # Without it a PR opened as a draft and later marked ready fires no event at all, so
+    # the draft guard below would skip every run and CI would never report on that PR.
+    types: [ opened, synchronize, reopened, ready_for_review ]
   push:
     branches: [ main ]
 
@@ -14,6 +18,11 @@ concurrency:
 jobs:
   test:
     name: Tests & coverage gate
+    # Draft PRs can't be merged, so don't spend runner minutes on them. Marking a PR ready
+    # fires `ready_for_review` (see types above), which is when CI runs for a drafted PR.
+    # The event_name check keeps pushes to main running: on push there is no
+    # `event.pull_request`, and a null never equals false in GitHub expressions.
+    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
