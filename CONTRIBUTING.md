@@ -52,6 +52,31 @@ one version; see [Why one version for all modules](#why-one-version-for-all-modu
 > **Releases are immutable.** A version can never be re-uploaded or corrected — the only remedy is
 > publishing a new one. Iterate with `--local` *before* releasing, never after.
 
+### Central publishing limits — batch releases, do not split modules
+
+Maven Central enforces three per-calendar-month quotas per organisation, from 1 October 2026: file
+count (~1,167), release size (78 MB) and release count (7). Track them in the
+[Usage Center](https://central.sonatype.com/publishing/usage).
+
+One toolbox release is **508 files, 11.55 MB, and one release event** — Central scores a multi-module
+deployment bundle as a single release, not one per artifact. So release count is a non-issue and size
+is nowhere near. **File count is the binding constraint:** 508 files is roughly half the monthly
+allowance, so a second release in the same calendar month lands at ~1,016 and a third cannot fit.
+
+Two consequences for release practice:
+
+- **Batch patch releases.** A flurry of same-month point releases — the 1.8.0 → 1.8.3 pattern of
+  August 2026 — would be ~2,540 files, over twice the allowance. Fold fixes into one version and
+  iterate through `--local` or a snapshot in the meantime.
+- **Do not split modules to reduce usage; it does the opposite.** 26 separately-published
+  repositories would be 26 release events per version, past the limit of 7 on day one. The single
+  batched deployment is the cheapest possible shape under these rules — a further reason for the
+  caveat in [Why one version for all modules](#why-one-version-for-all-modules).
+
+Separately, Central's *commercial nature* classification is independent of publishing volume and can
+require Publisher Pro on its own. Exemptions and limit adjustments for open-source group IDs are
+requested from `central-support@sonatype.com`.
+
 ### Credentials
 
 The script resolves credentials in two ways, in this order:
@@ -142,7 +167,9 @@ coherent version set, so it cannot catch either.
 
 Republishing everything costs minutes of upload and no consumer risk. If a module ever genuinely
 earns its own release cadence, split it into its own repository rather than versioning it
-independently here.
+independently here — but weigh it against
+[Central publishing limits](#central-publishing-limits--batch-releases-do-not-split-modules) first,
+since each extra repository is another monthly release event.
 
 ## Documentation
 
