@@ -54,9 +54,9 @@ one version; see [Why one version for all modules](#why-one-version-for-all-modu
 
 ### Central publishing limits — batch releases, do not split modules
 
-Maven Central enforces three per-calendar-month quotas per organisation, from 1 October 2026: file
-count (~1,167), release size (78 MB) and release count (7). Track them in the
-[Usage Center](https://central.sonatype.com/publishing/usage).
+Maven Central enforces three per-calendar-month quotas per organisation, from 1 October 2026. Our
+applied limits, confirmed by Sonatype on 2026-09-09, are **1,000 files, 80 MB and 7 releases**.
+Track usage in the [Usage Center](https://central.sonatype.com/publishing/usage).
 
 One toolbox release is **508 files, 11.55 MB, and one release event** — Central scores a multi-module
 deployment bundle as a single release, not one per artifact. So release count is a non-issue and size
@@ -73,9 +73,12 @@ Two consequences for release practice:
   batched deployment is the cheapest possible shape under these rules — a further reason for the
   caveat in [Why one version for all modules](#why-one-version-for-all-modules).
 
-Separately, Central's *commercial nature* classification is independent of publishing volume and can
-require Publisher Pro on its own. Exemptions and limit adjustments for open-source group IDs are
-requested from `central-support@sonatype.com`.
+Sonatype granted `uk.co.appoly.droid` an **OSS exemption** on 2026-09-09, so Central's
+*commercial nature* classification — which is independent of publishing volume and would otherwise
+require Publisher Pro — does not apply to us. The same response declined to raise the file-count
+ceiling in substance: the "enhanced" limits it granted match what was already applied, sized to a
+publishing history of a single release. If the one-release-per-month cap starts to hurt, that is the
+thing to go back to `central-support@sonatype.com` about, with a concrete cadence to justify it.
 
 ### Credentials
 
