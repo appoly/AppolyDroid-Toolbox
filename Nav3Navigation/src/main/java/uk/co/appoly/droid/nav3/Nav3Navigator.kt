@@ -140,12 +140,20 @@ interface Nav3Navigator {
 	 */
 	fun popUntilRoot()
 
-	// --- stack introspection (bottom bar, BackHandler, deep-link reconcile) ---
+	// --- stack introspection (bottom bar, back-enablement, deep-link reconcile) ---
 
 	/**
 	 * `true` when there is a previous screen to pop to (stack size &gt; 1) — Voyager's `canPop`.
-	 * Use with system [androidx.activity.compose.BackHandler]: pop when `canPop`, otherwise
-	 * switch tab / finish the activity.
+	 *
+	 * Read this for UI decisions (an up arrow, a back-enabled check). **Do not** drive system back
+	 * from it via [androidx.activity.compose.BackHandler]: [Nav3ScreenHost] already routes
+	 * `NavDisplay.onBack` to [pop], and a handler above the host intercepts the gesture before
+	 * `NavDisplay` sees it, defeating the predictive-back scrub. When `canPop` is `false` Nav3
+	 * disables its back callback so the Activity finishes as usual.
+	 *
+	 * To intercept back on a single screen (e.g. an unsaved-changes prompt), use
+	 * `NavigationBackHandler` from `androidx.navigationevent:navigationevent-compose` inside that
+	 * screen's content — it shares `NavDisplay`'s dispatcher and keeps gesture progress.
 	 */
 	val canPop: Boolean
 
