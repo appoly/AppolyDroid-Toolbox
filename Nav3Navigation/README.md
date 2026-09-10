@@ -45,7 +45,7 @@ implementation("uk.co.appoly.droid:nav3navigation")
 **Requirements**
 
 - `minSdk` **23** (androidx.navigation3 requirement)
-- Depends on `androidx.navigation3` **1.2.0-beta01** (alpha result bus is optional; see [Results](#results))
+- Depends on `androidx.navigation3` **1.2.0-rc01** (alpha result bus is optional; see [Results](#results))
 - **Predictive back needs the manifest opt-in below API 36.** It defaults to `true` on API 36+,
   but on API 33–35 the host app must set it explicitly, or pops commit with no gesture animation:
 
