@@ -13,8 +13,8 @@ pluginManagement {
 }
 
 // Kover coverage aggregation across the whole build (Android + pure-JVM modules) into a
-// single root report. Version kept in sync with `kover` in gradle/libs.versions.toml (the
-// settings plugins block can't read the version catalog).
+// single root report. The version lives here and nowhere else: a settings plugins block is
+// resolved before the version catalog exists, so it can't read gradle/libs.versions.toml.
 plugins {
 	id("org.jetbrains.kotlinx.kover.aggregation") version "0.9.9"
 }
