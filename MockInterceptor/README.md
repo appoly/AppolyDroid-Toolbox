@@ -16,7 +16,7 @@ An OkHttp interceptor with a route-matching DSL for mocking API responses during
 ## Installation
 
 ```gradle.kts
-implementation("uk.co.appoly.droid:mockinterceptor:1.9.0")
+implementation("uk.co.appoly.droid:mockinterceptor:1.9.1-rc01")
 ```
 
 ## Usage

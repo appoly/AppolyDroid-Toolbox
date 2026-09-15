@@ -14,7 +14,7 @@ Extension for [MockInterceptor-Serialization](../MockInterceptor-Serialization/)
 
 ```gradle.kts
 // MockInterceptor and MockInterceptor-Serialization are included transitively
-implementation("uk.co.appoly.droid:mockinterceptor-appolyjson:1.9.0")
+implementation("uk.co.appoly.droid:mockinterceptor-appolyjson:1.9.1-rc01")
 ```
 
 ## Usage

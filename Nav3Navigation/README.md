@@ -32,13 +32,13 @@ without giving up the fused-screen / ambient-navigator convenience that Voyager 
 ## Installation
 
 ```gradle.kts
-implementation("uk.co.appoly.droid:nav3navigation:1.9.0")
+implementation("uk.co.appoly.droid:nav3navigation:1.9.1-rc01")
 ```
 
 Or via the AppolyDroid BOM (version managed by the platform):
 
 ```gradle.kts
-implementation(platform("uk.co.appoly.droid:bom:1.9.0"))
+implementation(platform("uk.co.appoly.droid:bom:1.9.1-rc01"))
 implementation("uk.co.appoly.droid:nav3navigation")
 ```
 
