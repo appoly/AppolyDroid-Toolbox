@@ -32,13 +32,13 @@ without giving up the fused-screen / ambient-navigator convenience that Voyager 
 ## Installation
 
 ```gradle.kts
-implementation("uk.co.appoly.droid:nav3navigation:1.9.1-rc01")
+implementation("uk.co.appoly.droid:nav3navigation:1.9.1")
 ```
 
 Or via the AppolyDroid BOM (version managed by the platform):
 
 ```gradle.kts
-implementation(platform("uk.co.appoly.droid:bom:1.9.1-rc01"))
+implementation(platform("uk.co.appoly.droid:bom:1.9.1"))
 implementation("uk.co.appoly.droid:nav3navigation")
 ```
 
@@ -185,6 +185,10 @@ override fun Content() {
 Bind one `NavigationEventState` to exactly one `NavigationBackHandler` — a second handler sharing
 a state throws `IllegalArgumentException`. Branch inside `onBackCompleted` rather than registering
 two conditional handlers.
+
+Wanting to hand a **result** back on system back is not a reason to register one — an always-enabled
+handler costs you the predictive-back scrub for no interception. See
+[Delivering a result on system back](#delivering-a-result-on-system-back).
 
 ### Deep links
 
@@ -531,6 +535,73 @@ navigator.popUntilWithResult(result = selectedId) { it is ListScreen }
 Default decorators include the result-bus decorator. A picker can `sendResult(...)`; the
 caller observes via `ResultEffect<T>`. **Treat as alpha** — event vs state variants differ on
 process-death behaviour. Prefer (A) or a shared ViewModel until this hits beta/stable.
+
+#### Delivering a result on system back
+
+`popWithResult` is **child-initiated**: the screen being popped chooses to deliver. System back
+does not go through it — `Nav3ScreenHost` forwards `onBack` to `NavDisplay`, which defaults to
+plain `navigator.pop()`. So a screen that hands a value back from its own back arrow delivers
+nothing when the user swipes or presses back instead. Nothing fails; the result is simply dropped,
+and a "something changed, refresh the list" signal goes missing on the most common exit path.
+
+**Don't fix this with an always-enabled `NavigationBackHandler`.** It works, and it costs you the
+predictive-back animation: the handler intercepts ahead of `NavDisplay`, so `predictivePopTransitionSpec`
+never scrubs and the screen no longer animates out under the gesture. See [System back](#system-back) —
+that API is for genuinely *conditional* interception, not for "pop, but carry a payload".
+
+Dispatch from the host's `onBack` instead, on an app-side interface:
+
+```kotlin
+interface PopsWithResult {
+    fun popResult(): Any?
+}
+
+@Serializable
+data class PostDetailScreen(val id: Long) : Nav3Screen, PopsWithResult {
+    override fun popResult() = true // "something changed, refresh"
+
+    @Composable
+    override fun Content() { /* back arrow still calls navigator.popWithResult(true) */ }
+}
+```
+
+```kotlin
+val backStack = rememberNavBackStack(ListScreen)
+// Hoisted: `onBack` is built at the call site, where LocalNav3Navigator is still the *outer*
+// navigator (null at the top level) — not the one this host provides to its screens.
+val navigator = rememberBackStackNav3Navigator(backStack)
+
+Nav3ScreenHost(
+    modifier = Modifier.fillMaxSize(),
+    backStack = backStack,
+    navigator = navigator,
+    onBack = {
+        when (val top = navigator.lastItem) {
+            is PopsWithResult -> navigator.popWithResult(top.popResult())
+            else -> navigator.pop()
+        }
+    },
+)
+```
+
+Predictive back is untouched — `NavDisplay` still owns the gesture and runs the pop transition; only
+what happens on completion changed. Both exits now route through `popWithResult`, so the back arrow
+and system back cannot drift apart.
+
+Three things worth knowing:
+
+- **`popWithResult` no-ops entirely when `canPop` is `false`** — nothing pops and the result is
+  dropped. Harmless here, because Nav3 disables its back callback at the root and `onBack` is never
+  invoked; but don't reuse the helper somewhere a pop at depth 1 is required.
+- **Delivery is "pop first, deliver to the revealed top"**, gated on that screen implementing
+  `Nav3ResultReceiver`. A detail screen reachable from two different lists needs *both* to implement
+  it — otherwise the pop proceeds and the result is silently dropped.
+- **Keep `popResult()` a constant on `@Serializable` keys.** Don't accumulate state on the key to
+  build a richer result; put the real payload in a screen-scoped ViewModel, same rule as `metadata`.
+
+This is deliberately app-side. A host default that always called `popWithResult(null)` would hand
+`null` to receivers that only wanted results from explicit pops, and a `Nav3Screen.onPopResult` hook
+would be this interface with the library guessing the contract instead of the app declaring it.
 
 ### Screen-scoped ViewModels (ScreenModel → ViewModel)
 
