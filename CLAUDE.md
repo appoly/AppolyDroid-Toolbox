@@ -125,6 +125,9 @@ Published to **Maven Central** under `uk.co.appoly.droid`, with lowercase artifa
   Gradle reads them only under the `ORG_GRADLE_PROJECT_` prefix with exact camelCase. The vault
   item is set in the git-ignored `scripts/publish.conf` — this repo is public, so it is not
   committed. See `scripts/publish.conf.example`.
+- `./scripts/publish-local.sh` installs to `~/.m2` unsigned with no credentials (the everyday
+  local-testing loop), and `./scripts/clear-local-publish.sh` removes that install again. Both are
+  also Android Studio run configurations in `.run/`.
 - `./scripts/publish.sh --local` publishes signed artifacts to `~/.m2`; without `--local` it
   releases to Central. **Releases are run manually and locally** — there is no release CI job and
   no Maven Central secrets in the repo, so a version tag publishes nothing on its own.

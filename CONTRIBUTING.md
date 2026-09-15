@@ -6,23 +6,105 @@ covers building, testing and releasing it.
 ## Testing an unreleased change
 
 Maven Central publishes only what is released, so there is no equivalent of JitPack's
-build-any-branch behaviour. Two options replace it.
+build-any-branch behaviour — and releases are immutable, so a mistake cannot be corrected in
+place. Test locally first. Two options replace JitPack.
 
-**Install locally.** From a checkout of the branch you want to test:
+### Install locally (the normal loop)
+
+From a checkout of the branch you want to test:
 
 ```bash
-./scripts/publish.sh --local
+./scripts/publish-local.sh                    # every module, unsigned — no credentials needed
+./scripts/publish-local.sh BaseRepo UiState   # only those modules, for a tight iteration loop
+./scripts/publish-local.sh --signed           # every module, signed (= ./scripts/publish.sh --local)
 ```
 
-That publishes every module to `~/.m2`, signed. Add `mavenLocal()` to the consuming project's
-repositories, ahead of `mavenCentral()`.
+Undo it with:
 
-> Take `mavenLocal()` out again before committing, and before drawing any conclusion about a
-> released version. A locally published build carries the same version string as the real one, so
-> leaving it in means resolving your own artifacts while believing you are testing the release.
+```bash
+./scripts/clear-local-publish.sh              # every locally installed version
+./scripts/clear-local-publish.sh 1.9.1-local1 # just that version
+./scripts/clear-local-publish.sh --dry-run    # list what would go, delete nothing
+```
 
-**Publish a snapshot.** Snapshot versions go to Central's snapshot repository rather than the main
-one, and need it adding explicitly:
+Both are also Android Studio run configurations, checked in under `.run/` and shared through
+version control: **Publish to Maven Local**, **Publish to Maven Local (signed)** and **Clear Local
+Maven Publish**. They run in the Run window's terminal, so the clear script's confirmation prompt
+works there. To publish a subset from the IDE, edit the run configuration's *Script options* field —
+or just use the terminal.
+
+`clear-local-publish.sh` only ever touches `~/.m2/repository/uk/co/appoly/droid` (or `PUBLISH_GROUP`
+from `scripts/publish.conf`, for a fork). Nothing else in `~/.m2` is read or written.
+
+**Signed or not?** Unsigned is the default because signing needs the release key out of 1Password,
+and Gradle does not verify signatures on resolve — an unsigned local install behaves identically to
+a signed one for every purpose this loop has. Use `--signed` only when the thing under test *is* the
+signing, or the exact artifact set a release would upload. That path is `publish.sh --local`, which
+`--signed` simply delegates to.
+
+### Consuming a local install from another project
+
+Add `mavenLocal()` **first** in the consuming project's repository list, so it wins over Central:
+
+```kotlin
+// settings.gradle.kts
+dependencyResolutionManagement {
+    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+    repositories {
+        mavenLocal()
+        google()
+        mavenCentral()
+    }
+}
+```
+
+Then depend on the toolbox exactly as usual — the BOM works unchanged, since it is installed
+locally alongside everything else:
+
+```kotlin
+// <version> is whatever TOOLBOX_VERSION you just installed — this file is not version-synced,
+// so read it out of buildSrc/src/main/kotlin/BuildConfig.kt rather than trusting a number here.
+implementation(platform("uk.co.appoly.droid:bom:<version>"))
+implementation("uk.co.appoly.droid:baserepo")
+implementation("uk.co.appoly.droid:uistate")
+```
+
+Sync with `--refresh-dependencies` the first time:
+
+```bash
+./gradlew --refresh-dependencies :app:assembleStagingDebug
+```
+
+Without it Gradle may serve a cached module for that version string — resolved earlier from Central
+— and never look in `~/.m2` at all. The same applies in reverse *after* clearing: a consumer that
+already resolved the local copy keeps serving it until refreshed.
+
+A narrower alternative, if you would rather `mavenLocal()` could not possibly shadow anything else,
+is to scope it to the toolbox group:
+
+```kotlin
+exclusiveContent {
+    forRepository { mavenLocal() }
+    filter { includeGroup("uk.co.appoly.droid") }
+}
+```
+
+> **Take `mavenLocal()` back out when you are done**, and run `clear-local-publish.sh`. A local
+> install carries the same version string as the real release, so leaving either in place means
+> resolving your own working tree while believing you are testing the published artifacts. A partial
+> install (`publish-local.sh BaseRepo`) is worse still: the other modules in `~/.m2` are whatever was
+> installed last, possibly a different build of the same version.
+
+The cleanest way to remove the ambiguity entirely is to bump `TOOLBOX_VERSION` in
+`buildSrc/src/main/kotlin/BuildConfig.kt` to something that does not and will not exist on Central —
+`1.9.1-local1` — and depend on that from the consuming project. Then there is no version string in
+play that could mean two different things, and the dependency-cache problem disappears with it.
+Revert the bump before committing.
+
+### Publish a snapshot
+
+Snapshot versions go to Central's snapshot repository rather than the main one, and need it adding
+explicitly:
 
 ```kotlin
 maven { url = uri("https://central.sonatype.com/repository/maven-snapshots/") }
@@ -50,7 +132,8 @@ Bump `TOOLBOX_VERSION` in `buildSrc/src/main/kotlin/BuildConfig.kt` first. Every
 one version; see [Why one version for all modules](#why-one-version-for-all-modules).
 
 > **Releases are immutable.** A version can never be re-uploaded or corrected — the only remedy is
-> publishing a new one. Iterate with `--local` *before* releasing, never after.
+> publishing a new one. Iterate with [`publish-local.sh`](#install-locally-the-normal-loop) *before*
+> releasing, never after.
 
 ### Central publishing limits — batch releases, do not split modules
 
@@ -67,7 +150,7 @@ Two consequences for release practice:
 
 - **Batch patch releases.** A flurry of same-month point releases — the 1.8.0 → 1.8.3 pattern of
   August 2026 — would be ~2,540 files, over twice the allowance. Fold fixes into one version and
-  iterate through `--local` or a snapshot in the meantime.
+  iterate through a local install or a snapshot in the meantime.
 - **Do not split modules to reduce usage; it does the opposite.** 26 separately-published
   repositories would be 26 release events per version, past the limit of 7 on day one. The single
   batched deployment is the cheapest possible shape under these rules — a further reason for the
