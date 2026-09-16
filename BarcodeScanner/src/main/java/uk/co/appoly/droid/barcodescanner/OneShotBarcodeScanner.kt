@@ -8,7 +8,27 @@ import com.google.mlkit.vision.barcode.common.Barcode
 import com.google.mlkit.vision.codescanner.GmsBarcodeScannerOptions
 import com.google.mlkit.vision.codescanner.GmsBarcodeScanning
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.tasks.await
+
+/**
+ * Decides what a [CancellationException] out of a Play services `Task` actually means.
+ *
+ * Play services reports "the user backed out of the scanner" by *cancelling the Task*, which
+ * `await()` surfaces as a [CancellationException] — an ordinary outcome that must be turned into a
+ * result, not rethrown. Our own caller being cancelled arrives as the same exception type and must
+ * propagate, or a cancelled screen would silently be treated as a user decision.
+ *
+ * [kotlinx.coroutines.ensureActive] throws only in the second case, so returning normally from
+ * here means "the user cancelled".
+ *
+ * Extracted and internal so the distinction is unit-testable: getting it backwards makes
+ * [OneShotScanResult.Cancelled] unreachable, which no compiler warns about.
+ */
+internal suspend fun awaitUserCancellation() {
+	currentCoroutineContext().ensureActive()
+}
 
 /** The outcome of a single [OneShotBarcodeScanner.scan] call. */
 sealed interface OneShotScanResult {
@@ -103,7 +123,10 @@ class OneShotBarcodeScanner(
 				true
 			}
 		} catch (cancellation: CancellationException) {
-			throw cancellation
+			// A cancelled install Task is a failed warm-up, not a reason to cancel whoever called
+			// us. Only a genuinely cancelled caller propagates.
+			awaitUserCancellation()
+			false
 		} catch (_: Exception) {
 			false
 		}
@@ -120,7 +143,8 @@ class OneShotBarcodeScanner(
 		val barcode: Barcode = try {
 			client.startScan().await()
 		} catch (cancellation: CancellationException) {
-			throw cancellation
+			awaitUserCancellation()
+			return OneShotScanResult.Cancelled
 		} catch (error: MlKitException) {
 			return error.toScanResult()
 		} catch (error: Exception) {
