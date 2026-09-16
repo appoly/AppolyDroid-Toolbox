@@ -96,6 +96,18 @@ is OneShotScanResult.Unavailable -> {
 }
 ```
 
+## Don't branch on error codes
+
+`Failed` wraps whatever Play services threw, usually an `MlKitException`. Resist reading meaning
+into its `errorCode`: Play services reports `INTERNAL` (13) for genuinely unrelated problems — a
+scanner module that has not registered yet, a camera delivering no frames, and others. During this
+module's first integration, two separate investigations were sent the wrong way by assuming that
+code meant one specific thing.
+
+`Unavailable` is the only result that carries a reliable meaning, so make product decisions there.
+Treat `Failed` as "retry or tell the user", and log `cause` for diagnosis rather than switching on
+it.
+
 ## API
 
 | Type | Purpose |

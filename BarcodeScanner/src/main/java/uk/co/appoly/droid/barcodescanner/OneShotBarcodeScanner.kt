@@ -52,7 +52,18 @@ sealed interface OneShotScanResult {
 	 */
 	data class Unavailable(val cause: Throwable?) : OneShotScanResult
 
-	/** The scan failed for any other reason. */
+	/**
+	 * The scan failed for any other reason.
+	 *
+	 * **Do not branch on the underlying error code.** [cause] is usually an `MlKitException`, and
+	 * Play services overwhelmingly reports `INTERNAL` (13) for unrelated problems — a module that
+	 * has not registered yet, a camera delivering no frames, and more. Two separate investigations
+	 * during this module's first integration were misdirected by reading meaning into that code.
+	 *
+	 * Treat this branch as "try again or tell the user", show [cause] in logs, and make product
+	 * decisions from [Unavailable] instead, which is the only result that carries a reliable
+	 * meaning.
+	 */
 	data class Failed(val cause: Throwable) : OneShotScanResult
 }
 
