@@ -113,8 +113,29 @@ data object SegmentedControlDemoScreen : Nav3Screen {
 						style = MaterialTheme.typography.bodyMedium,
 						color = MaterialTheme.colorScheme.primary
 					)
-					TextButton(onClick = { answer = null }) {
-						Text("Clear")
+					var locked by remember { mutableStateOf(false) }
+
+					Spacer(modifier = Modifier.height(8.dp))
+					Text(
+						text = "enabled = false locks it: taps ignored, dimmed, but the answer " +
+							"stays visible.",
+						style = MaterialTheme.typography.bodySmall,
+						color = MaterialTheme.colorScheme.onSurfaceVariant
+					)
+					SegmentedControl(
+						segments = segments,
+						selectedSegment = answer,
+						enabled = !locked,
+						onSegmentSelected = { answer = it }
+					)
+
+					Row(verticalAlignment = Alignment.CenterVertically) {
+						TextButton(onClick = { answer = null }) {
+							Text("Clear")
+						}
+						TextButton(onClick = { locked = !locked }) {
+							Text(if (locked) "Unlock" else "Lock")
+						}
 					}
 				}
 			}

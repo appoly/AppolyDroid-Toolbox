@@ -56,6 +56,7 @@ import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.onClick
+import androidx.compose.ui.semantics.disabled
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
@@ -170,6 +171,15 @@ data class SegmentedControlTextStyle(
 )
 
 object SegmentedControlDefaults {
+    /**
+     * Opacity applied to the whole control when `enabled = false`.
+     *
+     * Matches Material 3's disabled-content token. The thumb keeps its position and stays
+     * visible, so a locked form still shows the answer it holds — disabled means "you cannot
+     * change this", not "this has no value".
+     */
+    const val DisabledAlpha = 0.38f
+
     /**
      * Creates Default [SegmentedControlColors] with solid colors.
      */
@@ -407,6 +417,10 @@ private const val NO_SEGMENT_INDEX = -1
  * segment the user picks.
  * @param onSegmentSelected A callback that will be called when the user selects a segment.
  * @param modifier A modifier to apply to the control.
+ * @param enabled Whether the control responds to input. When false, taps and drag-to-switch are
+ * both ignored, the segments report themselves as disabled to accessibility services, and the
+ * whole control is dimmed to [SegmentedControlDefaults.DisabledAlpha]. Use it for a form that has
+ * been submitted or locked — the current selection stays visible, it simply cannot be changed.
  * @param trackShape The shape of the track that the segments are placed on.
  * @param trackPadding The padding around the track.
  * @param trackPressedPadding The padding around the track when a segment is pressed.
@@ -424,6 +438,7 @@ fun SegmentedControl(
     selectedSegment: String?,
     onSegmentSelected: (String) -> Unit,
     modifier: Modifier = Modifier,
+    enabled: Boolean = true,
     trackShape: Shape = RoundedCornerShape(8.dp),
     trackPadding: Dp = 2.dp,
     trackPressedPadding: Dp = 1.dp,
@@ -440,6 +455,7 @@ fun SegmentedControl(
         selectedSegment = selectedSegment,
         onSegmentSelected = onSegmentSelected,
         modifier = modifier,
+        enabled = enabled,
         trackShape = trackShape,
         trackPadding = trackPadding,
         trackPressedPadding = trackPressedPadding,
@@ -468,6 +484,10 @@ fun SegmentedControl(
  * segment the user picks.
  * @param onSegmentSelected A callback that will be called when the user selects a segment.
  * @param modifier A modifier to apply to the control.
+ * @param enabled Whether the control responds to input. When false, taps and drag-to-switch are
+ * both ignored, the segments report themselves as disabled to accessibility services, and the
+ * whole control is dimmed to [SegmentedControlDefaults.DisabledAlpha]. Use it for a form that has
+ * been submitted or locked — the current selection stays visible, it simply cannot be changed.
  * @param trackShape The shape of the track that the segments are placed on.
  * @param trackPadding The padding around the track.
  * @param trackPressedPadding The padding around the track when a segment is pressed.
@@ -486,6 +506,7 @@ fun <T : Any> SegmentedControl(
     selectedSegment: T?,
     onSegmentSelected: (T) -> Unit,
     modifier: Modifier = Modifier,
+    enabled: Boolean = true,
     trackShape: Shape = RoundedCornerShape(8.dp),
     trackPadding: Dp = 2.dp,
     trackPressedPadding: Dp = 1.dp,
@@ -503,6 +524,7 @@ fun <T : Any> SegmentedControl(
         selectedSegment = selectedSegment,
         onSegmentSelected = onSegmentSelected,
         modifier = modifier,
+        enabled = enabled,
         trackShape = trackShape,
         trackPadding = trackPadding,
         trackPressedPadding = trackPressedPadding,
@@ -530,6 +552,10 @@ fun <T : Any> SegmentedControl(
  * segment the user picks.
  * @param onSegmentSelected A callback that will be called when the user selects a segment.
  * @param modifier A modifier to apply to the control.
+ * @param enabled Whether the control responds to input. When false, taps and drag-to-switch are
+ * both ignored, the segments report themselves as disabled to accessibility services, and the
+ * whole control is dimmed to [SegmentedControlDefaults.DisabledAlpha]. Use it for a form that has
+ * been submitted or locked — the current selection stays visible, it simply cannot be changed.
  * @param trackShape The shape of the track that the segments are placed on.
  * @param trackPadding The padding around the track.
  * @param trackPressedPadding The padding around the track when a segment is pressed.
@@ -549,6 +575,7 @@ fun <T : Any> SegmentedControl(
     selectedSegment: T?,
     onSegmentSelected: (T) -> Unit,
     modifier: Modifier = Modifier,
+    enabled: Boolean = true,
     trackShape: Shape = RoundedCornerShape(8.dp),
     trackPadding: Dp = 2.dp,
     trackPressedPadding: Dp = 1.dp,
@@ -616,6 +643,7 @@ fun <T : Any> SegmentedControl(
             Segments(
                 state = state,
                 segments = segments,
+                enabled = enabled,
                 trackPadding = trackPadding,
                 segmentsPadding = segmentsPadding,
                 content = content,
@@ -627,7 +655,11 @@ fun <T : Any> SegmentedControl(
         },
         modifier = modifier
             .fillMaxWidth()
-            .then(state.inputModifier)
+            // Dropping the pointer input entirely, rather than checking `enabled` inside the
+            // gesture, also kills the press animations for free — a disabled control that still
+            // scaled and faded under the finger would read as interactive.
+            .then(if (enabled) state.inputModifier else Modifier)
+            .alpha(if (enabled) 1f else SegmentedControlDefaults.DisabledAlpha)
             .background(colors.trackBrush, trackShape)
             .padding(trackPadding)
     ) { (thumbMeasurable, dividersMeasurable, segmentsMeasurable), constraints ->
@@ -768,6 +800,7 @@ private fun Dividers(
 private fun <T> Segments(
     state: SegmentedControlState,
     segments: List<T>,
+    enabled: Boolean,
     trackPadding: Dp,
     segmentsPadding: Dp,
     colors: SegmentedControlColors,
@@ -813,8 +846,21 @@ private fun <T> Segments(
             val semanticsModifier = Modifier.semantics(mergeDescendants = true) {
                 selected = isSelected
                 role = Role.Button
-                onClick { state.onSegmentSelected(i); true }
                 stateDescription = if (isSelected) "Selected" else "Not selected"
+                if (enabled) {
+                    onClick { state.onSegmentSelected(i); true }
+                } else {
+                    // disabled() is what assistive tech and assertIsNotEnabled() read, and it is
+                    // on its own enough to stop activation — verified by leaving the onClick
+                    // action in place and watching the tests still pass.
+                    //
+                    // The action is withheld anyway so the node does not advertise a capability
+                    // it will not honour: an accessibility service reading the tree should see no
+                    // click action on a locked control rather than one that silently does
+                    // nothing. That property is pinned by a test, since nothing else would catch
+                    // its loss.
+                    disabled()
+                }
             }
 
             Box(

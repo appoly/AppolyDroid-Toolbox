@@ -5,6 +5,7 @@ A highly customizable iOS-style segmented control for Jetpack Compose with smoot
 ## Features
 
 - Optional "nothing selected yet" state for unanswered form questions
+- `enabled = false` for read-only / locked forms
 - Smooth animated thumb sliding between segments
 - Drag gesture support on the selected segment to switch
 - Press animations with configurable scale effect
@@ -67,6 +68,32 @@ A `selectedSegment` that is not present in `segments` behaves the same way as `n
 **Interaction notes.** With nothing selected, tapping any segment selects it; drag-to-switch only
 applies once there is a selection to drag. The thumb fades in under the segment the user taps
 rather than sliding in from the edge.
+
+### Read-only / locked
+
+`enabled = false` makes the control non-interactive:
+
+```kotlin
+SegmentedControl(
+    segments = item.options,
+    selectedSegment = item.value,
+    enabled = !form.isSubmitted,
+    onSegmentSelected = onAnswer,
+)
+```
+
+It covers three things, because dimming alone is not enough — a greyed-out control that still
+accepts taps silently changes the answer on a submitted form, which is a data-integrity bug:
+
+| | |
+|---|---|
+| Input | taps and drag-to-switch are both ignored; press animations stop too |
+| Semantics | every segment reports `disabled`, so accessibility services and `assertIsNotEnabled()` agree, and no click action is advertised |
+| Visual | the whole control is dimmed to `SegmentedControlDefaults.DisabledAlpha` (0.38f, the Material 3 token) |
+
+**The selection stays visible.** Disabled means "you cannot change this", not "this has no value",
+so a locked form still shows the answer it holds. Combine with `selectedSegment = null` for a
+locked form with an unanswered question.
 
 ### With Custom Objects
 
