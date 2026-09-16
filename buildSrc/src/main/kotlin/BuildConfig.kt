@@ -54,6 +54,9 @@ object BuildConfig {
         /** Nav3Navigation module (androidx.navigation3 requires minSdk 23) */
         const val NAV3_NAVIGATION = 23
 
+        /** BarcodeScanner and BarcodeScanner-Camera modules */
+        const val BARCODE_SCANNER = 21
+
 		/**
 		 * Returns the highest minSdk version among all modules.
 		 *
@@ -70,7 +73,8 @@ object BuildConfig {
 				LAZY_PAGING,
 				S3_UPLOADER,
 				CONNECTIVITY_MONITOR,
-				NAV3_NAVIGATION
+				NAV3_NAVIGATION,
+				BARCODE_SCANNER
 			).max()
 		}
     }

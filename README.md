@@ -16,6 +16,7 @@ AppolyDroid Toolbox is a comprehensive collection of Android utility modules tha
 - Segmented controls
 - Jetpack Compose pagination utilities
 - Voyager-style Navigation 3 screens (`Nav3Navigation`)
+- Barcode scanning, one-shot or continuous (`BarcodeScanner`)
 - And more!
 
 ## Installation
@@ -73,6 +74,8 @@ appolydroid-toolbox-dateHelper-room = { group = "uk.co.appoly.droid", name = "da
 appolydroid-toolbox-dateHelper-serialization = { group = "uk.co.appoly.droid", name = "datehelperutil-serialization" }
 appolydroid-toolbox-compose-extensions = { group = "uk.co.appoly.droid", name = "composeextensions" }
 appolydroid-toolbox-segmentedControl = { group = "uk.co.appoly.droid", name = "segmentedcontrol" }
+appolydroid-toolbox-barcodeScanner = { group = "uk.co.appoly.droid", name = "barcodescanner" }
+appolydroid-toolbox-barcodeScanner-camera = { group = "uk.co.appoly.droid", name = "barcodescanner-camera" }
 appolydroid-toolbox-lazyListPagingExtensions = { group = "uk.co.appoly.droid", name = "lazylistpagingextensions" }
 appolydroid-toolbox-lazyGridPagingExtensions = { group = "uk.co.appoly.droid", name = "lazygridpagingextensions" }
 appolydroid-toolbox-pagingExtensions = { group = "uk.co.appoly.droid", name = "pagingextensions" }
@@ -115,6 +118,8 @@ dependencies {
     implementation(libs.appolydroid.toolbox.s3Uploader.multipart)
     implementation(libs.appolydroid.toolbox.connectivityMonitor)
     implementation(libs.appolydroid.toolbox.nav3Navigation)
+    implementation(libs.appolydroid.toolbox.barcodeScanner)
+    implementation(libs.appolydroid.toolbox.barcodeScanner.camera)
     implementation(libs.appolydroid.toolbox.mockInterceptor)
     implementation(libs.appolydroid.toolbox.mockInterceptor.serialization)
     implementation(libs.appolydroid.toolbox.mockInterceptor.appolyjson)
@@ -190,6 +195,8 @@ appolydroid-toolbox-s3Uploader = { group = "uk.co.appoly.droid", name = "s3uploa
 appolydroid-toolbox-s3Uploader-multipart = { group = "uk.co.appoly.droid", name = "s3uploader-multipart", version.ref = "appolydroidToolbox" }
 appolydroid-toolbox-connectivityMonitor = { group = "uk.co.appoly.droid", name = "connectivitymonitor", version.ref = "appolydroidToolbox" }
 appolydroid-toolbox-nav3Navigation = { group = "uk.co.appoly.droid", name = "nav3navigation", version.ref = "appolydroidToolbox" }
+appolydroid-toolbox-barcodeScanner = { group = "uk.co.appoly.droid", name = "barcodescanner", version.ref = "appolydroidToolbox" }
+appolydroid-toolbox-barcodeScanner-camera = { group = "uk.co.appoly.droid", name = "barcodescanner-camera", version.ref = "appolydroidToolbox" }
 appolydroid-toolbox-mockInterceptor = { group = "uk.co.appoly.droid", name = "mockinterceptor", version.ref = "appolydroidToolbox" }
 appolydroid-toolbox-mockInterceptor-serialization = { group = "uk.co.appoly.droid", name = "mockinterceptor-serialization", version.ref = "appolydroidToolbox" }
 appolydroid-toolbox-mockInterceptor-appolyjson = { group = "uk.co.appoly.droid", name = "mockinterceptor-appolyjson", version.ref = "appolydroidToolbox" }
@@ -221,6 +228,8 @@ dependencies {
     implementation(libs.appolydroid.toolbox.s3Uploader.multipart)
     implementation(libs.appolydroid.toolbox.connectivityMonitor)
     implementation(libs.appolydroid.toolbox.nav3Navigation)
+    implementation(libs.appolydroid.toolbox.barcodeScanner)
+    implementation(libs.appolydroid.toolbox.barcodeScanner.camera)
     implementation(libs.appolydroid.toolbox.mockInterceptor)
     implementation(libs.appolydroid.toolbox.mockInterceptor.serialization)
     implementation(libs.appolydroid.toolbox.mockInterceptor.appolyjson)
@@ -256,6 +265,8 @@ dependencies {
     implementation("uk.co.appoly.droid:s3uploader-multipart:$appolydroidToolbox")
     implementation("uk.co.appoly.droid:connectivitymonitor:$appolydroidToolbox")
     implementation("uk.co.appoly.droid:nav3navigation:$appolydroidToolbox")
+    implementation("uk.co.appoly.droid:barcodescanner:$appolydroidToolbox")
+    implementation("uk.co.appoly.droid:barcodescanner-camera:$appolydroidToolbox")
     implementation("uk.co.appoly.droid:mockinterceptor:$appolydroidToolbox")
     implementation("uk.co.appoly.droid:mockinterceptor-serialization:$appolydroidToolbox")
     implementation("uk.co.appoly.droid:mockinterceptor-appolyjson:$appolydroidToolbox")
@@ -337,6 +348,16 @@ Voyager-style screens on androidx Navigation 3: fused key+UI (`Nav3Screen`), amb
 `LocalNav3Navigator` push/pop, and a `Nav3ScreenHost` that preserves native predictive back
 and per-entry ViewModel/saveable/result decorators.
 [Learn more](Nav3Navigation/README.md)
+
+### BarcodeScanner
+Shared barcode model plus a one-shot scanner backed by the Google Play services code scanner —
+no camera permission, no CameraX, no bundled model.
+[Learn more](BarcodeScanner/README.md)
+
+### BarcodeScanner-Camera
+Continuous in-app scanning for Compose: a CameraX preview and ML Kit analyzer wired so that 1D
+formats decode as reliably as QR codes.
+[Learn more](BarcodeScanner-Camera/README.md)
 
 ### MockInterceptor
 OkHttp interceptor with a route-matching DSL for mocking API responses during development and testing.
