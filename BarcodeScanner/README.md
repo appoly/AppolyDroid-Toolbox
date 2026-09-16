@@ -100,6 +100,20 @@ good phone that their phone cannot do this.
 The first scan on a fresh device also retries briefly while Play services finishes enabling the
 scanner, so that race is usually invisible to you.
 
+### "We ship through Play, so this can't happen"
+
+It still can, and the branch is worth keeping. Shipping only through the Play Store rules out
+*installing* on a device with no Play services — it does not rule out:
+
+- **Play services disabled.** A user can disable it in system settings on an app that installed
+  fine months earlier.
+- **Play services too old.** `SERVICE_VERSION_UPDATE_REQUIRED` on a neglected or long-offline
+  device is the single most likely way you will see this in the wild.
+- **Enterprise or MDM distribution**, which bypasses Play entirely.
+
+So treat `Unavailable` as rare rather than impossible. It needs a sane message and, ideally, a
+manual-entry path — not a `TODO`.
+
 
 ```kotlin
 is OneShotScanResult.Unavailable -> {
@@ -107,6 +121,26 @@ is OneShotScanResult.Unavailable -> {
     // or to typing the code in by hand.
 }
 ```
+
+## Migrating from an older scanner
+
+One hazard worth knowing, found in a real migration. Older ML Kit and Mobile Vision code often
+reads the display value defensively:
+
+```kotlin
+barcode.displayValue?.let { onSerial(it) }   // silently does nothing for most codes
+```
+
+`displayValue` is null whenever ML Kit has nothing better to offer than the raw contents, which is
+the *common* case for plain serials and part numbers — so that line drops the scan entirely. The
+scanner opens, decodes, closes, and no value ever arrives, with no error anywhere. Use:
+
+```kotlin
+val shown = barcode.displayValue ?: barcode.rawValue   // for display
+val key   = barcode.rawValue                           // for matching your own data
+```
+
+`rawValue` is guaranteed non-blank, so it is always a safe fallback.
 
 ## Don't branch on error codes
 

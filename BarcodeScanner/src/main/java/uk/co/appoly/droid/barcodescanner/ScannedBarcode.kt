@@ -10,7 +10,13 @@ import com.google.mlkit.vision.barcode.common.Barcode
  * @property format the symbology it was encoded in.
  * @property displayValue ML Kit's human-readable rendering, where it has one (it strips the
  * `WIFI:`/`tel:`-style scheme prefixes from structured QR payloads, for instance). Null when
- * ML Kit offers nothing better than [rawValue].
+ * ML Kit offers nothing better than [rawValue] — including when it would simply repeat it.
+ *
+ * Reach for `displayValue ?: rawValue` when showing a code to a user, and for [rawValue] alone
+ * when matching against your own data. What you should not write is `displayValue?.let { … }`:
+ * null is the common case, not the exceptional one, so that quietly does nothing for most codes.
+ * A migrating app was found dropping every scanned serial that way — the scan succeeded, the
+ * scanner closed, and no value ever appeared.
  */
 data class ScannedBarcode(
 	val rawValue: String,
