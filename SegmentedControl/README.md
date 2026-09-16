@@ -4,6 +4,7 @@ A highly customizable iOS-style segmented control for Jetpack Compose with smoot
 
 ## Features
 
+- Optional "nothing selected yet" state for unanswered form questions
 - Smooth animated thumb sliding between segments
 - Drag gesture support on the selected segment to switch
 - Press animations with configurable scale effect
@@ -37,6 +38,35 @@ fun MyScreen() {
     )
 }
 ```
+
+### Nothing selected yet
+
+`selectedSegment` is nullable. Pass `null` and no segment is selected and no thumb is drawn — which
+is what you want for a form question the user has not answered:
+
+```kotlin
+@Composable
+fun SwitchField(item: SwitchFormItem, onAnswer: (Int) -> Unit) {
+    SegmentedControl(
+        segments = item.options,
+        selectedSegment = item.value,   // null until answered
+        onSegmentSelected = onAnswer,
+    )
+}
+```
+
+This matters for correctness, not just looks. The alternative — defaulting to the first segment —
+renders a required, unanswered field as though the user had already answered it, and invites a
+wrong submission.
+
+`onSegmentSelected` stays non-null: null is an input state, never an output, because the user can
+only ever tap a real segment. Clearing a selection is done by passing `null` back in.
+
+A `selectedSegment` that is not present in `segments` behaves the same way as `null`.
+
+**Interaction notes.** With nothing selected, tapping any segment selects it; drag-to-switch only
+applies once there is a selection to drag. The thumb fades in under the segment the user taps
+rather than sliding in from the edge.
 
 ### With Custom Objects
 

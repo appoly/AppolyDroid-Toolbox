@@ -23,6 +23,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -80,6 +81,43 @@ data object SegmentedControlDemoScreen : Nav3Screen {
 				text = "iOS-style segmented control with smooth animations and customizable styling",
 				style = MaterialTheme.typography.bodyLarge
 			)
+
+			// Unanswered state — the form-engine case
+			Card(modifier = Modifier.fillMaxWidth()) {
+				Column(modifier = Modifier.padding(16.dp)) {
+					Text(
+						text = "Nothing selected yet",
+						style = MaterialTheme.typography.titleMedium
+					)
+					Spacer(modifier = Modifier.height(8.dp))
+					Text(
+						text = "selectedSegment = null renders no thumb, so an unanswered form " +
+							"question doesn't look answered. Tap to answer, Clear to reset.",
+						style = MaterialTheme.typography.bodySmall,
+						color = MaterialTheme.colorScheme.onSurfaceVariant
+					)
+					Spacer(modifier = Modifier.height(8.dp))
+
+					val segments = remember { listOf("Yes", "No", "N/A") }
+					var answer by remember { mutableStateOf<String?>(null) }
+
+					SegmentedControl(
+						segments = segments,
+						selectedSegment = answer,
+						onSegmentSelected = { answer = it }
+					)
+
+					Spacer(modifier = Modifier.height(8.dp))
+					Text(
+						text = "Answer: ${answer ?: "unanswered"}",
+						style = MaterialTheme.typography.bodyMedium,
+						color = MaterialTheme.colorScheme.primary
+					)
+					TextButton(onClick = { answer = null }) {
+						Text("Clear")
+					}
+				}
+			}
 
 			// Basic usage with strings
 			Card(modifier = Modifier.fillMaxWidth()) {
