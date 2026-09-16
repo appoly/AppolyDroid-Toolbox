@@ -1,5 +1,6 @@
 package uk.co.appoly.droid.barcodescanner.camera
 
+import androidx.annotation.VisibleForTesting
 import uk.co.appoly.droid.barcodescanner.ScannedBarcode
 import kotlin.time.Duration
 import kotlin.time.TimeMark
@@ -25,6 +26,10 @@ internal class BarcodeDebouncer(
 	private val timeSource: TimeSource = TimeSource.Monotonic,
 ) {
 	private val lastEmitted = HashMap<String, TimeMark>()
+
+	/** How many codes are currently being tracked. Exists so [pruneExpired] is observable. */
+	@get:VisibleForTesting
+	internal val trackedCodeCount: Int get() = lastEmitted.size
 
 	/**
 	 * Returns true if [barcode] should be reported to the caller, recording the emission when so.

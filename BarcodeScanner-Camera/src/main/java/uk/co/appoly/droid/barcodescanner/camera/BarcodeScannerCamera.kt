@@ -31,7 +31,9 @@ import com.google.mlkit.vision.barcode.BarcodeScanning
 import com.google.mlkit.vision.barcode.common.Barcode
 import com.google.mlkit.vision.common.InputImage
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.withContext
 import uk.co.appoly.droid.barcodescanner.BarcodeFormat
 import uk.co.appoly.droid.barcodescanner.BarcodeFormats
 import uk.co.appoly.droid.barcodescanner.ScannedBarcode
@@ -150,26 +152,33 @@ fun BarcodeScannerCamera(
 				null
 			}
 			if (cameraProvider != null) {
-				val bound = try {
-					camera = cameraProvider.bindToLifecycle(
-						lifecycleOwner,
-						lensFacing.selector,
-						preview,
-						analysis,
-					)
-					true
-				} catch (error: Exception) {
-					currentOnError(error)
-					false
-				}
-				// clearAnalyzer + unbind must happen before the scanner closes below, so that no
-				// analyze() call can run against a closed detector.
-				try {
-					if (bound) awaitCancellation()
-				} finally {
-					camera = null
-					analysis.clearAnalyzer()
-					cameraProvider.unbind(preview, analysis)
+				// bindToLifecycle and unbind both assert they are on the main thread. In an app
+				// the composition dispatches there anyway, but awaitInstance above resumes on a
+				// CameraX executor, so the thread at this point depends on the ambient
+				// dispatcher — which under a Compose test harness is not main. Pin it rather
+				// than depend on it.
+				withContext(Dispatchers.Main.immediate) {
+					val bound = try {
+						camera = cameraProvider.bindToLifecycle(
+							lifecycleOwner,
+							lensFacing.selector,
+							preview,
+							analysis,
+						)
+						true
+					} catch (error: Exception) {
+						currentOnError(error)
+						false
+					}
+					// clearAnalyzer + unbind must happen before the scanner closes below, so that
+					// no analyze() call can run against a closed detector.
+					try {
+						if (bound) awaitCancellation()
+					} finally {
+						camera = null
+						analysis.clearAnalyzer()
+						cameraProvider.unbind(preview, analysis)
+					}
 				}
 			}
 		} finally {

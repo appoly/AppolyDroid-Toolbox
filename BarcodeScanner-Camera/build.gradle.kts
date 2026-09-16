@@ -73,8 +73,14 @@ dependencies {
 	testImplementation(platform(libs.androidx.compose.bom))
 	testImplementation(libs.androidx.ui.test.junit4)
 	testImplementation(libs.androidx.ui.test.manifest)
+	// On-device suite (see README "On-device test suite"). Deliberately NOT run in CI: it needs a
+	// real camera, which no CI runner has. Run it before tagging a release.
 	androidTestImplementation(libs.androidx.junit)
 	androidTestImplementation(libs.androidx.espresso.core)
+	androidTestImplementation(platform(libs.androidx.compose.bom))
+	androidTestImplementation(libs.androidx.ui.test.junit4)
+	androidTestImplementation(libs.androidx.activity.compose)
+	debugImplementation(libs.androidx.ui.test.manifest)
 }
 mavenPublishing {
 	pom {

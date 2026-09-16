@@ -45,6 +45,7 @@ junit = "4.13.2"
 junitVersion = "1.3.0"
 espressoCore = "3.7.0"
 androidxTestCore = "1.7.0"
+androidxTestRules = "1.7.0"        # GrantPermissionRule, BarcodeScanner-Camera device suite
 robolectric = "4.16.1"
 activityCompose = "1.13.0"        # demo app + Nav3Navigation androidTest only
 
@@ -141,6 +142,7 @@ androidx-work-testing = { group = "androidx.work", name = "work-testing", versio
 androidx-junit = { group = "androidx.test.ext", name = "junit", version.ref = "junitVersion" }
 androidx-espresso-core = { group = "androidx.test.espresso", name = "espresso-core", version.ref = "espressoCore" }
 androidx-test-core-ktx = { group = "androidx.test", name = "core-ktx", version.ref = "androidxTestCore" }
+androidx-test-rules = { group = "androidx.test", name = "rules", version.ref = "androidxTestRules" }
 androidx-room-testing = { group = "androidx.room", name = "room-testing", version.ref = "roomVersion" }
 
 #Compose test (versions from the Compose BOM)

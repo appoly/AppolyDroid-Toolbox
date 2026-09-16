@@ -129,6 +129,26 @@ It also deliberately avoids `camera-view`, `camera-video` and `camera-mlkit-visi
 `CameraXViewfinder` replaces `PreviewView`, and `MlKitAnalyzer` would drag in the other two to
 replace a fifteen-line class.
 
+## On-device test suite
+
+The module ships a small instrumented suite covering the bind/unbind lifecycle. It is
+**deliberately not run in CI** — it needs a real camera, which no CI runner has. Run it before
+tagging a release:
+
+```bash
+./gradlew :BarcodeScanner-Camera:connectedDebugAndroidTest
+```
+
+It proves the composable binds without error and survives repeated mount/unmount cycles — the
+regression surface that actually bites, since closing the detector while a frame is in flight
+throws from the analysis thread rather than reporting through `onError`. Verified on a Pixel 9 Pro
+Fold (Android 17) and a OnePlus 6T (Android 11).
+
+The suite asserts the `CAMERA` grant rather than using `GrantPermissionRule`: that rule opens a
+UiAutomation connection unconditionally and dies with "UiAutomationService ... already registered"
+on a device that already holds one, even when the permission is granted. The install grants it; if
+you see the assertion fire, the message tells you the `adb shell pm grant` to run.
+
 ## Notes
 
 - The ML Kit model is served by Play services, not bundled — the module adds no multi-megabyte
