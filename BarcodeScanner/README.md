@@ -87,7 +87,19 @@ setOf(BarcodeFormat.Ean13, BarcodeFormat.UpcA)  // or roll your own
 
 The hosted scanner lives in Play services, so it does not exist on Huawei devices, stripped ROMs,
 or installs with a Play services too old to serve it. That is a real slice of real users, and the
-sealed result makes it impossible to forget:
+sealed result makes it impossible to forget.
+
+**`Unavailable` means the device genuinely cannot scan**, not "it did not work this time". The
+distinction is enforced rather than assumed: the module asks Play services about its own
+availability instead of inferring it from a scanner error code, because Play services reports the
+same `CODE_SCANNER_UNAVAILABLE` for a device that can never scan *and* for a perfectly capable one
+whose freshly installed scanner components have not been enabled yet. A first-run race, a missing
+network or an update in progress all report `Failed`, so you will never tell a first-time user on a
+good phone that their phone cannot do this.
+
+The first scan on a fresh device also retries briefly while Play services finishes enabling the
+scanner, so that race is usually invisible to you.
+
 
 ```kotlin
 is OneShotScanResult.Unavailable -> {
