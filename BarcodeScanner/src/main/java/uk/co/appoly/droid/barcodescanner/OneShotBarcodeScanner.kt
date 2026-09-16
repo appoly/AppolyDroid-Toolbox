@@ -1,8 +1,10 @@
 package uk.co.appoly.droid.barcodescanner
 
 import android.content.Context
+import com.google.android.gms.common.moduleinstall.InstallStatusListener
 import com.google.android.gms.common.moduleinstall.ModuleInstall
 import com.google.android.gms.common.moduleinstall.ModuleInstallRequest
+import com.google.android.gms.common.moduleinstall.ModuleInstallStatusUpdate
 import com.google.mlkit.common.MlKitException
 import com.google.mlkit.vision.barcode.common.Barcode
 import com.google.mlkit.vision.codescanner.GmsBarcodeScannerOptions
@@ -10,7 +12,10 @@ import com.google.mlkit.vision.codescanner.GmsBarcodeScanning
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.tasks.await
+import java.util.concurrent.atomic.AtomicBoolean
+import kotlin.coroutines.resume
 
 /**
  * Decides what a [CancellationException] out of a Play services `Task` actually means.
@@ -98,29 +103,86 @@ class OneShotBarcodeScanner(
 	private val client get() = GmsBarcodeScanning.getClient(appContext, options)
 
 	/**
-	 * Pre-installs the Play services scanner module so the first [scan] opens immediately
-	 * instead of sitting on a download spinner for several seconds.
+	 * Pre-installs the Play services scanner module, suspending until it is genuinely ready, so
+	 * that the first [scan] opens immediately instead of sitting on a download spinner for several
+	 * seconds.
 	 *
 	 * Call it from a screen the user reaches before they need to scan — app start, or the screen
-	 * hosting the scan button. Safe to call repeatedly; it is a no-op once the module is present.
+	 * hosting the scan button. Safe to call repeatedly; it returns straight away once the module
+	 * is present. On a fresh device the first call can take several seconds and needs a network,
+	 * so do not block your UI on it.
 	 *
-	 * @return true if the module is installed and ready, false if the install could not be done
-	 * (no Play services, no network). A false here does not mean [scan] will fail — it will just
-	 * be slower, or return [OneShotScanResult.Unavailable].
+	 * Purely an optimisation: [scan] performs the same check itself, so skipping this costs
+	 * latency on the first scan, never correctness.
+	 *
+	 * @return true if the module is installed and ready to use, false if the install could not be
+	 * done (no Play services, no network, or the user cancelled it). A false here means [scan]
+	 * will likely return [OneShotScanResult.Unavailable] until the situation changes.
 	 */
-	suspend fun warmUp(): Boolean {
+	suspend fun warmUp(): Boolean = ensureModuleInstalled()
+
+	/**
+	 * Suspends until the Play services scanner module is installed, or the install reaches a
+	 * terminal failure.
+	 *
+	 * The subtlety that makes this more than a one-liner: `installModules().await()` resolves when
+	 * Play services *accepts* the request, not when the download finishes. Treating that as "ready"
+	 * launches the scanner against a module that has not registered yet — Play services logs
+	 * "No registered Chimera impl" and fails the scan with a generic `INTERNAL` error that is
+	 * indistinguishable from a real scan failure. Completion is only observable through an
+	 * [InstallStatusListener] on the request.
+	 *
+	 * There is no built-in timeout: a slow download is still a legitimate install. Callers that
+	 * cannot wait should wrap the call in `withTimeout`, which cancels cleanly.
+	 */
+	private suspend fun ensureModuleInstalled(): Boolean {
 		val scannerClient = client
 		return try {
 			val moduleInstall = ModuleInstall.getClient(appContext)
-			val availability = moduleInstall.areModulesAvailable(scannerClient).await()
-			if (availability.areModulesAvailable()) {
-				true
-			} else {
-				val request = ModuleInstallRequest.newBuilder()
-					.addApi(scannerClient)
-					.build()
-				moduleInstall.installModules(request).await()
-				true
+			if (moduleInstall.areModulesAvailable(scannerClient).await().areModulesAvailable()) {
+				return true
+			}
+			suspendCancellableCoroutine { continuation ->
+				// installModules' own callbacks and the listener race each other, and resuming a
+				// continuation twice throws. First one through wins.
+				val settled = AtomicBoolean(false)
+				lateinit var listener: InstallStatusListener
+
+				fun settle(installed: Boolean) {
+					if (settled.compareAndSet(false, true)) {
+						moduleInstall.unregisterListener(listener)
+						continuation.resume(installed)
+					}
+				}
+
+				listener = InstallStatusListener { update ->
+					when (update.installState) {
+						ModuleInstallStatusUpdate.InstallState.STATE_COMPLETED -> settle(true)
+						ModuleInstallStatusUpdate.InstallState.STATE_FAILED,
+						ModuleInstallStatusUpdate.InstallState.STATE_CANCELED,
+							-> settle(false)
+						// PENDING / DOWNLOADING / INSTALLING / DOWNLOAD_PAUSED: keep waiting.
+					}
+				}
+
+				continuation.invokeOnCancellation {
+					if (settled.compareAndSet(false, true)) {
+						moduleInstall.unregisterListener(listener)
+					}
+				}
+
+				moduleInstall.installModules(
+					ModuleInstallRequest.newBuilder()
+						.addApi(scannerClient)
+						.setListener(listener)
+						.build(),
+				)
+					.addOnSuccessListener { response ->
+						// Nothing left to download means no listener callback will ever arrive,
+						// so this is the only thing that can resume the continuation.
+						if (response.areModulesAlreadyInstalled()) settle(true)
+					}
+					.addOnFailureListener { settle(false) }
 			}
 		} catch (cancellation: CancellationException) {
 			// A cancelled install Task is a failed warm-up, not a reason to cancel whoever called
@@ -140,6 +202,17 @@ class OneShotBarcodeScanner(
 	 * activity. The result is simply discarded.
 	 */
 	suspend fun scan(): OneShotScanResult {
+		// Not merely an optimisation. Launching the scanner before the module has registered makes
+		// Play services fail with a generic INTERNAL error, so [warmUp] only moves this cost
+		// earlier — it is not the thing that makes scanning correct.
+		if (!ensureModuleInstalled()) {
+			return OneShotScanResult.Unavailable(
+				IllegalStateException(
+					"The Play services barcode scanner module is not installed and could not be " +
+						"installed (no Play services, or no network).",
+				),
+			)
+		}
 		val barcode: Barcode = try {
 			client.startScan().await()
 		} catch (cancellation: CancellationException) {

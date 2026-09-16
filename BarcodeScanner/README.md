@@ -58,8 +58,18 @@ LaunchedEffect(Unit) {
 }
 ```
 
-It is safe to call repeatedly and returns `false` rather than throwing when the install cannot be
-done. A `false` does not mean `scan()` will fail — only that it may be slower.
+It suspends until the module is genuinely installed, is safe to call repeatedly, and returns
+`false` rather than throwing when the install cannot be done.
+
+`warmUp()` is **purely an optimisation** — `scan()` performs the same check itself and waits if it
+has to, so skipping it costs latency on the first scan, never correctness. Do not block your UI on
+it: on a fresh device it needs a network and several seconds.
+
+> Under the hood this is more than one call, because `installModules().await()` resolves when Play
+> services *accepts* the request rather than when the download completes. Launching the scanner at
+> that point hits a module that has not registered yet, and Play services fails the scan with a
+> generic `INTERNAL` error. Completion is only observable via an `InstallStatusListener`, which is
+> what both `warmUp()` and `scan()` wait on.
 
 ### Choosing formats
 
