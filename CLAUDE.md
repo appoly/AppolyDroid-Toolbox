@@ -58,6 +58,10 @@ The library uses a layered module structure:
 - `MockInterceptor-AppolyJson` - Helpers for mocking Appoly's standard JSON envelope
 - `MockInterceptor-Retrofit` - Auto-registers mock routes by reflecting over Retrofit annotations
 
+**Barcode Scanning:**
+- `BarcodeScanner` - Shared `ScannedBarcode`/`BarcodeFormat` model plus `OneShotBarcodeScanner`, backed by the Play services hosted code scanner (no CameraX, no camera permission)
+- `BarcodeScanner-Camera` - Continuous in-app scanning: CameraX preview + ML Kit analyzer, built on `BarcodeScanner`
+
 **Standalone Utilities:**
 - `UiState` - Sealed class for UI state (Idle/Loading/Success/Error)
 - `S3Uploader` - Direct S3 uploads with progress tracking
@@ -125,6 +129,9 @@ Published to **Maven Central** under `uk.co.appoly.droid`, with lowercase artifa
   Gradle reads them only under the `ORG_GRADLE_PROJECT_` prefix with exact camelCase. The vault
   item is set in the git-ignored `scripts/publish.conf` — this repo is public, so it is not
   committed. See `scripts/publish.conf.example`.
+- `./scripts/publish-local.sh` installs to `~/.m2` unsigned with no credentials (the everyday
+  local-testing loop), and `./scripts/clear-local-publish.sh` removes that install again. Both are
+  also Android Studio run configurations in `.run/`.
 - `./scripts/publish.sh --local` publishes signed artifacts to `~/.m2`; without `--local` it
   releases to Central. **Releases are run manually and locally** — there is no release CI job and
   no Maven Central secrets in the repo, so a version tag publishes nothing on its own.

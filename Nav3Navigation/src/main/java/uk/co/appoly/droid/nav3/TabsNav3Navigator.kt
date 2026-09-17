@@ -41,17 +41,23 @@ enum class TabSlide {
 val LocalTabsNavigator = staticCompositionLocalOf<TabsNav3Navigator?> { null }
 
 /**
- * Per-tab back stacks flattened into a single [backStack] for one [Nav3ScreenHost] /
- * [androidx.navigation3.ui.NavDisplay].
+ * One back stack per tab, projected into the single [backStack] that one [Nav3ScreenHost] /
+ * [androidx.navigation3.ui.NavDisplay] renders from.
  *
  * ## Model
  *
- * - Each tab has its own stack. [startTab] is the launch tab and **exit-through-home** target
- *   (defaults to the first entry of [tabOrder]; pass an explicit [startTab] when the home tab
- *   is not first in the strip, e.g. a centre Home among Stations · Kerbside · Home · …).
- * - The display stack retains **every visited tab** so Nav3 keeps per-tab saveable state and
- *   ViewModelStores across tab switches (entries are only torn down when their key leaves the
- *   back stack). Flatten order:
+ * **The per-tab stacks are the source of truth.** Each tab owns its own stack, and every
+ * navigator operation ([push], [pop], [replace], [navigateToTab]) mutates exactly one tab's
+ * stack. [backStack] is a *derived projection* of those stacks, rebuilt after each mutation,
+ * because `NavDisplay` renders from a single list — it is a rendering adapter, not the model.
+ *
+ * - [startTab] is the launch tab and **exit-through-home** target (defaults to the first entry
+ *   of [tabOrder]; pass an explicit [startTab] when the home tab is not first in the strip,
+ *   e.g. a centre Home among Stations · Kerbside · Home · …).
+ * - The projection retains **every visited tab** so Nav3 keeps per-tab saveable state and
+ *   ViewModelStores across tab switches. Nav3 clears an entry's state only when its key leaves
+ *   the back stack, so stack membership is the only retention lever it offers. Projection
+ *   order:
  *   `[other visited tabs in tabOrder] + startTabStack + (currentTabStack if not start)`.
  *   The current tab is always the suffix (`backStack.last()` is its top). Pair with
  *   [TabsSceneStrategy] (the [Nav3TabsHost] default) so only the current top is rendered.
@@ -73,7 +79,7 @@ val LocalTabsNavigator = staticCompositionLocalOf<TabsNav3Navigator?> { null }
  *
  * ## Equal keys across tabs
  *
- * Visited tabs share one flattened [backStack]. If the same equal key appears under more than
+ * Visited tabs share one projected [backStack]. If the same equal key appears under more than
  * one tab (e.g. `DetailScreen(1)` on Home and on Rooms), Nav3 treats them as the same entry for
  * saveable state / ViewModelStore — the same rule as duplicate keys on a single stack. Prefer
  * distinguishing constructor args when the same destination can live under more than one tab.
@@ -101,7 +107,7 @@ val LocalTabsNavigator = staticCompositionLocalOf<TabsNav3Navigator?> { null }
  * @param tabOrder tab roots in strip order (used for [TabSlide] direction and bottom-bar order).
  *   Must be non-empty. Each root is kept as the first entry of that tab's stack and is never
  *   popped or replaced. Only tabs in this list may be passed to [switchTab] / [navigateToTab].
- * @param startTab the launch tab, exit-through-home target, and stack always flattened
+ * @param startTab the launch tab, exit-through-home target, and stack always projected
  *   underneath the current tab. Must be one of [tabOrder]. Defaults to the first entry of
  *   [tabOrder] so existing call sites stay source-compatible.
  * @param parent the navigator that nested this tab shell (typically the root host), or `null`
@@ -120,7 +126,7 @@ class TabsNav3Navigator(
 	val tabOrder: List<Nav3Screen> = tabOrder.toList()
 
 	/**
-	 * The launch tab, the exit-through-home target, and the stack always flattened underneath
+	 * The launch tab, the exit-through-home target, and the stack always projected underneath
 	 * the current tab's stack. Independent of [tabOrder] index — may sit mid-strip.
 	 */
 	val startTab: Nav3Screen = startTab
@@ -130,8 +136,10 @@ class TabsNav3Navigator(
 	)
 
 	/**
-	 * Flattened stack for [Nav3ScreenHost] / [androidx.navigation3.ui.NavDisplay].
-	 * Mutated only via this navigator — do not edit directly.
+	 * The per-tab stacks projected into the single list [Nav3ScreenHost] /
+	 * [androidx.navigation3.ui.NavDisplay] renders from. **Derived state**, rebuilt on every
+	 * mutation — the per-tab stacks are the source of truth, so mutate only via this navigator
+	 * and never edit this list directly.
 	 */
 	val backStack: NavBackStack<NavKey> = NavBackStack(this.startTab)
 
@@ -326,18 +334,18 @@ class TabsNav3Navigator(
 
 	/**
 	 * Top of the current tab's stack (always `backStack.last()`, since the current tab is the
-	 * flattened suffix).
+	 * projected suffix).
 	 */
 	override val lastItem: Nav3Screen?
 		get() = backStack.lastOrNull() as? Nav3Screen
 
 	/**
-	 * Entry immediately beneath the current top in the flattened [backStack].
+	 * Entry immediately beneath the current top in the projected [backStack].
 	 *
 	 * - Deeper in a tab → that tab's previous screen.
 	 * - At a non-start tab root → the top of [startTab]'s stack (what exit-through-home reveals).
 	 * - At the start-tab root with retained visited tabs → another tab's entry may sit beneath
-	 *   home in the flatten; [canPop] is still `false` and [TabsSceneStrategy] reports empty
+	 *   home in the projection; [canPop] is still `false` and [TabsSceneStrategy] reports empty
 	 *   `previousEntries`, so system back backgrounds the app rather than navigating there.
 	 */
 	override val previousItem: Nav3Screen?
@@ -345,11 +353,11 @@ class TabsNav3Navigator(
 
 	/**
 	 * Screens on the **current tab's** stack only (root first) — Voyager-equivalent meaning of
-	 * “the stack”, not the full flattened multi-tab [backStack].
+	 * “the stack”, not the full projected multi-tab [backStack].
 	 *
 	 * Deliberate behaviour: callers inspecting `items` for bottom-bar chrome, deep-link
 	 * reconcile, or “am I on X?” want the active tab, not every retained visited tab.
-	 * Use [stackFor] or [backStack] when you need another tab or the display flatten.
+	 * Use [stackFor] or [backStack] when you need another tab or the display projection.
 	 */
 	override val items: List<Nav3Screen>
 		get() = stackFor(currentTab)
@@ -417,7 +425,7 @@ class TabsNav3Navigator(
 	}
 
 	/**
-	 * Rebuilds the flattened [backStack] so every **visited** tab keeps its entries (Nav3 only
+	 * Rebuilds the projected [backStack] so every **visited** tab keeps its entries (Nav3 only
 	 * tears down saveable / ViewModel state when a content key leaves the back stack).
 	 *
 	 * Order: other visited tabs in [tabOrder] (excluding [startTab] and [currentTab]) +

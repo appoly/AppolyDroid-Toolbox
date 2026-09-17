@@ -69,9 +69,12 @@ class TabsSceneStrategyTest {
 		val scene = calculate(entries)
 		assertNotNull(scene)
 		assertEquals(entries.dropLast(1), scene!!.previousEntries)
-		// dropLast(1) last entry is start tab top (DetailScreen(5))
+		// dropLast(1) last entry is start tab top, which the backStack assertion above pins as
+		// DetailScreen(5). Identity is compared contentKey-to-contentKey rather than against a
+		// literal: Nav3 1.2.0-beta01 changed the default contentKey to a composite of
+		// `key.toString()` and `key::class.toString()`, and `NavEntry.key` is private, so pinning
+		// the format here would only re-arm this trap on the next release.
 		assertEquals(entries[entries.lastIndex - 1].contentKey, scene.previousEntries.last().contentKey)
-		assertEquals(DetailScreen(5).toString(), scene.previousEntries.last().contentKey)
 		assertEquals(listOf(entries.last()), scene.entries)
 		assertEquals(1, entries.size - scene.previousEntries.size)
 	}

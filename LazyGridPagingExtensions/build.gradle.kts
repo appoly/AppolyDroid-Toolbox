@@ -57,7 +57,6 @@ dependencies {
 	//Paging
 	implementation(libs.paging.runtime)
 	implementation(libs.paging.compose)
-//	testImplementation(libs.paging.common)
 
 	testImplementation(libs.junit)
 	testImplementation(libs.robolectric)

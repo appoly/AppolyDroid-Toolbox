@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!--
+      Declared here so consumers inherit it via manifest merge: this module cannot work without
+      it. The module deliberately does not *request* it at runtime — see BarcodeScannerCamera's
+      KDoc — but the declaration has to exist either way.
+    -->
+    <uses-permission android:name="android.permission.CAMERA" />
+
+    <!--
+      Not required: a device without an autofocus camera, or without a camera at all, can still
+      install an app that merely offers scanning as one feature among many. An app for which
+      scanning is the whole point should tighten this in its own manifest.
+    -->
+    <uses-feature
+        android:name="android.hardware.camera"
+        android:required="false" />
+
+    <!--
+      Tells Play services to download the barcode model when the app is installed, rather than on
+      the first scan (where the user watches a spinner, or gets nothing at all if they are
+      offline). Verified absent from play-services-mlkit-barcode-scanning's own manifest, so it
+      has to be declared here.
+
+      This <application> element carries no attributes of its own, only the meta-data child, so it
+      merges into a consumer's manifest without needing a tools:replace.
+    -->
+    <application>
+        <meta-data
+            android:name="com.google.mlkit.vision.DEPENDENCIES"
+            android:value="barcode" />
+    </application>
+
+</manifest>
