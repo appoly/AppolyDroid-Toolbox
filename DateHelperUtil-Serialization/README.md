@@ -16,8 +16,8 @@ Extension module for DateHelperUtil that provides kotlinx.serialization integrat
 
 ```gradle.kts
 // Requires base DateHelperUtil module
-implementation("uk.co.appoly.droid:datehelperutil:1.10.0-beta01")
-implementation("uk.co.appoly.droid:datehelperutil-serialization:1.10.0-beta01")
+implementation("uk.co.appoly.droid:datehelperutil:1.10.0")
+implementation("uk.co.appoly.droid:datehelperutil-serialization:1.10.0")
 
 // Required kotlinx.serialization dependencies
 implementation("org.jetbrains.kotlinx:kotlinx-serialization-core:1.11.0")

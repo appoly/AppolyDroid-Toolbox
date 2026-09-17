@@ -55,7 +55,7 @@ In your `libs.versions.toml` file:
 
 ```toml
 [versions]
-appolydroidToolbox = "1.10.0-beta01" # Replace with the latest version
+appolydroidToolbox = "1.10.0" # Replace with the latest version
 
 [libraries]
 appolydroid-toolbox-bom = { group = "uk.co.appoly.droid", name = "bom", version.ref = "appolydroidToolbox" }
@@ -134,7 +134,7 @@ In your module's `build.gradle.kts`:
 ```gradle.kts
 dependencies {
     // Import the BOM
-    implementation(platform("uk.co.appoly.droid:bom:1.10.0-beta01"))
+    implementation(platform("uk.co.appoly.droid:bom:1.10.0"))
 
     // Now you can use AppolyDroid modules without specifying versions
     implementation("uk.co.appoly.droid:baserepo")
@@ -171,7 +171,7 @@ In your `libs.versions.toml` file:
 
 ```toml
 [versions]
-appolydroidToolbox = "1.10.0-beta01" # Replace with the latest version
+appolydroidToolbox = "1.10.0" # Replace with the latest version
 
 [libraries]
 #AppolyDroid-Toolbox
@@ -243,7 +243,7 @@ In your module's `build.gradle.kts`:
 
 ```gradle.kts
 dependencies {
-    val appolydroidToolbox = "1.10.0-beta01" // Replace with the latest version
+    val appolydroidToolbox = "1.10.0" // Replace with the latest version
     // Add only the modules you need
     implementation("uk.co.appoly.droid:baserepo:$appolydroidToolbox")
     implementation("uk.co.appoly.droid:baserepo-appolyjson:$appolydroidToolbox")

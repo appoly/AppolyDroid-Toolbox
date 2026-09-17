@@ -19,7 +19,7 @@ For continuous in-app scanning with your own UI around it, add
 ## Installation
 
 ```gradle.kts
-implementation("uk.co.appoly.droid:barcodescanner:1.10.0-beta01")
+implementation("uk.co.appoly.droid:barcodescanner:1.10.0")
 ```
 
 ## Usage

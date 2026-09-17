@@ -19,7 +19,7 @@ module gives you the one-shot scanner for free.
 ## Installation
 
 ```gradle.kts
-implementation("uk.co.appoly.droid:barcodescanner-camera:1.10.0-beta01")
+implementation("uk.co.appoly.droid:barcodescanner-camera:1.10.0")
 ```
 
 ## Usage

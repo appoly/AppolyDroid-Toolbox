@@ -13,7 +13,7 @@ Extension for [MockInterceptor](../MockInterceptor/) that reads Retrofit HTTP an
 
 ```gradle.kts
 // MockInterceptor is included transitively
-implementation("uk.co.appoly.droid:mockinterceptor-retrofit:1.10.0-beta01")
+implementation("uk.co.appoly.droid:mockinterceptor-retrofit:1.10.0")
 ```
 
 > **Note:** Retrofit is a `compileOnly` dependency — your project must already depend on Retrofit.
