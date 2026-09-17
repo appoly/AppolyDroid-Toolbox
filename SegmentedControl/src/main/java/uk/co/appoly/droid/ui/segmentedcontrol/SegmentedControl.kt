@@ -607,12 +607,14 @@ fun <T : Any> SegmentedControl(
     // after an empty state snaps the position before fading back in — so the thumb appears under
     // the segment the user actually tapped rather than travelling there.
     val thumbIndex = remember { Animatable(state.selectedSegment.coerceAtLeast(0).toFloat()) }
-    var hasEverBeenSelected by remember { mutableStateOf(hasSelection) }
+    val thumbTracker = remember { ThumbSelectionTracker(hasSelection) }
     LaunchedEffect(state.selectedSegment) {
-        if (!hasSelection) return@LaunchedEffect
         val target = state.selectedSegment.toFloat()
-        if (hasEverBeenSelected) thumbIndex.animateTo(target) else thumbIndex.snapTo(target)
-        hasEverBeenSelected = true
+        when {
+            thumbTracker.onSelectionChanged(hasSelection) -> thumbIndex.snapTo(target)
+            hasSelection -> thumbIndex.animateTo(target)
+            // Nothing selected: hold position and let the alpha fade handle it.
+        }
     }
     val selectedIndexOffset = thumbIndex.value
 
@@ -896,6 +898,33 @@ private fun <T> Segments(
                 }
             }
         }
+    }
+}
+
+/**
+ * Decides whether the thumb should snap to a new selection or animate to it.
+ *
+ * Snapping is right when the control is coming *out of* an empty state: the thumb is invisible and
+ * parked wherever it last was, so animating would slide it across the control from a stale
+ * position while it fades in. Animating is right when moving between two real selections, which is
+ * the ordinary sliding behaviour.
+ *
+ * Extracted and internal because the state is a latch and latches are easy to get wrong in exactly
+ * one direction — [hadSelection] must go back to false when the selection is cleared, or only the
+ * very first selection ever snaps and every later empty→selection travels. That bug shipped in
+ * review and nothing in a UI test would have caught it, so it is pinned by unit tests instead.
+ */
+internal class ThumbSelectionTracker(initialHasSelection: Boolean) {
+
+    /** Whether there was a selection immediately before the most recent change. */
+    var hadSelection: Boolean = initialHasSelection
+        private set
+
+    /** Records a selection change and returns true if the thumb should snap rather than animate. */
+    fun onSelectionChanged(hasSelection: Boolean): Boolean {
+        val shouldSnap = hasSelection && !hadSelection
+        hadSelection = hasSelection
+        return shouldSnap
     }
 }
 
