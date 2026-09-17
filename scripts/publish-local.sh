@@ -26,6 +26,17 @@ cd "$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 # shellcheck disable=SC1091
 [[ -f scripts/publish.conf ]] && source scripts/publish.conf
 
+# Dokka generates javadoc for every module inside one Gradle daemon, and the Kotlin compiler
+# classes it loads per module exhaust the default metaspace partway through — the build then fails
+# on whichever module happened to be running, which is a different one each time and looks like a
+# flaky Dokka rather than an out-of-memory. Measured on this repo: a full `--rerun-tasks` publish
+# fails at 1 GiB and passes at 2 GiB.
+#
+# Passed on the command line because that is the only level that wins. `org.gradle.jvmargs` in a
+# user's ~/.gradle/gradle.properties overrides the project's gradle.properties, so a value set in
+# the repo cannot be relied on to take effect on someone else's machine.
+readonly GRADLE_JVM_ARGS="-Dorg.gradle.jvmargs=-Xmx4096M -XX:MaxMetaspaceSize=2048M -Dfile.encoding=UTF-8"
+
 readonly GROUP="${PUBLISH_GROUP:-uk.co.appoly.droid}"
 
 RED=$'\033[0;31m'; GREEN=$'\033[0;32m'; YELLOW=$'\033[1;33m'; BOLD=$'\033[1m'; NC=$'\033[0m'
@@ -81,7 +92,7 @@ else
     done
 fi
 
-./gradlew "${TASKS[@]}"
+./gradlew "$GRADLE_JVM_ARGS" "${TASKS[@]}"
 
 echo
 info "================================================"
