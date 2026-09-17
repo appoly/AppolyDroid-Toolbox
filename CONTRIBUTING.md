@@ -141,10 +141,22 @@ Maven Central enforces three per-calendar-month quotas per organisation, from 1 
 applied limits, confirmed by Sonatype on 2026-09-09, are **1,000 files, 80 MB and 7 releases**.
 Track usage in the [Usage Center](https://central.sonatype.com/publishing/usage).
 
-One toolbox release is **508 files, 11.55 MB, and one release event** — Central scores a multi-module
+One toolbox release is **548 files and one release event** — Central scores a multi-module
 deployment bundle as a single release, not one per artifact. So release count is a non-issue and size
-is nowhere near. **File count is the binding constraint:** 508 files is roughly half the monthly
-allowance, so a second release in the same calendar month lands at ~1,016 and a third cannot fit.
+is nowhere near. **File count is the binding constraint:** 548 files is over half the monthly
+allowance, so a second release in the same calendar month lands at ~1,096 and does not fit at all.
+
+The figure scales with module count, so recompute it when modules are added rather than trusting
+this line. Each Android module contributes 5 primary files (`.aar`, `-sources.jar`, `-javadoc.jar`,
+`.pom`, `.module`) and the BOM 2 (`.pom`, `.module`), each primary carrying a `.asc`, `.md5` and
+`.sha1` alongside it:
+
+    files = android_modules × 5 × 4  +  2 × 4
+
+That reproduces the 508 measured at 1.9.x (25 Android modules + BOM) exactly, and gives 548 for
+1.10.0, which adds `BarcodeScanner` and `BarcodeScanner-Camera`. At this rate the cap is reached at
+roughly 49 Android modules, but the practical limit arrives far sooner: **one release per calendar
+month, with no room for a second.**
 
 Two consequences for release practice:
 
