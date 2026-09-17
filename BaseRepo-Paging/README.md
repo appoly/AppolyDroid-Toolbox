@@ -17,12 +17,12 @@ extended for specific JSON formats.
 
 ```gradle.kts
 // Requires the base BaseRepo module
-implementation("uk.co.appoly.droid:baserepo:1.10.0-formsupport-local03")
-implementation("uk.co.appoly.droid:baserepo-paging:1.10.0-formsupport-local03")
+implementation("uk.co.appoly.droid:baserepo:1.10.0")
+implementation("uk.co.appoly.droid:baserepo-paging:1.10.0")
 
 // For Compose UI integration
-implementation("uk.co.appoly.droid:lazylistpagingextensions:1.10.0-formsupport-local03") // For LazyColumn
-implementation("uk.co.appoly.droid:lazygridpagingextensions:1.10.0-formsupport-local03") // For LazyGrid
+implementation("uk.co.appoly.droid:lazylistpagingextensions:1.10.0") // For LazyColumn
+implementation("uk.co.appoly.droid:lazygridpagingextensions:1.10.0") // For LazyGrid
 ```
 
 ## Extensions

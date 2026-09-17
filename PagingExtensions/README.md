@@ -12,7 +12,7 @@ Core utilities and extensions for Jetpack Paging 3 integration, providing the fo
 ## Installation
 
 ```gradle.kts
-implementation("uk.co.appoly.droid:pagingextensions:1.10.0-formsupport-local03")
+implementation("uk.co.appoly.droid:pagingextensions:1.10.0")
 ```
 
 ## Usage

@@ -13,7 +13,7 @@ A standardized UI state management library for Android applications, providing c
 ## Installation
 
 ```gradle.kts
-implementation("uk.co.appoly.droid:uistate:1.10.0-formsupport-local03")
+implementation("uk.co.appoly.droid:uistate:1.10.0")
 ```
 
 ## Usage

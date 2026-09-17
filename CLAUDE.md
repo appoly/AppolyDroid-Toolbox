@@ -58,6 +58,10 @@ The library uses a layered module structure:
 - `MockInterceptor-AppolyJson` - Helpers for mocking Appoly's standard JSON envelope
 - `MockInterceptor-Retrofit` - Auto-registers mock routes by reflecting over Retrofit annotations
 
+**Barcode Scanning:**
+- `BarcodeScanner` - Shared `ScannedBarcode`/`BarcodeFormat` model plus `OneShotBarcodeScanner`, backed by the Play services hosted code scanner (no CameraX, no camera permission)
+- `BarcodeScanner-Camera` - Continuous in-app scanning: CameraX preview + ML Kit analyzer, built on `BarcodeScanner`
+
 **Standalone Utilities:**
 - `UiState` - Sealed class for UI state (Idle/Loading/Success/Error)
 - `S3Uploader` - Direct S3 uploads with progress tracking
