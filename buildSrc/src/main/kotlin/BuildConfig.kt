@@ -8,8 +8,19 @@ object BuildConfig {
     /**
      * The current version of the AppolyDroid Toolbox library.
      * This is used for maven publishing and README version updates.
+     *
+     * TEMPORARY - local testing only, REVERT BEFORE MERGE.
+     *
+     * Lets this branch sit in ~/.m2 alongside the barcode branch's 1.10.0-beta01 without either
+     * overwriting the other. The suffix is bumped whenever what is published changes, so a
+     * consumer can never be unsure which build a coordinate refers to - local01 and local02
+     * predate the thumb-snap fix and should not be used.
+     *
+     * It must not stay 1.9.1 while doing any of this: publishing modified code over a real
+     * released version in the local repository makes every project on this machine that resolves
+     * mavenLocal silently pick up an impostor.
      */
-	const val TOOLBOX_VERSION = "1.9.1"
+	const val TOOLBOX_VERSION = "1.10.0-formsupport-local03"
 
     /**
      * SDK version configuration for Android modules.

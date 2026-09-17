@@ -16,7 +16,7 @@ Standalone module for Amazon S3 file uploading with progress tracking and error 
 ## Installation
 
 ```gradle.kts
-implementation("uk.co.appoly.droid:s3uploader:1.9.1")
+implementation("uk.co.appoly.droid:s3uploader:1.10.0-formsupport-local03")
 ```
 
 ## Usage
