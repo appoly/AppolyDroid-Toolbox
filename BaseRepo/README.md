@@ -14,7 +14,7 @@ Foundation module for implementing the repository pattern with standardized API 
 ## Installation
 
 ```gradle.kts
-implementation("uk.co.appoly.droid:baserepo:1.9.1")
+implementation("uk.co.appoly.droid:baserepo:1.10.0-formsupport-local03")
 ```
 
 ## Extensions

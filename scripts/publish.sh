@@ -45,6 +45,17 @@ CONF="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/publish.conf"
 
 # No default: the vault coordinates are deployment-specific and this repository is public.
 # Set PUBLISH_VAULT_ITEM in scripts/publish.conf — see scripts/publish.conf.example.
+# Dokka generates javadoc for every module inside one Gradle daemon, and the Kotlin compiler
+# classes it loads per module exhaust the default metaspace partway through — the build then fails
+# on whichever module happened to be running, which is a different one each time and looks like a
+# flaky Dokka rather than an out-of-memory. Measured on this repo: a full `--rerun-tasks` publish
+# fails at 1 GiB and passes at 2 GiB.
+#
+# Passed on the command line because that is the only level that wins. `org.gradle.jvmargs` in a
+# user's ~/.gradle/gradle.properties overrides the project's gradle.properties, so a value set in
+# the repo cannot be relied on to take effect on someone else's machine.
+readonly GRADLE_JVM_ARGS="-Dorg.gradle.jvmargs=-Xmx4096M -XX:MaxMetaspaceSize=2048M -Dfile.encoding=UTF-8"
+
 readonly VAULT_ITEM="${PUBLISH_VAULT_ITEM:-}"
 readonly RELEASE_BRANCH="${PUBLISH_RELEASE_BRANCH:-main}"
 readonly GROUP="${PUBLISH_GROUP:-uk.co.appoly.droid}"
@@ -220,7 +231,7 @@ fi
 
 if [[ "$MODE" == "local" ]]; then
     info "Publishing signed artifacts to ~/.m2 ..."
-    ./gradlew publishToMavenLocal
+    ./gradlew "$GRADLE_JVM_ARGS" publishToMavenLocal
     echo
     info "Installed $GROUP:* at $VERSION in ~/.m2"
     warn "Add mavenLocal() to the consuming project — and take it out again afterwards."
@@ -234,17 +245,17 @@ fi
 
 # Everything runs before the confirmation prompt, so a broken build never waits on it.
 info "Cleaning..."
-./gradlew clean
+./gradlew "$GRADLE_JVM_ARGS" clean
 
 info "Running tests and the coverage gate..."
-./gradlew test koverVerify || { fail "Tests or coverage gate failed. Fix before publishing."; exit 1; }
+./gradlew "$GRADLE_JVM_ARGS" test koverVerify || { fail "Tests or coverage gate failed. Fix before publishing."; exit 1; }
 
 info "Verifying consumer R8 keep rules..."
-./gradlew :app:verifyConsumerKeepRules || { fail "Consumer keep rules regressed."; exit 1; }
+./gradlew "$GRADLE_JVM_ARGS" :app:verifyConsumerKeepRules || { fail "Consumer keep rules regressed."; exit 1; }
 
 info "Verifying published metadata resolves for an Android consumer..."
-./gradlew publishToMavenLocal || { fail "Publishing to ~/.m2 failed; the metadata gate cannot run."; exit 1; }
-./gradlew -p publishing-check verifyPublishedVariantResolution --refresh-dependencies \
+./gradlew "$GRADLE_JVM_ARGS" publishToMavenLocal || { fail "Publishing to ~/.m2 failed; the metadata gate cannot run."; exit 1; }
+./gradlew "$GRADLE_JVM_ARGS" -p publishing-check verifyPublishedVariantResolution --refresh-dependencies \
     || { fail "Published metadata would break an Android consumer."; exit 1; }
 
 info "All gates passed."
@@ -282,7 +293,7 @@ read -rp "Proceed with publish? (y/N) " -n 1 reply; echo
 # ---------------------------------------------------------------- publish ---
 
 info "Publishing to Maven Central..."
-./gradlew publishAndReleaseToMavenCentral --no-configuration-cache
+./gradlew "$GRADLE_JVM_ARGS" publishAndReleaseToMavenCentral --no-configuration-cache
 
 # Tag only after a successful upload, so a failed publish never leaves a tag claiming otherwise.
 if git rev-parse -q --verify "refs/tags/$VERSION" >/dev/null; then

@@ -4,6 +4,8 @@ A highly customizable iOS-style segmented control for Jetpack Compose with smoot
 
 ## Features
 
+- Optional "nothing selected yet" state for unanswered form questions
+- `enabled = false` for read-only / locked forms
 - Smooth animated thumb sliding between segments
 - Drag gesture support on the selected segment to switch
 - Press animations with configurable scale effect
@@ -17,7 +19,7 @@ A highly customizable iOS-style segmented control for Jetpack Compose with smoot
 ## Installation
 
 ```gradle.kts
-implementation("uk.co.appoly.droid:segmentedcontrol:1.9.1")
+implementation("uk.co.appoly.droid:segmentedcontrol:1.10.0-formsupport-local03")
 ```
 
 ## Usage
@@ -37,6 +39,61 @@ fun MyScreen() {
     )
 }
 ```
+
+### Nothing selected yet
+
+`selectedSegment` is nullable. Pass `null` and no segment is selected and no thumb is drawn — which
+is what you want for a form question the user has not answered:
+
+```kotlin
+@Composable
+fun SwitchField(item: SwitchFormItem, onAnswer: (Int) -> Unit) {
+    SegmentedControl(
+        segments = item.options,
+        selectedSegment = item.value,   // null until answered
+        onSegmentSelected = onAnswer,
+    )
+}
+```
+
+This matters for correctness, not just looks. The alternative — defaulting to the first segment —
+renders a required, unanswered field as though the user had already answered it, and invites a
+wrong submission.
+
+`onSegmentSelected` stays non-null: null is an input state, never an output, because the user can
+only ever tap a real segment. Clearing a selection is done by passing `null` back in.
+
+A `selectedSegment` that is not present in `segments` behaves the same way as `null`.
+
+**Interaction notes.** With nothing selected, tapping any segment selects it; drag-to-switch only
+applies once there is a selection to drag. The thumb fades in under the segment the user taps
+rather than sliding in from the edge.
+
+### Read-only / locked
+
+`enabled = false` makes the control non-interactive:
+
+```kotlin
+SegmentedControl(
+    segments = item.options,
+    selectedSegment = item.value,
+    enabled = !form.isSubmitted,
+    onSegmentSelected = onAnswer,
+)
+```
+
+It covers three things, because dimming alone is not enough — a greyed-out control that still
+accepts taps silently changes the answer on a submitted form, which is a data-integrity bug:
+
+| | |
+|---|---|
+| Input | taps and drag-to-switch are both ignored; press animations stop too |
+| Semantics | every segment reports `disabled`, so accessibility services and `assertIsNotEnabled()` agree, and no click action is advertised |
+| Visual | the whole control is dimmed to `SegmentedControlDefaults.DisabledAlpha` (0.38f, the Material 3 token) |
+
+**The selection stays visible.** Disabled means "you cannot change this", not "this has no value",
+so a locked form still shows the answer it holds. Combine with `selectedSegment = null` for a
+locked form with an unanswered question.
 
 ### With Custom Objects
 
