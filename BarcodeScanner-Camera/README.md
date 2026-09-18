@@ -9,7 +9,8 @@ module gives you the one-shot scanner for free.
 ## Features
 
 - One `@Composable`; no `AndroidView`, no `PreviewView`
-- Binds to the ambient lifecycle, so it works inside a `ModalBottomSheet` and unbinds on exit
+- Binds to the ambient lifecycle, so it works inside a `ModalBottomSheet` and unbinds on exit —
+  and draws inline there, so the preview clips to the sheet instead of spilling behind it
 - A dwell gate, so a code has to be held deliberately rather than glimpsed in passing
 - A centre-of-frame acceptance region that the drawn reticle actually matches
 - Single- or multi-code tracking, ranked nearest-the-centre first
@@ -109,6 +110,16 @@ Preview and analysis are bound through one CameraX `ViewPort`, which is what mak
 of view agree — and what lets `DefaultScanFrame` draw the exact rectangle the analyser filters
 against, so the box on screen and the region that accepts codes cannot drift apart.
 
+That shared region is still not quite what you see. The viewfinder scales it to **fill** the bounds
+you give the composable and centre-crops whatever overflows, so on a preview that is not the same
+shape as the region, part of it is analysed and off-screen at once. `Visible` and `Reticle` are
+measured against what is genuinely displayed rather than against the shared region, which is what
+makes the first row of the table above literally true.
+
+**A note on sizing.** The examples here fill the screen; a preview laid out narrow or short is
+centre-cropped to fit, so it shows a zoomed-in slice of the camera rather than a letterboxed whole.
+Give it as close to a 4:3 box as the layout allows if you want the full field of view.
+
 ### Feedback on a scan
 
 **The module plays nothing — no haptic, no sound.** Deliberately: it knows a barcode was *read*,
@@ -192,8 +203,14 @@ Silently ignored on a camera with no flash unit.
 | Type | Purpose |
 |---|---|
 | `BarcodeScannerCamera` | The scanning preview composable |
+| `ScanPolicy` | What counts as a scan: dwell, tracking, region |
+| `ScanMode` | `Single` / `Multi` |
+| `ScanRegion` | `Full` / `Visible` / `Reticle(widthFraction, aspectRatio)` |
 | `LensFacing` | `Back` / `Front` |
+| `ScannerOverlayScope` | What an overlay can see: `regionRect`, `detections` |
+| `DetectedBarcode` | One visible code: bounds, corners, dwell progress |
 | `DefaultScanFrame` | The default overlay reticle; usable standalone |
+| `AnimatedScanFrame` | A reticle that springs to the code and closes as the dwell fills |
 
 Results arrive as `ScannedBarcode` from the `BarcodeScanner` module.
 

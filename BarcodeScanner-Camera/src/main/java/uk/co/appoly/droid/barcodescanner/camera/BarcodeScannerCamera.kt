@@ -75,6 +75,10 @@ enum class LensFacing(internal val selector: CameraSelector) {
  * second, and one presentation produces one result however long it is held. A scanner that fires
  * at whatever drifts through the frame reads as broken to the person holding it.
  *
+ * The preview **fills** the bounds it is given and centre-crops the overflow, so a box that is not
+ * roughly 4:3 shows a zoomed-in slice of the camera rather than a letterboxed whole. What counts as
+ * a scan follows what is displayed, not what is analysed, so the two cannot disagree.
+ *
  * **This composable does not request the `CAMERA` permission.** Check it before composing this;
  * every app's permission flow differs, so the module deliberately owns none of it. Composing
  * without the permission granted reports a bind failure through [onError].
