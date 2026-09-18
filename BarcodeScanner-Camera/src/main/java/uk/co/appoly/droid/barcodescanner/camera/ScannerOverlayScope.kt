@@ -3,6 +3,7 @@ package uk.co.appoly.droid.barcodescanner.camera
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.Stable
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import uk.co.appoly.droid.barcodescanner.ScannedBarcode
 
@@ -18,7 +19,11 @@ import uk.co.appoly.droid.barcodescanner.ScannedBarcode
  * more ambitious.
  *
  * @property barcode the decoded barcode.
- * @property bounds its bounding box, in preview pixels.
+ * @property bounds its axis-aligned bounding box, in preview pixels. Simple to draw, but for a
+ * barcode held at an angle it is the box *around* the code rather than the code's own outline.
+ * @property corners the code's four corners in its own orientation, in preview pixels, clockwise
+ * from the code's top-left. Use these to draw an outline that follows a rotated barcode. Empty if
+ * the detector did not report them.
  * @property dwellProgress how far through [ScanPolicy.dwell] this code is, from 0f to 1f. Already
  * 1f when the policy has no dwell. Useful for drawing a progress ring that fills as the user holds
  * steady.
@@ -27,24 +32,27 @@ import uk.co.appoly.droid.barcodescanner.ScannedBarcode
 class DetectedBarcode(
 	val barcode: ScannedBarcode,
 	val bounds: Rect,
+	val corners: List<Offset>,
 	val dwellProgress: Float,
 ) {
 	override fun equals(other: Any?): Boolean = this === other || (
 		other is DetectedBarcode &&
 			barcode == other.barcode &&
 			bounds == other.bounds &&
+			corners == other.corners &&
 			dwellProgress == other.dwellProgress
 		)
 
 	override fun hashCode(): Int {
 		var result = barcode.hashCode()
 		result = 31 * result + bounds.hashCode()
+		result = 31 * result + corners.hashCode()
 		result = 31 * result + dwellProgress.hashCode()
 		return result
 	}
 
 	override fun toString(): String =
-		"DetectedBarcode(barcode=$barcode, bounds=$bounds, dwellProgress=$dwellProgress)"
+		"DetectedBarcode(barcode=$barcode, bounds=$bounds, corners=$corners, dwellProgress=$dwellProgress)"
 }
 
 /**

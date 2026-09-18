@@ -91,3 +91,44 @@ internal fun Barcode.distanceToCentreOf(region: AndroidRect): Float {
 		(box.centerY() - region.centerY()).toFloat(),
 	)
 }
+
+/**
+ * Maps a rectangle from the camera buffer's coordinate space into the rotation-corrected space
+ * ML Kit reports barcodes in.
+ *
+ * [rotationDegrees] is the clockwise rotation needed to make the buffer upright, so this applies
+ * exactly that rotation. Transposing the rectangle instead — swapping x and y — is a reflection
+ * about the diagonal rather than a rotation, and happens to look correct only while the crop is
+ * centred. An off-centre crop lands the region on the wrong side of the frame.
+ */
+internal fun AndroidRect.rotatedInto(
+	rotationDegrees: Int,
+	bufferWidth: Int,
+	bufferHeight: Int,
+): AndroidRect = when (((rotationDegrees % 360) + 360) % 360) {
+	90 -> AndroidRect(bufferHeight - bottom, left, bufferHeight - top, right)
+	180 -> AndroidRect(bufferWidth - right, bufferHeight - bottom, bufferWidth - left, bufferHeight - top)
+	270 -> AndroidRect(top, bufferWidth - right, bottom, bufferWidth - left)
+	else -> AndroidRect(this)
+}
+
+/**
+ * Maps a point from the rotation-corrected analyser space into preview pixels.
+ *
+ * Everything hangs off [crop] rather than the full image: with a `ViewPort` the preview shows
+ * exactly the cropped region, so scaling by the whole image makes every box too small and
+ * forgetting the crop's origin shifts them all toward the top-left. Both at once is what a barcode
+ * outline that is undersized *and* offset looks like.
+ */
+internal fun mapToPreview(
+	x: Int,
+	y: Int,
+	crop: AndroidRect,
+	previewSize: Size,
+): androidx.compose.ui.geometry.Offset {
+	if (crop.width() <= 0 || crop.height() <= 0) return androidx.compose.ui.geometry.Offset.Zero
+	return androidx.compose.ui.geometry.Offset(
+		x = (x - crop.left) * previewSize.width / crop.width(),
+		y = (y - crop.top) * previewSize.height / crop.height(),
+	)
+}

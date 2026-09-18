@@ -157,7 +157,7 @@ fun BarcodeScannerCamera(
 							scanner = scanner,
 							region = policy.region,
 							callbackExecutor = ContextCompat.getMainExecutor(context),
-							onFrameAnalysed = { ranked, imageRegion, imageSize ->
+							onFrameAnalysed = { ranked, crop ->
 								// Every frame ticks the tracker, including empty ones: absence is
 								// what expires a track, so skipping quiet frames would leave a
 								// code "present" long after it had gone.
@@ -167,8 +167,7 @@ fun BarcodeScannerCamera(
 								}
 								detections = ranked.toDetections(
 									tracker = tracker,
-									imageRegion = imageRegion,
-									imageSize = imageSize,
+									crop = crop,
 									previewSize = previewSize,
 								)
 							},
@@ -286,7 +285,7 @@ private class BarcodeAnalyzer(
 	private val scanner: BarcodeScanner,
 	private val region: ScanRegion,
 	private val callbackExecutor: Executor,
-	private val onFrameAnalysed: (ranked: List<Barcode>, imageRegion: android.graphics.Rect, imageSize: IntSize) -> Unit,
+	private val onFrameAnalysed: (ranked: List<Barcode>, crop: android.graphics.Rect) -> Unit,
 	private val onDetectionFailed: (Throwable) -> Unit,
 ) : ImageAnalysis.Analyzer {
 
@@ -303,7 +302,7 @@ private class BarcodeAnalyzer(
 		val upright = rotation == 90 || rotation == 270
 		val width = if (upright) imageProxy.height else imageProxy.width
 		val height = if (upright) imageProxy.width else imageProxy.height
-		val crop = if (upright) imageProxy.cropRect.transposed() else imageProxy.cropRect
+		val crop = imageProxy.cropRect.rotatedInto(rotation, imageProxy.width, imageProxy.height)
 		val imageRegion = ScanRegionResolver.inImage(region, crop, width, height)
 
 		val inputImage = InputImage.fromMediaImage(mediaImage, rotation)
@@ -312,7 +311,7 @@ private class BarcodeAnalyzer(
 				val ranked = barcodes
 					.filter { it.isWithin(imageRegion) }
 					.sortedBy { it.distanceToCentreOf(imageRegion) }
-				onFrameAnalysed(ranked, imageRegion, IntSize(width, height))
+				onFrameAnalysed(ranked, crop)
 			}
 			.addOnFailureListener(callbackExecutor) { error ->
 				onDetectionFailed(error)
@@ -323,8 +322,6 @@ private class BarcodeAnalyzer(
 	}
 }
 
-private fun android.graphics.Rect.transposed() = android.graphics.Rect(top, left, bottom, right)
-
 /**
  * Maps ranked detections from analyser image space into preview pixels for an overlay to draw.
  *
@@ -333,24 +330,23 @@ private fun android.graphics.Rect.transposed() = android.graphics.Rect(top, left
  */
 private fun List<Barcode>.toDetections(
 	tracker: BarcodeTracker,
-	imageRegion: android.graphics.Rect,
-	imageSize: IntSize,
+	crop: android.graphics.Rect,
 	previewSize: Size,
 ): List<DetectedBarcode> {
-	if (previewSize.width <= 0f || imageSize.width == 0 || imageSize.height == 0) return emptyList()
-	val scaleX = previewSize.width / imageSize.width
-	val scaleY = previewSize.height / imageSize.height
+	if (previewSize.width <= 0f || crop.width() <= 0 || crop.height() <= 0) return emptyList()
 	return mapNotNull { barcode ->
 		val box = barcode.boundingBox ?: return@mapNotNull null
 		val scanned = barcode.toScannedBarcode() ?: return@mapNotNull null
+		val topLeft = mapToPreview(box.left, box.top, crop, previewSize)
+		val bottomRight = mapToPreview(box.right, box.bottom, crop, previewSize)
 		DetectedBarcode(
 			barcode = scanned,
-			bounds = Rect(
-				left = box.left * scaleX,
-				top = box.top * scaleY,
-				right = box.right * scaleX,
-				bottom = box.bottom * scaleY,
-			),
+			bounds = Rect(topLeft, bottomRight),
+			// cornerPoints follow the code's own rotation, unlike boundingBox which is always
+			// axis-aligned — they are the only way an overlay can outline a tilted barcode.
+			corners = barcode.cornerPoints
+				?.map { mapToPreview(it.x, it.y, crop, previewSize) }
+				.orEmpty(),
 			dwellProgress = tracker.dwellProgress(scanned.rawValue),
 		)
 	}

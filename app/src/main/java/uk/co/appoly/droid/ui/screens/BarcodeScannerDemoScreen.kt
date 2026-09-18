@@ -330,18 +330,19 @@ data object BarcodeScannerDemoScreen : Nav3Screen {
 								when (overlayStyle) {
 									"Frame" -> DefaultScanFrame()
 									"Animated" -> AnimatedScanFrame()
-									"Corners" -> CornerBracketOverlay()
 									// Written here rather than in the library, to show the scope
 									// gives a consumer everything needed to draw their own.
+									"Corners" -> CornerBracketOverlay()
 									else -> BullseyeOverlay()
 								}
 							},
 							onError = { cameraError = it.message ?: it.toString() },
 							onBarcodeScanned = { barcode ->
-								// Feedback lives here rather than in the module, because only the
-								// app knows whether a scan was any *good*. Here "already in the
-								// list" stands in for the real thing — a code that is not on the
-								// manifest, or the wrong item — and gets the reject signal.
+								// Feedback (haptic, sound etc.) lives here rather than in the module,
+								// because only the app knows whether a scan was any *good*.
+								// Here "already in the list" stands in for the real thing — a
+								// code that is not on the manifest, or the wrong item — and gets
+								// the reject signal.
 								val isNew = scannedCodes.none { it.rawValue == barcode.rawValue }
 								if (haptics) {
 									hapticFeedback.performHapticFeedback(
@@ -448,7 +449,7 @@ private fun ScannerOverlayScope.BullseyeOverlay() {
 /**
  * A second hand-rolled overlay, app-side, in the style of Google's hosted scanner.
  *
- * At rest it marks the acceptance region with four **unconnected** corner brackets. As a barcode
+ * At rest, it marks the acceptance region with four **unconnected** corner brackets. As a barcode
  * dwells, the arms grow along each edge until they meet in the middle and the brackets close into a
  * complete frame — so [DetectedBarcode.dwellProgress] is legible as a shape rather than needing a
  * separate progress indicator.
@@ -465,45 +466,52 @@ private fun ScannerOverlayScope.CornerBracketOverlay(
 	trackingColor: Color = Color(0xFF4CAF50),
 ) {
 	val tracked = detections.firstOrNull()
-	val target = tracked?.bounds ?: regionRect
 	val progress = tracked?.dwellProgress ?: 0f
 
+	// The code's own corners, so the brackets sit on a tilted barcode rather than on the
+	// axis-aligned box around it.
+	val target = tracked?.corners?.takeIf { it.size == 4 }
+		?: tracked?.bounds?.let { listOf(it.topLeft, it.topRight, it.bottomRight, it.bottomLeft) }
+		?: regionRect.let { listOf(it.topLeft, it.topRight, it.bottomRight, it.bottomLeft) }
+
 	val spec = spring<Float>(stiffness = 420f, dampingRatio = 0.82f)
-	val left by animateFloatAsState(target.left, spec, label = "cornerLeft")
-	val top by animateFloatAsState(target.top, spec, label = "cornerTop")
-	val right by animateFloatAsState(target.right, spec, label = "cornerRight")
-	val bottom by animateFloatAsState(target.bottom, spec, label = "cornerBottom")
-	// Animated separately from the spring so the arms close smoothly even when the box is still.
-	val closure by animateFloatAsState(progress, label = "cornerClosure")
+	val corners = target.mapIndexed { index, corner ->
+		val x by animateFloatAsState(corner.x, spec, label = "bracketX$index")
+		val y by animateFloatAsState(corner.y, spec, label = "bracketY$index")
+		Offset(x, y)
+	}
+	val closure by animateFloatAsState(progress, label = "bracketClosure")
 	val color by animateColorAsState(
 		targetValue = if (tracked != null) trackingColor else idleColor,
-		label = "cornerColor",
+		label = "bracketColor",
 	)
 
 	Canvas(modifier = Modifier.fillMaxSize()) {
-		val pad = if (tracked != null) 12.dp.toPx() else 0f
-		val l = (left - pad).coerceAtLeast(0f)
-		val t = (top - pad).coerceAtLeast(0f)
-		val r = (right + pad).coerceAtMost(size.width)
-		val b = (bottom + pad).coerceAtMost(size.height)
-		if (r - l <= 0f || b - t <= 0f) return@Canvas
-
 		val base = restingArm.toPx()
-		// Each arm grows from its resting length to half the edge; at full closure the two arms on
-		// an edge meet in the middle and the brackets become a continuous rectangle.
-		val armX = base + ((r - l) / 2f - base).coerceAtLeast(0f) * closure
-		val armY = base + ((b - t) / 2f - base).coerceAtLeast(0f) * closure
 		val stroke = strokeWidth.toPx()
 
-		listOf(
-			// corner            horizontal arm                    vertical arm
-			Triple(Offset(l, t), Offset(l + armX, t), Offset(l, t + armY)),
-			Triple(Offset(r, t), Offset(r - armX, t), Offset(r, t + armY)),
-			Triple(Offset(l, b), Offset(l + armX, b), Offset(l, b - armY)),
-			Triple(Offset(r, b), Offset(r - armX, b), Offset(r, b - armY)),
-		).forEach { (corner, horizontal, vertical) ->
-			drawLine(color, corner, horizontal, strokeWidth = stroke, cap = StrokeCap.Round)
-			drawLine(color, corner, vertical, strokeWidth = stroke, cap = StrokeCap.Round)
+		// Walk the quad's four edges. Each corner grows an arm along both edges it touches, from a
+		// resting stub to half the edge — at which point the two arms meet and the brackets become
+		// a continuous outline. Working along edges rather than in x/y keeps it correct at any
+		// rotation.
+		corners.forEachIndexed { index, corner ->
+			val next = corners[(index + 1) % corners.size]
+			val previous = corners[(index + corners.size - 1) % corners.size]
+			listOf(next, previous).forEach { neighbour ->
+				val edge = neighbour - corner
+				val length = edge.getDistance()
+				if (length <= 0f) return@forEach
+				val arm = (base + ((length / 2f) - base).coerceAtLeast(0f) * closure)
+					.coerceAtMost(length)
+				drawLine(
+					color = color,
+					start = corner,
+					end = corner + edge / length * arm,
+					strokeWidth = stroke,
+					cap = StrokeCap.Round,
+				)
+			}
 		}
 	}
 }
+
