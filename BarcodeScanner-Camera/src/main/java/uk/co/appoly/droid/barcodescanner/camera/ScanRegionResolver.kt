@@ -115,6 +115,9 @@ internal fun AndroidRect.rotatedInto(
 /**
  * Maps a point from the rotation-corrected analyser space into preview pixels.
  *
+ * [mirrored] handles the front camera, whose preview is flipped for display while the analysed
+ * buffer is not.
+ *
  * Everything hangs off [crop] rather than the full image: with a `ViewPort` the preview shows
  * exactly the cropped region, so scaling by the whole image makes every box too small and
  * forgetting the crop's origin shifts them all toward the top-left. Both at once is what a barcode
@@ -125,10 +128,16 @@ internal fun mapToPreview(
 	y: Int,
 	crop: AndroidRect,
 	previewSize: Size,
+	mirrored: Boolean = false,
 ): androidx.compose.ui.geometry.Offset {
 	if (crop.width() <= 0 || crop.height() <= 0) return androidx.compose.ui.geometry.Offset.Zero
+	val mappedX = (x - crop.left) * previewSize.width / crop.width()
 	return androidx.compose.ui.geometry.Offset(
-		x = (x - crop.left) * previewSize.width / crop.width(),
+		// The front camera's preview is mirrored for display — you expect to move left and see
+		// yourself move left — but the analyser receives the unmirrored buffer, so ML Kit's
+		// coordinates are in the frame the user is NOT looking at. Without this every overlay on
+		// the front lens is drawn on the wrong side of the screen.
+		x = if (mirrored) previewSize.width - mappedX else mappedX,
 		y = (y - crop.top) * previewSize.height / crop.height(),
 	)
 }

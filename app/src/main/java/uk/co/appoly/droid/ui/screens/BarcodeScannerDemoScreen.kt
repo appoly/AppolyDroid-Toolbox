@@ -65,6 +65,7 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.drawscope.Stroke
 import uk.co.appoly.droid.barcodescanner.camera.AnimatedScanFrame
+import uk.co.appoly.droid.barcodescanner.camera.LensFacing
 import uk.co.appoly.droid.barcodescanner.camera.DefaultScanFrame
 import uk.co.appoly.droid.barcodescanner.camera.ScannerOverlayScope
 import uk.co.appoly.droid.barcodescanner.camera.BarcodeScannerCamera
@@ -260,6 +261,7 @@ data object BarcodeScannerDemoScreen : Nav3Screen {
 					var paused by remember { mutableStateOf(false) }
 					var overlayStyle by remember { mutableStateOf("Animated") }
 					var haptics by remember { mutableStateOf(true) }
+					var lens by remember { mutableStateOf(LensFacing.Back) }
 					val hapticFeedback = LocalHapticFeedback.current
 					var lastScan by remember { mutableStateOf<String?>(null) }
 
@@ -285,6 +287,12 @@ data object BarcodeScannerDemoScreen : Nav3Screen {
 						segments = listOf("Full", "Visible", "Reticle"),
 						selectedSegment = regionChoice,
 						onSegmentSelected = { regionChoice = it },
+					)
+					SegmentedControl(
+						segments = listOf(LensFacing.Back, LensFacing.Front),
+						selectedSegment = lens,
+						onSegmentSelected = { lens = it },
+						segmentText = { if (it == LensFacing.Back) "Back cam" else "Front cam" },
 					)
 					SegmentedControl(
 						segments = listOf("Frame", "Animated", "Corners", "Bullseye"),
@@ -323,6 +331,7 @@ data object BarcodeScannerDemoScreen : Nav3Screen {
 					) {
 						BarcodeScannerCamera(
 							modifier = Modifier.fillMaxSize(),
+							lensFacing = lens,
 							torchEnabled = torchEnabled,
 							scanningEnabled = !paused,
 							policy = policy,

@@ -127,6 +127,41 @@ class ScanRegionResolverTest {
 	}
 
 	@Test
+	fun `the front camera mirrors x but leaves y alone`() {
+		// The preview is flipped for display while the analysed buffer is not, so a code on the
+		// user's left arrives with coordinates on the right. Without mirroring here, every overlay
+		// on the front lens lands on the wrong side of the screen.
+		val crop = Rect(0, 0, 100, 100)
+		val preview = Size(100f, 100f)
+
+		val mirrored = mapToPreview(x = 10, y = 30, crop = crop, previewSize = preview, mirrored = true)
+
+		assertEquals(90f, mirrored.x, 0.01f)
+		assertEquals("vertical must not flip — the mirror is horizontal only", 30f, mirrored.y, 0.01f)
+	}
+
+	@Test
+	fun `mirroring twice returns the original x`() {
+		val crop = Rect(0, 0, 200, 200)
+		val preview = Size(200f, 200f)
+
+		val once = mapToPreview(x = 40, y = 0, crop = crop, previewSize = preview, mirrored = true)
+		val back = mapToPreview(x = once.x.toInt(), y = 0, crop = crop, previewSize = preview, mirrored = true)
+
+		assertEquals(40f, back.x, 0.01f)
+	}
+
+	@Test
+	fun `the back camera is unmirrored`() {
+		val crop = Rect(0, 0, 100, 100)
+		val preview = Size(100f, 100f)
+
+		val plain = mapToPreview(x = 10, y = 30, crop = crop, previewSize = preview, mirrored = false)
+
+		assertEquals(10f, plain.x, 0.01f)
+	}
+
+	@Test
 	fun `a degenerate crop maps to the origin rather than dividing by zero`() {
 		val empty = Rect(0, 0, 0, 0)
 

@@ -169,6 +169,7 @@ fun BarcodeScannerCamera(
 									tracker = tracker,
 									crop = crop,
 									previewSize = previewSize,
+									mirrored = lensFacing == LensFacing.Front,
 								)
 							},
 							onDetectionFailed = { currentOnError(it) },
@@ -332,20 +333,25 @@ private fun List<Barcode>.toDetections(
 	tracker: BarcodeTracker,
 	crop: android.graphics.Rect,
 	previewSize: Size,
+	mirrored: Boolean,
 ): List<DetectedBarcode> {
 	if (previewSize.width <= 0f || crop.width() <= 0 || crop.height() <= 0) return emptyList()
 	return mapNotNull { barcode ->
 		val box = barcode.boundingBox ?: return@mapNotNull null
 		val scanned = barcode.toScannedBarcode() ?: return@mapNotNull null
-		val topLeft = mapToPreview(box.left, box.top, crop, previewSize)
-		val bottomRight = mapToPreview(box.right, box.bottom, crop, previewSize)
+		// Mirroring swaps which horizontal edge is "left", so build the Rect from the extremes
+		// rather than assuming the mapped corners keep their names.
+		val a = mapToPreview(box.left, box.top, crop, previewSize, mirrored)
+		val b = mapToPreview(box.right, box.bottom, crop, previewSize, mirrored)
+		val topLeft = androidx.compose.ui.geometry.Offset(minOf(a.x, b.x), minOf(a.y, b.y))
+		val bottomRight = androidx.compose.ui.geometry.Offset(maxOf(a.x, b.x), maxOf(a.y, b.y))
 		DetectedBarcode(
 			barcode = scanned,
 			bounds = Rect(topLeft, bottomRight),
 			// cornerPoints follow the code's own rotation, unlike boundingBox which is always
 			// axis-aligned — they are the only way an overlay can outline a tilted barcode.
 			corners = barcode.cornerPoints
-				?.map { mapToPreview(it.x, it.y, crop, previewSize) }
+				?.map { mapToPreview(it.x, it.y, crop, previewSize, mirrored) }
 				.orEmpty(),
 			dwellProgress = tracker.dwellProgress(scanned.rawValue),
 		)
