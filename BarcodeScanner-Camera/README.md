@@ -15,7 +15,6 @@ module gives you the one-shot scanner for free.
 - Single- or multi-code tracking, ranked nearest-the-centre first
 - Callbacks marshalled to the main thread — touch ViewModel state directly
 - Replaceable overlay — a static frame, an animated one that tracks the code, or your own
-- Haptic confirmation on scan
 - Torch control
 - Declares `CAMERA` and the ML Kit install-time model download in its own manifest
 
@@ -112,19 +111,38 @@ against, so the box on screen and the region that accepts codes cannot drift apa
 
 ### Feedback on a scan
 
-A haptic fires on each accepted scan by default:
+**The module plays nothing — no haptic, no sound.** Deliberately: it knows a barcode was *read*,
+never whether it was the right one. Anything it played would have to fire before your callback
+could disagree, so an app that validates would produce a confirm buzz followed by its own reject
+buzz for a single scan.
+
+Both belong in `onBarcodeScanned`, where the verdict is known:
 
 ```kotlin
+val haptics = LocalHapticFeedback.current
+
 BarcodeScannerCamera(
-    scanHaptic = HapticFeedbackType.Confirm,  // null for silence
-    onBarcodeScanned = ::onScanned,
+    onBarcodeScanned = { barcode ->
+        when (viewModel.match(barcode.rawValue)) {
+            is Matched -> {
+                haptics.performHapticFeedback(HapticFeedbackType.Confirm)
+                sounds.play(R.raw.scan_ok)
+            }
+            is NoMatch -> {
+                haptics.performHapticFeedback(HapticFeedbackType.Reject)
+                sounds.play(R.raw.scan_bad)
+            }
+        }
+    },
 )
 ```
 
-On by default because the person scanning is usually looking at the thing they are scanning rather
-than at the screen — the buzz is what tells them it landed. It follows `scanningEnabled` and the
-policy automatically, since it only fires for accepted scans. Taking a `HapticFeedbackType?` rather
-than a `Boolean` means a different feel is a value change rather than a new parameter.
+If you only want "I read something" and have no notion of a bad scan, that is one line in the same
+place — the point is that it is your call, not ours.
+
+Sound stays with you for its own reasons on top of that one: it needs an asset, an audio stream, a
+silent-mode policy and usually a chosen sound to match whatever hardware scanners your users
+already know. Four decisions a library should not be making on your behalf.
 
 ### Pausing without tearing down
 

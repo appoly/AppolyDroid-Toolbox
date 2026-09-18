@@ -61,6 +61,7 @@ import androidx.compose.ui.unit.Dp
 import uk.co.appoly.droid.barcodescanner.camera.DetectedBarcode
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.drawscope.Stroke
 import uk.co.appoly.droid.barcodescanner.camera.AnimatedScanFrame
@@ -259,6 +260,7 @@ data object BarcodeScannerDemoScreen : Nav3Screen {
 					var paused by remember { mutableStateOf(false) }
 					var overlayStyle by remember { mutableStateOf("Animated") }
 					var haptics by remember { mutableStateOf(true) }
+					val hapticFeedback = LocalHapticFeedback.current
 					var lastScan by remember { mutableStateOf<String?>(null) }
 
 					val policy = remember(mode, regionChoice, dwellMs) {
@@ -323,7 +325,6 @@ data object BarcodeScannerDemoScreen : Nav3Screen {
 							modifier = Modifier.fillMaxSize(),
 							torchEnabled = torchEnabled,
 							scanningEnabled = !paused,
-							scanHaptic = HapticFeedbackType.Confirm.takeIf { haptics },
 							policy = policy,
 							overlay = {
 								when (overlayStyle) {
@@ -337,12 +338,22 @@ data object BarcodeScannerDemoScreen : Nav3Screen {
 							},
 							onError = { cameraError = it.message ?: it.toString() },
 							onBarcodeScanned = { barcode ->
-								lastScan = "${barcode.format}: ${barcode.rawValue}"
-								// The policy reports one result per presentation, so anything
-								// arriving here is a deliberate scan. Kept distinct only so the
-								// list below stays readable across a long session.
-								if (scannedCodes.none { it.rawValue == barcode.rawValue }) {
+								// Feedback lives here rather than in the module, because only the
+								// app knows whether a scan was any *good*. Here "already in the
+								// list" stands in for the real thing — a code that is not on the
+								// manifest, or the wrong item — and gets the reject signal.
+								val isNew = scannedCodes.none { it.rawValue == barcode.rawValue }
+								if (haptics) {
+									hapticFeedback.performHapticFeedback(
+										if (isNew) HapticFeedbackType.Confirm
+										else HapticFeedbackType.Reject,
+									)
+								}
+								lastScan = if (isNew) {
 									scannedCodes.add(barcode)
+									"${barcode.format}: ${barcode.rawValue}"
+								} else {
+									"Already scanned: ${barcode.rawValue}"
 								}
 							},
 						)
