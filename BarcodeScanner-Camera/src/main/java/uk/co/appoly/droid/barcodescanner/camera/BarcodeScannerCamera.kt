@@ -2,6 +2,7 @@ package uk.co.appoly.droid.barcodescanner.camera
 
 import androidx.annotation.OptIn
 import androidx.camera.compose.CameraXViewfinder
+import androidx.camera.core.AspectRatio
 import androidx.camera.core.Camera
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.ExperimentalGetImage
@@ -9,6 +10,8 @@ import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.ImageProxy
 import androidx.camera.core.Preview
 import androidx.camera.core.SurfaceRequest
+import androidx.camera.core.UseCaseGroup
+import androidx.camera.core.ViewPort
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.lifecycle.awaitInstance
 import androidx.compose.foundation.layout.Box
@@ -22,6 +25,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -50,15 +57,20 @@ enum class LensFacing(internal val selector: CameraSelector) {
 }
 
 /**
- * A live camera preview that reports every barcode it decodes, for as long as it is composed.
+ * A live camera preview that reports the barcodes the user deliberately aims at.
  *
- * Camera use cases are bound to the current [LocalLifecycleOwner] while this composable is in the
- * composition and unbound when it leaves — including inside a `ModalBottomSheet`, whose dialog
- * inherits the host's lifecycle owner. [onBarcodeScanned] is always invoked on the main thread,
- * so touching ViewModel state from it is safe.
+ * Camera use cases bind to the current [LocalLifecycleOwner] while this composable is in the
+ * composition and unbind when it leaves — including inside a `ModalBottomSheet`, whose dialog
+ * inherits the host's lifecycle owner. [onBarcodeScanned] is always invoked on the main thread, so
+ * touching ViewModel state from it is safe.
  *
- * Each camera frame is released back to CameraX only once the detector has finished with it,
- * which is what lets 1D formats (EAN, Code 128, ITF) decode as reliably as QR codes.
+ * Each camera frame is released back to CameraX only once the detector has finished with it, which
+ * is what lets 1D formats (EAN, Code 128, ITF) decode as reliably as QR codes.
+ *
+ * **What counts as a scan is [policy]'s job**, and the defaults are deliberately not
+ * "report everything immediately": a barcode must be held inside the aiming region for half a
+ * second, and one presentation produces one result however long it is held. A scanner that fires
+ * at whatever drifts through the frame reads as broken to the person holding it.
  *
  * **This composable does not request the `CAMERA` permission.** Check it before composing this;
  * every app's permission flow differs, so the module deliberately owns none of it. Composing
@@ -68,7 +80,7 @@ enum class LensFacing(internal val selector: CameraSelector) {
  * BarcodeScannerCamera(
  *     modifier = Modifier.fillMaxSize(),
  *     formats = BarcodeFormats.OneDimensional,
- *     onError = { viewModel.onScannerFailed(it) },
+ *     onError = viewModel::onScannerFailed,
  *     onBarcodeScanned = { viewModel.onCodeScanned(it) },
  * )
  * ```
@@ -76,15 +88,17 @@ enum class LensFacing(internal val selector: CameraSelector) {
  * @param formats which symbologies to decode. Narrower is faster — see [BarcodeFormats].
  * @param lensFacing which camera to bind.
  * @param torchEnabled whether the torch is on. Silently ignored on a camera with no flash unit.
- * @param debounceWindow how long the same raw value is suppressed after being reported, per code.
- * Null disables it, which is what you want if you already de-duplicate downstream (keyed on
- * ViewModel state that outlives this composable, say).
- * @param overlay drawn on top of the preview, in the same [Box] — so `Modifier.align` is
- * available to it. Defaults to [DefaultScanFrame].
+ * @param scanningEnabled whether results are reported. False keeps the camera bound and the
+ * preview live but reports nothing — for holding a result on screen without the scanner running on
+ * underneath it. Cheaper and far less jarring than removing the composable, which tears the camera
+ * down and flashes the preview on the way back.
+ * @param policy how long a barcode must be held, how many are tracked at once, and where in the
+ * frame they count. See [ScanPolicy].
+ * @param overlay drawn on top of the preview. Receives the resolved acceptance region and the
+ * current detections, so it can show what is about to be accepted; see [ScannerOverlayScope].
  * @param onError reports a camera that could not be opened or bound — no camera, permission not
  * granted, or another app holding it. The preview stays blank; recovery is the caller's call.
- * @param onBarcodeScanned invoked on the main thread, once per decoded barcode per analysed
- * frame, subject to [debounceWindow].
+ * @param onBarcodeScanned invoked on the main thread for each barcode that satisfies [policy].
  */
 @Composable
 fun BarcodeScannerCamera(
@@ -92,8 +106,9 @@ fun BarcodeScannerCamera(
 	formats: Set<BarcodeFormat> = BarcodeFormats.All,
 	lensFacing: LensFacing = LensFacing.Back,
 	torchEnabled: Boolean = false,
-	debounceWindow: Duration? = 2.5.seconds,
-	overlay: @Composable BoxScope.() -> Unit = { DefaultScanFrame() },
+	scanningEnabled: Boolean = true,
+	policy: ScanPolicy = ScanPolicy.Default,
+	overlay: @Composable ScannerOverlayScope.() -> Unit = { DefaultScanFrame() },
 	onError: (Throwable) -> Unit = {},
 	onBarcodeScanned: (ScannedBarcode) -> Unit,
 ) {
@@ -104,11 +119,16 @@ fun BarcodeScannerCamera(
 	var surfaceRequest by remember { mutableStateOf<SurfaceRequest?>(null) }
 	var camera by remember { mutableStateOf<Camera?>(null) }
 
-	// Survives recomposition but is rebuilt whenever the window changes, so a caller toggling
-	// debouncing does not carry stale suppressions across.
-	val debouncer = remember(debounceWindow) { BarcodeDebouncer(debounceWindow) }
+	var previewSize by remember { mutableStateOf(Size.Zero) }
+	var detections by remember { mutableStateOf<List<DetectedBarcode>>(emptyList()) }
+	val currentScanningEnabled by rememberUpdatedState(scanningEnabled)
 
-	LaunchedEffect(lifecycleOwner, formats, lensFacing) {
+	// Rebuilt only when the policy actually changes — which is why ScanPolicy implements equals by
+	// hand. A policy constructed inline that did not compare equal would reset every dwell on
+	// every recomposition and nothing would ever scan.
+	val tracker = remember(policy) { BarcodeTracker(policy) }
+
+	LaunchedEffect(lifecycleOwner, formats, lensFacing, policy) {
 		surfaceRequest = null
 		camera = null
 		val scanner = BarcodeScanning.getClient(formats.toScannerOptions())
@@ -129,12 +149,22 @@ fun BarcodeScannerCamera(
 						analysisExecutor,
 						BarcodeAnalyzer(
 							scanner = scanner,
+							region = policy.region,
 							callbackExecutor = ContextCompat.getMainExecutor(context),
-							onBarcodesDetected = { barcodes ->
-								barcodes
-									.mapNotNull { it.toScannedBarcode() }
-									.filter(debouncer::shouldEmit)
-									.forEach(currentOnBarcodeScanned)
+							onFrameAnalysed = { ranked, imageRegion, imageSize ->
+								// Every frame ticks the tracker, including empty ones: absence is
+								// what expires a track, so skipping quiet frames would leave a
+								// code "present" long after it had gone.
+								val visible = ranked.mapNotNull { it.toScannedBarcode() }
+								if (currentScanningEnabled) {
+									tracker.accept(visible).forEach(currentOnBarcodeScanned)
+								}
+								detections = ranked.toDetections(
+									tracker = tracker,
+									imageRegion = imageRegion,
+									imageSize = imageSize,
+									previewSize = previewSize,
+								)
 							},
 							onDetectionFailed = { currentOnError(it) },
 						),
@@ -159,11 +189,19 @@ fun BarcodeScannerCamera(
 				// than depend on it.
 				withContext(Dispatchers.Main.immediate) {
 					val bound = try {
+						// Bound as a group with a ViewPort so preview and analysis share one field
+						// of view. Without it the analyser sees a wider image than the preview
+						// shows, ImageProxy.cropRect means nothing, and the scanner can read a
+						// barcode that is not on screen at all.
+						val group = UseCaseGroup.Builder()
+							.setViewPort(ViewPort.Builder(android.util.Rational(4, 3), preview.targetRotation).build())
+							.addUseCase(preview)
+							.addUseCase(analysis)
+							.build()
 						camera = cameraProvider.bindToLifecycle(
 							lifecycleOwner,
 							lensFacing.selector,
-							preview,
-							analysis,
+							group,
 						)
 						true
 					} catch (error: Exception) {
@@ -195,14 +233,22 @@ fun BarcodeScannerCamera(
 		}
 	}
 
-	Box(modifier = modifier) {
+	Box(
+		modifier = modifier.onSizeChanged {
+			previewSize = Size(it.width.toFloat(), it.height.toFloat())
+		},
+	) {
 		surfaceRequest?.let { request ->
 			CameraXViewfinder(
 				modifier = Modifier.fillMaxSize(),
 				surfaceRequest = request,
 			)
 		}
-		overlay()
+		ScannerOverlayScopeImpl(
+			boxScope = this,
+			regionRect = ScanRegionResolver.inPreview(policy.region, previewSize),
+			detections = detections,
+		).overlay()
 	}
 }
 
@@ -219,16 +265,22 @@ private fun Set<BarcodeFormat>.toScannerOptions(): BarcodeScannerOptions {
 }
 
 /**
- * Feeds each camera frame to ML Kit and releases it back to CameraX once detection completes.
+ * Feeds each camera frame to ML Kit, keeps only the barcodes inside the acceptance region, and
+ * ranks them so the one nearest the centre comes first.
  *
  * Holding the [ImageProxy] open until [BarcodeScanner.process] finishes is what lets ML Kit read
  * the frame's planes; closing it early makes every decode a race the detector usually loses, and
- * 1D formats are the ones that lose it. Both callbacks run on [callbackExecutor].
+ * 1D formats are the ones that lose it.
+ *
+ * [onFrameAnalysed] runs on [callbackExecutor] for **every** analysed frame, including ones with
+ * nothing in them. That matters: the tracker expires a barcode by its absence, so a frame with no
+ * detections is information, not a frame to skip.
  */
 private class BarcodeAnalyzer(
 	private val scanner: BarcodeScanner,
+	private val region: ScanRegion,
 	private val callbackExecutor: Executor,
-	private val onBarcodesDetected: (List<Barcode>) -> Unit,
+	private val onFrameAnalysed: (ranked: List<Barcode>, imageRegion: android.graphics.Rect, imageSize: IntSize) -> Unit,
 	private val onDetectionFailed: (Throwable) -> Unit,
 ) : ImageAnalysis.Analyzer {
 
@@ -239,10 +291,22 @@ private class BarcodeAnalyzer(
 			imageProxy.close()
 			return
 		}
-		val inputImage = InputImage.fromMediaImage(mediaImage, imageProxy.imageInfo.rotationDegrees)
+		val rotation = imageProxy.imageInfo.rotationDegrees
+		// ML Kit reports bounding boxes in the rotation-corrected space, so the region has to be
+		// expressed there too — width and height swap on a portrait sensor.
+		val upright = rotation == 90 || rotation == 270
+		val width = if (upright) imageProxy.height else imageProxy.width
+		val height = if (upright) imageProxy.width else imageProxy.height
+		val crop = if (upright) imageProxy.cropRect.transposed() else imageProxy.cropRect
+		val imageRegion = ScanRegionResolver.inImage(region, crop, width, height)
+
+		val inputImage = InputImage.fromMediaImage(mediaImage, rotation)
 		scanner.process(inputImage)
 			.addOnSuccessListener(callbackExecutor) { barcodes ->
-				if (barcodes.isNotEmpty()) onBarcodesDetected(barcodes)
+				val ranked = barcodes
+					.filter { it.isWithin(imageRegion) }
+					.sortedBy { it.distanceToCentreOf(imageRegion) }
+				onFrameAnalysed(ranked, imageRegion, IntSize(width, height))
 			}
 			.addOnFailureListener(callbackExecutor) { error ->
 				onDetectionFailed(error)
@@ -250,5 +314,38 @@ private class BarcodeAnalyzer(
 			.addOnCompleteListener(callbackExecutor) {
 				imageProxy.close()
 			}
+	}
+}
+
+private fun android.graphics.Rect.transposed() = android.graphics.Rect(top, left, bottom, right)
+
+/**
+ * Maps ranked detections from analyser image space into preview pixels for an overlay to draw.
+ *
+ * Preview and analysis share a field of view because they are bound through one `ViewPort`, so a
+ * point maps across by the ratio of their sizes and no further correction is needed.
+ */
+private fun List<Barcode>.toDetections(
+	tracker: BarcodeTracker,
+	imageRegion: android.graphics.Rect,
+	imageSize: IntSize,
+	previewSize: Size,
+): List<DetectedBarcode> {
+	if (previewSize.width <= 0f || imageSize.width == 0 || imageSize.height == 0) return emptyList()
+	val scaleX = previewSize.width / imageSize.width
+	val scaleY = previewSize.height / imageSize.height
+	return mapNotNull { barcode ->
+		val box = barcode.boundingBox ?: return@mapNotNull null
+		val scanned = barcode.toScannedBarcode() ?: return@mapNotNull null
+		DetectedBarcode(
+			barcode = scanned,
+			bounds = Rect(
+				left = box.left * scaleX,
+				top = box.top * scaleY,
+				right = box.right * scaleX,
+				bottom = box.bottom * scaleY,
+			),
+			dwellProgress = tracker.dwellProgress(scanned.rawValue),
+		)
 	}
 }

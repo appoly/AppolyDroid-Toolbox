@@ -10,7 +10,9 @@ module gives you the one-shot scanner for free.
 
 - One `@Composable`; no `AndroidView`, no `PreviewView`
 - Binds to the ambient lifecycle, so it works inside a `ModalBottomSheet` and unbinds on exit
-- Per-code debouncing, so a code held in frame fires once rather than forty times a second
+- A dwell gate, so a code has to be held deliberately rather than glimpsed in passing
+- A centre-of-frame acceptance region that the drawn reticle actually matches
+- Single- or multi-code tracking, ranked nearest-the-centre first
 - Callbacks marshalled to the main thread — touch ViewModel state directly
 - Replaceable overlay, with a sensible default reticle
 - Torch control
@@ -57,21 +59,61 @@ if (granted) {
 
 Composing it without the permission reports a bind failure through `onError` rather than crashing.
 
-### Debouncing
+### Deciding what counts as a scan
 
-ML Kit reports every barcode in frame on every analysed frame. `debounceWindow` (2.5s by default)
-suppresses a repeat of the *same* raw value for that long — per code, so two labels in shot each
-fire once rather than alternating every frame.
-
-If you already de-duplicate against state that outlives the composable — a ViewModel keyed on
-codes already collected, say — turn it off and do it yourself:
+ML Kit re-reports every barcode in view on every analysed frame — tens of times a second. Turning
+that into "the user scanned this" is [`ScanPolicy`](src/main/java/uk/co/appoly/droid/barcodescanner/camera/ScanPolicy.kt):
 
 ```kotlin
 BarcodeScannerCamera(
-    debounceWindow = null,
-    onBarcodeScanned = viewModel::onCodeScanned,
+    policy = ScanPolicy(
+        mode = ScanMode.Single,              // or Multi
+        dwell = 500.milliseconds,            // hold it steady this long
+        missTolerance = 750.milliseconds,    // absorb decode flicker
+        debounceWindow = 2.5.seconds,        // absence needed before it can scan again
+        region = ScanRegion.Reticle(),       // or Full / Visible
+    ),
+    onBarcodeScanned = ::onScanned,
 )
 ```
+
+The defaults are deliberately not "report everything immediately". A scanner that fires at whatever
+drifts through the frame reads as broken to the person holding it — the usual complaint being that
+it grabs a code they were not aiming at.
+
+**One presentation is one result.** A held barcode reports once, however long it is held. To report
+it again it has to be genuinely absent for `debounceWindow` first — not merely for that long since
+it was last reported, which is a different and worse rule that re-fires a code you never put down.
+
+**`Single` locks onto the code nearest the centre** and ignores the rest until it has gone. That is
+the case that matters on a label carrying both a 1D tracking code and a QR: picking whichever the
+detector happened to list first gets it wrong about half the time.
+
+`ScanPolicy.Immediate` restores the old fire-on-sight behaviour if you want to do your own filtering.
+
+### Where a barcode has to be
+
+`ScanRegion` decides what counts, and the distinction is sharper than it looks: **the image the
+analyser sees is wider than the preview the user sees.**
+
+| | |
+|---|---|
+| `Full` | anything decodable, including barcodes off-screen. Rarely what you want |
+| `Visible` | only what is actually on screen |
+| `Reticle(widthFraction, aspectRatio)` | only inside the aiming frame — the default |
+
+A barcode counts by the *centre* of its bounding box, so a code bigger than the reticle still scans
+when aimed at properly.
+
+Preview and analysis are bound through one CameraX `ViewPort`, which is what makes those two fields
+of view agree — and what lets `DefaultScanFrame` draw the exact rectangle the analyser filters
+against, so the box on screen and the region that accepts codes cannot drift apart.
+
+### Pausing without tearing down
+
+`scanningEnabled = false` keeps the camera bound and the preview live but reports nothing — for
+holding a result on screen without the scanner running underneath it. Removing the composable
+instead unbinds the camera and flashes the preview on the way back.
 
 ### Custom overlay
 
@@ -92,8 +134,10 @@ BarcodeScannerCamera(
 )
 ```
 
-Pass `overlay = {}` for a bare preview. The default `DefaultScanFrame()` is decoration only — the
-detector reads the whole frame, so a code outside the reticle still scans.
+Pass `overlay = {}` for a bare preview. `DefaultScanFrame()` draws the *resolved* acceptance
+region from `ScannerOverlayScope.regionRect`, so what it shows is what the analyser filters
+against. The overlay scope also carries the current `detections` with their bounds in preview
+pixels and their dwell progress, for drawing something richer than a static box.
 
 ### Torch
 

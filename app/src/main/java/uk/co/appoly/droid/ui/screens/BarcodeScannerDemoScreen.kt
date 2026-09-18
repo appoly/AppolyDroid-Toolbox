@@ -45,6 +45,12 @@ import uk.co.appoly.droid.barcodescanner.BarcodeFormats
 import uk.co.appoly.droid.barcodescanner.OneShotBarcodeScanner
 import uk.co.appoly.droid.barcodescanner.OneShotScanResult
 import uk.co.appoly.droid.barcodescanner.ScannedBarcode
+import androidx.compose.runtime.mutableIntStateOf
+import kotlin.time.Duration.Companion.milliseconds
+import uk.co.appoly.droid.barcodescanner.camera.ScanMode
+import uk.co.appoly.droid.barcodescanner.camera.ScanPolicy
+import uk.co.appoly.droid.barcodescanner.camera.ScanRegion
+import uk.co.appoly.droid.ui.segmentedcontrol.SegmentedControl
 import uk.co.appoly.droid.barcodescanner.camera.BarcodeScannerCamera
 import uk.co.appoly.droid.nav3.Nav3Screen
 
@@ -230,10 +236,54 @@ data object BarcodeScannerDemoScreen : Nav3Screen {
 						.padding(16.dp),
 					verticalArrangement = Arrangement.spacedBy(12.dp),
 				) {
+					// Every ScanPolicy knob is driven live from here, so the sheet doubles as the
+					// place to feel what each one does rather than reason about it.
+					var mode by remember { mutableStateOf(ScanMode.Single) }
+					var regionChoice by remember { mutableStateOf("Reticle") }
+					var dwellMs by remember { mutableIntStateOf(500) }
+					var paused by remember { mutableStateOf(false) }
+					var lastScan by remember { mutableStateOf<String?>(null) }
+
+					val policy = remember(mode, regionChoice, dwellMs) {
+						ScanPolicy(
+							mode = mode,
+							dwell = dwellMs.takeIf { it > 0 }?.milliseconds,
+							region = when (regionChoice) {
+								"Full" -> ScanRegion.Full
+								"Visible" -> ScanRegion.Visible
+								else -> ScanRegion.Reticle()
+							},
+						)
+					}
+
+					SegmentedControl(
+						segments = listOf(ScanMode.Single, ScanMode.Multi),
+						selectedSegment = mode,
+						onSegmentSelected = { mode = it },
+						segmentText = { it.name },
+					)
+					SegmentedControl(
+						segments = listOf("Full", "Visible", "Reticle"),
+						selectedSegment = regionChoice,
+						onSegmentSelected = { regionChoice = it },
+					)
+					SegmentedControl(
+						segments = listOf(0, 250, 500, 1000),
+						selectedSegment = dwellMs,
+						onSegmentSelected = { dwellMs = it },
+						segmentText = { if (it == 0) "no dwell" else "${it}ms" },
+					)
+
 					TorchToggleRow(
 						modifier = Modifier.fillMaxWidth(),
 						checked = torchEnabled,
 						onCheckedChange = { torchEnabled = it },
+					)
+					TorchToggleRow(
+						modifier = Modifier.fillMaxWidth(),
+						label = "Pause scanning",
+						checked = paused,
+						onCheckedChange = { paused = it },
 					)
 
 					Box(
@@ -244,10 +294,14 @@ data object BarcodeScannerDemoScreen : Nav3Screen {
 						BarcodeScannerCamera(
 							modifier = Modifier.fillMaxSize(),
 							torchEnabled = torchEnabled,
+							scanningEnabled = !paused,
+							policy = policy,
 							onError = { cameraError = it.message ?: it.toString() },
 							onBarcodeScanned = { barcode ->
-								// The module's own 2.5s debounce stops a held code repeating;
-								// this keeps the demo list to distinct values across the session.
+								lastScan = "${barcode.format}: ${barcode.rawValue}"
+								// The policy reports one result per presentation, so anything
+								// arriving here is a deliberate scan. Kept distinct only so the
+								// list below stays readable across a long session.
 								if (scannedCodes.none { it.rawValue == barcode.rawValue }) {
 									scannedCodes.add(barcode)
 								}
@@ -255,6 +309,12 @@ data object BarcodeScannerDemoScreen : Nav3Screen {
 						)
 					}
 
+					Text(
+						text = lastScan?.let { "Last: $it" }
+							?: "Hold a code inside the frame for ${dwellMs}ms",
+						style = MaterialTheme.typography.bodyMedium,
+						color = MaterialTheme.colorScheme.primary,
+					)
 					Text(
 						text = "${scannedCodes.size} distinct code(s) scanned",
 						style = MaterialTheme.typography.bodyMedium,
@@ -268,6 +328,7 @@ data object BarcodeScannerDemoScreen : Nav3Screen {
 @Composable
 private fun TorchToggleRow(
 	modifier: Modifier = Modifier,
+	label: String = "Torch",
 	checked: Boolean,
 	onCheckedChange: (Boolean) -> Unit,
 ) {
@@ -277,7 +338,7 @@ private fun TorchToggleRow(
 		horizontalArrangement = Arrangement.SpaceBetween,
 	) {
 		Text(
-			text = "Torch",
+			text = label,
 			style = MaterialTheme.typography.bodyMedium,
 		)
 		Switch(

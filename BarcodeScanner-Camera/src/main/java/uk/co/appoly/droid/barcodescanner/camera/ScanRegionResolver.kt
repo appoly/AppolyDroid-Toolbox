@@ -1,0 +1,93 @@
+package uk.co.appoly.droid.barcodescanner.camera
+
+import android.graphics.Rect as AndroidRect
+import androidx.camera.core.ImageProxy
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.geometry.Size
+import com.google.mlkit.vision.barcode.common.Barcode
+import kotlin.math.hypot
+import kotlin.math.roundToInt
+
+/**
+ * Turns a [ScanRegion] into the concrete rectangles the scanner needs — one in analyser image
+ * coordinates for deciding what counts, and one in preview pixels for drawing.
+ *
+ * The two are kept consistent by binding preview and analysis through a single `ViewPort`, which
+ * makes `ImageProxy.cropRect` the region the user can actually see. Without that the analyser's
+ * field of view is wider than the preview and the two rectangles describe different parts of the
+ * world — which is exactly how a scanner ends up reading a barcode that is not on screen.
+ */
+internal object ScanRegionResolver {
+
+	/**
+	 * The acceptance region in the analysed image's coordinate space.
+	 *
+	 * @param cropRect what the preview shows, as reported by CameraX for a view-ported binding.
+	 * @param imageWidth the full analysed width, after rotation correction.
+	 * @param imageHeight the full analysed height, after rotation correction.
+	 */
+	fun inImage(
+		region: ScanRegion,
+		cropRect: AndroidRect,
+		imageWidth: Int,
+		imageHeight: Int,
+	): AndroidRect = when (region) {
+		ScanRegion.Full -> AndroidRect(0, 0, imageWidth, imageHeight)
+		ScanRegion.Visible -> cropRect
+		is ScanRegion.Reticle -> cropRect.centredSubRect(region)
+	}
+
+	/** The same region in preview pixels, for an overlay to draw. */
+	fun inPreview(region: ScanRegion, previewSize: Size): Rect = when (region) {
+		// Both cover the whole preview: Full also takes in more than the preview shows, but an
+		// overlay can only meaningfully draw the part the user can see.
+		ScanRegion.Full, ScanRegion.Visible -> Rect(0f, 0f, previewSize.width, previewSize.height)
+
+		is ScanRegion.Reticle -> {
+			val width = previewSize.width * region.widthFraction
+			val height = (width / region.aspectRatio).coerceAtMost(previewSize.height)
+			Rect(
+				offset = androidx.compose.ui.geometry.Offset(
+					x = (previewSize.width - width) / 2f,
+					y = (previewSize.height - height) / 2f,
+				),
+				size = Size(width, height),
+			)
+		}
+	}
+
+	private fun AndroidRect.centredSubRect(reticle: ScanRegion.Reticle): AndroidRect {
+		val w = (width() * reticle.widthFraction).roundToInt()
+		val h = (w / reticle.aspectRatio).roundToInt().coerceAtMost(height())
+		val cx = centerX()
+		val cy = centerY()
+		return AndroidRect(cx - w / 2, cy - h / 2, cx + w / 2, cy + h / 2)
+	}
+}
+
+/**
+ * Whether this barcode counts as being in [region].
+ *
+ * Tested by the *centre* of the bounding box rather than requiring full containment, so a barcode
+ * larger than the reticle still scans when it is aimed at properly — which is the common case for
+ * a long 1D label inside a square guide.
+ */
+internal fun Barcode.isWithin(region: AndroidRect): Boolean {
+	val box = boundingBox ?: return false
+	return region.contains(box.centerX(), box.centerY())
+}
+
+/**
+ * Distance from this barcode's centre to the centre of [region].
+ *
+ * Ranking by this is what makes single-code mode lock onto the code the user is pointing at. The
+ * obvious alternative — take whichever the detector listed first — is arbitrary, and on a label
+ * carrying both a 1D code and a QR it picks the wrong one about half the time.
+ */
+internal fun Barcode.distanceToCentreOf(region: AndroidRect): Float {
+	val box = boundingBox ?: return Float.MAX_VALUE
+	return hypot(
+		(box.centerX() - region.centerX()).toFloat(),
+		(box.centerY() - region.centerY()).toFloat(),
+	)
+}

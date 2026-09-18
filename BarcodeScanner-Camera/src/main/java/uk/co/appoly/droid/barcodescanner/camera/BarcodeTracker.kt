@@ -56,6 +56,20 @@ internal class BarcodeTracker(
 	internal val trackedCount: Int get() = tracks.size
 
 	/**
+	 * How far through its dwell [rawValue] is, from 0f to 1f, for an overlay to draw.
+	 *
+	 * 1f for a code with no track yet (nothing to wait for), for one already reported, and when
+	 * the policy has no dwell — in every one of those cases there is no progress left to show.
+	 */
+	fun dwellProgress(rawValue: String): Float {
+		val dwell = policy.dwell ?: return 1f
+		if (dwell <= Duration.ZERO) return 1f
+		val track = tracks[rawValue] ?: return 0f
+		if (track.reported) return 1f
+		return (track.firstSeen.elapsedNow() / dwell).toFloat().coerceIn(0f, 1f)
+	}
+
+	/**
 	 * Feeds one frame's worth of decodes and returns those that count as scans.
 	 *
 	 * @param visible barcodes that passed the region filter, ordered nearest-to-region-centre
