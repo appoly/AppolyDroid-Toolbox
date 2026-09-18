@@ -60,7 +60,7 @@ The library uses a layered module structure:
 
 **Barcode Scanning:**
 - `BarcodeScanner` - Shared `ScannedBarcode`/`BarcodeFormat` model plus `OneShotBarcodeScanner`, backed by the Play services hosted code scanner (no CameraX, no camera permission)
-- `BarcodeScanner-Camera` - Continuous in-app scanning: CameraX preview + ML Kit analyzer, built on `BarcodeScanner`
+- `BarcodeScanner-Camera` - Continuous in-app scanning: CameraX preview + ML Kit analyzer, built on `BarcodeScanner`. `ScanPolicy` controls dwell, single/multi tracking and the acceptance region; overlays receive a `ScannerOverlayScope` with live detections
 
 **Standalone Utilities:**
 - `UiState` - Sealed class for UI state (Idle/Loading/Success/Error)
@@ -107,13 +107,13 @@ flow.collect { state ->
 
 ## Tech Stack
 
-- Kotlin 2.4.10, AGP 9.3.2, Gradle 9.7.1
+- Kotlin 2.4.20, AGP 9.4.0, Gradle 9.7.1
 - Target/Compile SDK 37, Java 11
-- Jetpack Compose BOM 2026.08.00
+- Jetpack Compose BOM 2026.09.00
 - OkHttp 5.5.0, Retrofit 3.0.0
 - Sandwich 2.4.0 (API response handling)
-- Jetpack Paging 3.5.1, Room 2.8.4
-- androidx Navigation 3 1.2.0-alpha07 (Nav3Navigation module)
+- Jetpack Paging 3.5.1, Room 2.8.5
+- androidx Navigation 3 1.2.0-rc01 (Nav3Navigation module)
 - kotlinx-serialization 1.11.0
 
 ## Publishing
