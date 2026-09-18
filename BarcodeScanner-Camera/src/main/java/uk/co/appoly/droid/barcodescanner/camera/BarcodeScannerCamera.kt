@@ -2,6 +2,7 @@ package uk.co.appoly.droid.barcodescanner.camera
 
 import androidx.annotation.OptIn
 import androidx.camera.compose.CameraXViewfinder
+import androidx.camera.viewfinder.core.ImplementationMode
 import androidx.camera.core.AspectRatio
 import androidx.camera.core.Camera
 import androidx.camera.core.CameraSelector
@@ -30,6 +31,8 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.window.DialogWindowProvider
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.google.mlkit.vision.barcode.BarcodeScanner
@@ -246,10 +249,29 @@ fun BarcodeScannerCamera(
 		},
 	) {
 		surfaceRequest?.let { request ->
-			CameraXViewfinder(
-				modifier = Modifier.fillMaxSize(),
-				surfaceRequest = request,
-			)
+			// The viewfinder's default is a SurfaceView wherever the device supports one: cheaper
+			// and lower-latency, but composited by the system outside the view hierarchy. In a
+			// window of its own — a ModalBottomSheet, a Dialog — that surface is positioned against
+			// the wrong window, so the preview spills outside its bounds and draws behind the sheet
+			// rather than inside it. A TextureView draws inline and therefore clips, scrolls,
+			// rounds and animates like anything else.
+			//
+			// Only in a dialog window, because a full-screen scanner is exactly where the cheaper
+			// path is worth keeping. Two call sites rather than a nullable argument: passing no
+			// mode is what leaves CameraX its own compatibility choice, which already downgrades to
+			// a TextureView on legacy camera hardware.
+			if (LocalView.current.parent is DialogWindowProvider) {
+				CameraXViewfinder(
+					modifier = Modifier.fillMaxSize(),
+					surfaceRequest = request,
+					implementationMode = ImplementationMode.EMBEDDED,
+				)
+			} else {
+				CameraXViewfinder(
+					modifier = Modifier.fillMaxSize(),
+					surfaceRequest = request,
+				)
+			}
 		}
 		ScannerOverlayScopeImpl(
 			boxScope = this,
