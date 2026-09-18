@@ -254,159 +254,157 @@ data object BarcodeScannerDemoScreen : Nav3Screen {
 				sheetMaxWidth = Dp.Unspecified,
 				onDismissRequest = { showSheet = false },
 			) {
-				run {
-					// Every ScanPolicy knob is driven live from here, so the sheet doubles as the
-					// place to feel what each one does rather than reason about it.
-					var mode by remember { mutableStateOf(ScanMode.Single) }
-					var regionChoice by remember { mutableStateOf("Reticle") }
-					var dwellMs by remember { mutableIntStateOf(500) }
-					var paused by remember { mutableStateOf(false) }
-					var overlayStyle by remember { mutableStateOf("Animated") }
-					var haptics by remember { mutableStateOf(true) }
-					var lens by remember { mutableStateOf(LensFacing.Back) }
-					val hapticFeedback = LocalHapticFeedback.current
-					var lastScan by remember { mutableStateOf<String?>(null) }
+				// Every ScanPolicy knob is driven live from here, so the sheet doubles as the
+				// place to feel what each one does rather than reason about it.
+				var mode by remember { mutableStateOf(ScanMode.Single) }
+				var regionChoice by remember { mutableStateOf("Reticle") }
+				var dwellMs by remember { mutableIntStateOf(500) }
+				var paused by remember { mutableStateOf(false) }
+				var overlayStyle by remember { mutableStateOf("Animated") }
+				var haptics by remember { mutableStateOf(true) }
+				var lens by remember { mutableStateOf(LensFacing.Back) }
+				val hapticFeedback = LocalHapticFeedback.current
+				var lastScan by remember { mutableStateOf<String?>(null) }
 
-					val policy = remember(mode, regionChoice, dwellMs) {
-						ScanPolicy(
-							mode = mode,
-							dwell = dwellMs.takeIf { it > 0 }?.milliseconds,
-							region = when (regionChoice) {
-								"Full" -> ScanRegion.Full
-								"Visible" -> ScanRegion.Visible
-								else -> ScanRegion.Reticle()
+				val policy = remember(mode, regionChoice, dwellMs) {
+					ScanPolicy(
+						mode = mode,
+						dwell = dwellMs.takeIf { it > 0 }?.milliseconds,
+						region = when (regionChoice) {
+							"Full" -> ScanRegion.Full
+							"Visible" -> ScanRegion.Visible
+							else -> ScanRegion.Reticle()
+						},
+					)
+				}
+
+				// Landscape is short on height and flush with width, so the knobs sit beside the
+				// preview rather than above it — which also keeps the preview big enough to aim
+				// with, instead of pushing it off the bottom of the sheet.
+				val landscape = LocalConfiguration.current.orientation ==
+					Configuration.ORIENTATION_LANDSCAPE
+
+				val controls: @Composable ColumnScope.() -> Unit = {
+					SegmentedControl(
+						segments = listOf(ScanMode.Single, ScanMode.Multi),
+						selectedSegment = mode,
+						onSegmentSelected = { mode = it },
+						segmentText = { it.name },
+					)
+					SegmentedControl(
+						segments = listOf("Full", "Visible", "Reticle"),
+						selectedSegment = regionChoice,
+						onSegmentSelected = { regionChoice = it },
+					)
+					SegmentedControl(
+						segments = listOf(LensFacing.Back, LensFacing.Front),
+						selectedSegment = lens,
+						onSegmentSelected = { lens = it },
+						segmentText = { if (it == LensFacing.Back) "Back cam" else "Front cam" },
+					)
+					SegmentedControl(
+						segments = listOf("Frame", "Animated", "Corners", "Bullseye"),
+						selectedSegment = overlayStyle,
+						onSegmentSelected = { overlayStyle = it },
+					)
+					SegmentedControl(
+						segments = listOf(0, 250, 500, 1000),
+						selectedSegment = dwellMs,
+						onSegmentSelected = { dwellMs = it },
+						segmentText = { if (it == 0) "no dwell" else "${it}ms" },
+					)
+
+					TorchToggleRow(
+						modifier = Modifier.fillMaxWidth(),
+						checked = torchEnabled,
+						onCheckedChange = { torchEnabled = it },
+					)
+					TorchToggleRow(
+						modifier = Modifier.fillMaxWidth(),
+						label = "Haptic on scan",
+						checked = haptics,
+						onCheckedChange = { haptics = it },
+					)
+					TorchToggleRow(
+						modifier = Modifier.fillMaxWidth(),
+						label = "Pause scanning",
+						checked = paused,
+						onCheckedChange = { paused = it },
+					)
+
+					Text(
+						text = lastScan?.let { "Last: $it" }
+							?: "Hold a code inside the frame for ${dwellMs}ms",
+						style = MaterialTheme.typography.bodyMedium,
+						color = MaterialTheme.colorScheme.primary,
+					)
+					Text(
+						text = "${scannedCodes.size} distinct code(s) scanned",
+						style = MaterialTheme.typography.bodyMedium,
+					)
+				}
+				val preview: @Composable (Modifier) -> Unit = { previewModifier ->
+					Box(modifier = previewModifier) {
+						BarcodeScannerCamera(
+							modifier = Modifier.fillMaxSize(),
+							lensFacing = lens,
+							torchEnabled = torchEnabled,
+							scanningEnabled = !paused,
+							policy = policy,
+							overlay = {
+								when (overlayStyle) {
+									"Frame" -> DefaultScanFrame()
+									"Animated" -> AnimatedScanFrame()
+									// Written here rather than in the library, to show the scope
+									// gives a consumer everything needed to draw their own.
+									"Corners" -> CornerBracketOverlay()
+									else -> BullseyeOverlay()
+								}
+							},
+							onError = { cameraError = it.message ?: it.toString() },
+							onBarcodeScanned = { barcode ->
+								// Feedback (haptic, sound etc.) lives here rather than in the module,
+								// because only the app knows whether a scan was any *good*.
+								// Here "already in the list" stands in for the real thing — a
+								// code that is not on the manifest, or the wrong item — and gets
+								// the reject signal.
+								val isNew = scannedCodes.none { it.rawValue == barcode.rawValue }
+								if (haptics) {
+									hapticFeedback.performHapticFeedback(
+										if (isNew) HapticFeedbackType.Confirm
+										else HapticFeedbackType.Reject,
+									)
+								}
+								lastScan = if (isNew) {
+									scannedCodes.add(barcode)
+									"${barcode.format}: ${barcode.rawValue}"
+								} else {
+									"Already scanned: ${barcode.rawValue}"
+								}
 							},
 						)
 					}
 
-					// Landscape is short on height and flush with width, so the knobs sit beside the
-					// preview rather than above it — which also keeps the preview big enough to aim
-					// with, instead of pushing it off the bottom of the sheet.
-					val landscape = LocalConfiguration.current.orientation ==
-						Configuration.ORIENTATION_LANDSCAPE
+				}
 
-					val controls: @Composable ColumnScope.() -> Unit = {
-						SegmentedControl(
-							segments = listOf(ScanMode.Single, ScanMode.Multi),
-							selectedSegment = mode,
-							onSegmentSelected = { mode = it },
-							segmentText = { it.name },
-						)
-						SegmentedControl(
-							segments = listOf("Full", "Visible", "Reticle"),
-							selectedSegment = regionChoice,
-							onSegmentSelected = { regionChoice = it },
-						)
-						SegmentedControl(
-							segments = listOf(LensFacing.Back, LensFacing.Front),
-							selectedSegment = lens,
-							onSegmentSelected = { lens = it },
-							segmentText = { if (it == LensFacing.Back) "Back cam" else "Front cam" },
-						)
-						SegmentedControl(
-							segments = listOf("Frame", "Animated", "Corners", "Bullseye"),
-							selectedSegment = overlayStyle,
-							onSegmentSelected = { overlayStyle = it },
-						)
-						SegmentedControl(
-							segments = listOf(0, 250, 500, 1000),
-							selectedSegment = dwellMs,
-							onSegmentSelected = { dwellMs = it },
-							segmentText = { if (it == 0) "no dwell" else "${it}ms" },
-						)
-
-						TorchToggleRow(
-							modifier = Modifier.fillMaxWidth(),
-							checked = torchEnabled,
-							onCheckedChange = { torchEnabled = it },
-						)
-						TorchToggleRow(
-							modifier = Modifier.fillMaxWidth(),
-							label = "Haptic on scan",
-							checked = haptics,
-							onCheckedChange = { haptics = it },
-						)
-						TorchToggleRow(
-							modifier = Modifier.fillMaxWidth(),
-							label = "Pause scanning",
-							checked = paused,
-							onCheckedChange = { paused = it },
-						)
-
-						Text(
-							text = lastScan?.let { "Last: $it" }
-								?: "Hold a code inside the frame for ${dwellMs}ms",
-							style = MaterialTheme.typography.bodyMedium,
-							color = MaterialTheme.colorScheme.primary,
-						)
-						Text(
-							text = "${scannedCodes.size} distinct code(s) scanned",
-							style = MaterialTheme.typography.bodyMedium,
-						)
-					}
-					val preview: @Composable (Modifier) -> Unit = { previewModifier ->
-						Box(modifier = previewModifier) {
-							BarcodeScannerCamera(
-								modifier = Modifier.fillMaxSize(),
-								lensFacing = lens,
-								torchEnabled = torchEnabled,
-								scanningEnabled = !paused,
-								policy = policy,
-								overlay = {
-									when (overlayStyle) {
-										"Frame" -> DefaultScanFrame()
-										"Animated" -> AnimatedScanFrame()
-										// Written here rather than in the library, to show the scope
-										// gives a consumer everything needed to draw their own.
-										"Corners" -> CornerBracketOverlay()
-										else -> BullseyeOverlay()
-									}
-								},
-								onError = { cameraError = it.message ?: it.toString() },
-								onBarcodeScanned = { barcode ->
-									// Feedback (haptic, sound etc.) lives here rather than in the module,
-									// because only the app knows whether a scan was any *good*.
-									// Here "already in the list" stands in for the real thing — a
-									// code that is not on the manifest, or the wrong item — and gets
-									// the reject signal.
-									val isNew = scannedCodes.none { it.rawValue == barcode.rawValue }
-									if (haptics) {
-										hapticFeedback.performHapticFeedback(
-											if (isNew) HapticFeedbackType.Confirm
-											else HapticFeedbackType.Reject,
-										)
-									}
-									lastScan = if (isNew) {
-										scannedCodes.add(barcode)
-										"${barcode.format}: ${barcode.rawValue}"
-									} else {
-										"Already scanned: ${barcode.rawValue}"
-									}
-								},
-							)
-						}
-
-					}
-
-					if (landscape) {
-						Row(
-							modifier = Modifier.fillMaxWidth().height(340.dp).padding(16.dp),
-							horizontalArrangement = Arrangement.spacedBy(16.dp),
-						) {
-							Column(
-								modifier = Modifier.weight(1f).verticalScroll(rememberScrollState()),
-								verticalArrangement = Arrangement.spacedBy(12.dp),
-							) { controls() }
-							preview(Modifier.weight(1f).fillMaxHeight())
-						}
-					} else {
+				if (landscape) {
+					Row(
+						modifier = Modifier.fillMaxWidth().height(340.dp).padding(16.dp),
+						horizontalArrangement = Arrangement.spacedBy(16.dp),
+					) {
 						Column(
-							modifier = Modifier.fillMaxWidth().padding(16.dp),
+							modifier = Modifier.weight(1f).verticalScroll(rememberScrollState()),
 							verticalArrangement = Arrangement.spacedBy(12.dp),
-						) {
-							controls()
-							preview(Modifier.fillMaxWidth().height(360.dp))
-						}
+						) { controls() }
+						preview(Modifier.weight(1f).fillMaxHeight())
+					}
+				} else {
+					Column(
+						modifier = Modifier.fillMaxWidth().padding(16.dp),
+						verticalArrangement = Arrangement.spacedBy(12.dp),
+					) {
+						controls()
+						preview(Modifier.fillMaxWidth().height(360.dp))
 					}
 				}
 			}
