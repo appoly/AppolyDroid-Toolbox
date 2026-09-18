@@ -25,10 +25,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -92,6 +94,10 @@ enum class LensFacing(internal val selector: CameraSelector) {
  * preview live but reports nothing — for holding a result on screen without the scanner running on
  * underneath it. Cheaper and far less jarring than removing the composable, which tears the camera
  * down and flashes the preview on the way back.
+ * @param scanHaptic played when a barcode is accepted, or null for silence. On by default: the
+ * person scanning is usually looking at the thing they are scanning rather than at the screen, so
+ * a buzz is what tells them it landed. Fires only for accepted scans, so it follows
+ * [scanningEnabled] and [policy] automatically.
  * @param policy how long a barcode must be held, how many are tracked at once, and where in the
  * frame they count. See [ScanPolicy].
  * @param overlay drawn on top of the preview. Receives the resolved acceptance region and the
@@ -107,6 +113,7 @@ fun BarcodeScannerCamera(
 	lensFacing: LensFacing = LensFacing.Back,
 	torchEnabled: Boolean = false,
 	scanningEnabled: Boolean = true,
+	scanHaptic: HapticFeedbackType? = HapticFeedbackType.Confirm,
 	policy: ScanPolicy = ScanPolicy.Default,
 	overlay: @Composable ScannerOverlayScope.() -> Unit = { DefaultScanFrame() },
 	onError: (Throwable) -> Unit = {},
@@ -122,6 +129,8 @@ fun BarcodeScannerCamera(
 	var previewSize by remember { mutableStateOf(Size.Zero) }
 	var detections by remember { mutableStateOf<List<DetectedBarcode>>(emptyList()) }
 	val currentScanningEnabled by rememberUpdatedState(scanningEnabled)
+	val haptics = LocalHapticFeedback.current
+	val currentScanHaptic by rememberUpdatedState(scanHaptic)
 
 	// Rebuilt only when the policy actually changes — which is why ScanPolicy implements equals by
 	// hand. A policy constructed inline that did not compare equal would reset every dwell on
@@ -157,7 +166,13 @@ fun BarcodeScannerCamera(
 								// code "present" long after it had gone.
 								val visible = ranked.mapNotNull { it.toScannedBarcode() }
 								if (currentScanningEnabled) {
-									tracker.accept(visible).forEach(currentOnBarcodeScanned)
+									tracker.accept(visible).forEach { scanned ->
+										// Once per accepted scan, before the callback, so the buzz
+										// lands with the scan rather than after whatever the
+										// consumer does with it.
+										currentScanHaptic?.let(haptics::performHapticFeedback)
+										currentOnBarcodeScanned(scanned)
+									}
 								}
 								detections = ranked.toDetections(
 									tracker = tracker,

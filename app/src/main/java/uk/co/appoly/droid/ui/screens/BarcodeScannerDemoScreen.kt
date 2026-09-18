@@ -53,7 +53,14 @@ import uk.co.appoly.droid.barcodescanner.camera.ScanRegion
 import uk.co.appoly.droid.ui.segmentedcontrol.SegmentedControl
 import androidx.compose.foundation.Canvas
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.unit.Dp
+import uk.co.appoly.droid.barcodescanner.camera.DetectedBarcode
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.drawscope.Stroke
 import uk.co.appoly.droid.barcodescanner.camera.AnimatedScanFrame
@@ -251,6 +258,7 @@ data object BarcodeScannerDemoScreen : Nav3Screen {
 					var dwellMs by remember { mutableIntStateOf(500) }
 					var paused by remember { mutableStateOf(false) }
 					var overlayStyle by remember { mutableStateOf("Animated") }
+					var haptics by remember { mutableStateOf(true) }
 					var lastScan by remember { mutableStateOf<String?>(null) }
 
 					val policy = remember(mode, regionChoice, dwellMs) {
@@ -277,7 +285,7 @@ data object BarcodeScannerDemoScreen : Nav3Screen {
 						onSegmentSelected = { regionChoice = it },
 					)
 					SegmentedControl(
-						segments = listOf("Frame", "Animated", "Custom"),
+						segments = listOf("Frame", "Animated", "Corners", "Bullseye"),
 						selectedSegment = overlayStyle,
 						onSegmentSelected = { overlayStyle = it },
 					)
@@ -295,6 +303,12 @@ data object BarcodeScannerDemoScreen : Nav3Screen {
 					)
 					TorchToggleRow(
 						modifier = Modifier.fillMaxWidth(),
+						label = "Haptic on scan",
+						checked = haptics,
+						onCheckedChange = { haptics = it },
+					)
+					TorchToggleRow(
+						modifier = Modifier.fillMaxWidth(),
 						label = "Pause scanning",
 						checked = paused,
 						onCheckedChange = { paused = it },
@@ -309,11 +323,13 @@ data object BarcodeScannerDemoScreen : Nav3Screen {
 							modifier = Modifier.fillMaxSize(),
 							torchEnabled = torchEnabled,
 							scanningEnabled = !paused,
+							scanHaptic = HapticFeedbackType.Confirm.takeIf { haptics },
 							policy = policy,
 							overlay = {
 								when (overlayStyle) {
 									"Frame" -> DefaultScanFrame()
 									"Animated" -> AnimatedScanFrame()
+									"Corners" -> CornerBracketOverlay()
 									// Written here rather than in the library, to show the scope
 									// gives a consumer everything needed to draw their own.
 									else -> BullseyeOverlay()
@@ -414,6 +430,69 @@ private fun ScannerOverlayScope.BullseyeOverlay() {
 				size = Size(radius * 2, radius * 2),
 				style = Stroke(width = 4.dp.toPx()),
 			)
+		}
+	}
+}
+
+/**
+ * A second hand-rolled overlay, app-side, in the style of Google's hosted scanner.
+ *
+ * At rest it marks the acceptance region with four **unconnected** corner brackets. As a barcode
+ * dwells, the arms grow along each edge until they meet in the middle and the brackets close into a
+ * complete frame — so [DetectedBarcode.dwellProgress] is legible as a shape rather than needing a
+ * separate progress indicator.
+ *
+ * Built, like [BullseyeOverlay], from nothing but [ScannerOverlayScope.regionRect] and
+ * [ScannerOverlayScope.detections]. Two overlays this different sharing one contract is the point:
+ * the library ships an opinionated frame, and an app that wants its own look is not stuck with it.
+ */
+@Composable
+private fun ScannerOverlayScope.CornerBracketOverlay(
+	restingArm: Dp = 28.dp,
+	strokeWidth: Dp = 4.dp,
+	idleColor: Color = Color.White,
+	trackingColor: Color = Color(0xFF4CAF50),
+) {
+	val tracked = detections.firstOrNull()
+	val target = tracked?.bounds ?: regionRect
+	val progress = tracked?.dwellProgress ?: 0f
+
+	val spec = spring<Float>(stiffness = 420f, dampingRatio = 0.82f)
+	val left by animateFloatAsState(target.left, spec, label = "cornerLeft")
+	val top by animateFloatAsState(target.top, spec, label = "cornerTop")
+	val right by animateFloatAsState(target.right, spec, label = "cornerRight")
+	val bottom by animateFloatAsState(target.bottom, spec, label = "cornerBottom")
+	// Animated separately from the spring so the arms close smoothly even when the box is still.
+	val closure by animateFloatAsState(progress, label = "cornerClosure")
+	val color by animateColorAsState(
+		targetValue = if (tracked != null) trackingColor else idleColor,
+		label = "cornerColor",
+	)
+
+	Canvas(modifier = Modifier.fillMaxSize()) {
+		val pad = if (tracked != null) 12.dp.toPx() else 0f
+		val l = (left - pad).coerceAtLeast(0f)
+		val t = (top - pad).coerceAtLeast(0f)
+		val r = (right + pad).coerceAtMost(size.width)
+		val b = (bottom + pad).coerceAtMost(size.height)
+		if (r - l <= 0f || b - t <= 0f) return@Canvas
+
+		val base = restingArm.toPx()
+		// Each arm grows from its resting length to half the edge; at full closure the two arms on
+		// an edge meet in the middle and the brackets become a continuous rectangle.
+		val armX = base + ((r - l) / 2f - base).coerceAtLeast(0f) * closure
+		val armY = base + ((b - t) / 2f - base).coerceAtLeast(0f) * closure
+		val stroke = strokeWidth.toPx()
+
+		listOf(
+			// corner            horizontal arm                    vertical arm
+			Triple(Offset(l, t), Offset(l + armX, t), Offset(l, t + armY)),
+			Triple(Offset(r, t), Offset(r - armX, t), Offset(r, t + armY)),
+			Triple(Offset(l, b), Offset(l + armX, b), Offset(l, b - armY)),
+			Triple(Offset(r, b), Offset(r - armX, b), Offset(r, b - armY)),
+		).forEach { (corner, horizontal, vertical) ->
+			drawLine(color, corner, horizontal, strokeWidth = stroke, cap = StrokeCap.Round)
+			drawLine(color, corner, vertical, strokeWidth = stroke, cap = StrokeCap.Round)
 		}
 	}
 }

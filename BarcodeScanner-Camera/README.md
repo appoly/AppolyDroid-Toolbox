@@ -14,7 +14,8 @@ module gives you the one-shot scanner for free.
 - A centre-of-frame acceptance region that the drawn reticle actually matches
 - Single- or multi-code tracking, ranked nearest-the-centre first
 - Callbacks marshalled to the main thread — touch ViewModel state directly
-- Replaceable overlay, with a sensible default reticle
+- Replaceable overlay — a static frame, an animated one that tracks the code, or your own
+- Haptic confirmation on scan
 - Torch control
 - Declares `CAMERA` and the ML Kit install-time model download in its own manifest
 
@@ -108,6 +109,22 @@ when aimed at properly.
 Preview and analysis are bound through one CameraX `ViewPort`, which is what makes those two fields
 of view agree — and what lets `DefaultScanFrame` draw the exact rectangle the analyser filters
 against, so the box on screen and the region that accepts codes cannot drift apart.
+
+### Feedback on a scan
+
+A haptic fires on each accepted scan by default:
+
+```kotlin
+BarcodeScannerCamera(
+    scanHaptic = HapticFeedbackType.Confirm,  // null for silence
+    onBarcodeScanned = ::onScanned,
+)
+```
+
+On by default because the person scanning is usually looking at the thing they are scanning rather
+than at the screen — the buzz is what tells them it landed. It follows `scanningEnabled` and the
+policy automatically, since it only fires for accepted scans. Taking a `HapticFeedbackType?` rather
+than a `Boolean` means a different feel is a value change rather than a new parameter.
 
 ### Pausing without tearing down
 
