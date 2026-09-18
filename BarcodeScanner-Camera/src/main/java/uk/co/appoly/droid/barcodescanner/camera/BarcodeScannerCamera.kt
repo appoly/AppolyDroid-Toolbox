@@ -156,6 +156,7 @@ fun BarcodeScannerCamera(
 						BarcodeAnalyzer(
 							scanner = scanner,
 							region = policy.region,
+							previewSize = { previewSize },
 							callbackExecutor = ContextCompat.getMainExecutor(context),
 							onFrameAnalysed = { ranked, crop ->
 								// Every frame ticks the tracker, including empty ones: absence is
@@ -285,6 +286,7 @@ private fun Set<BarcodeFormat>.toScannerOptions(): BarcodeScannerOptions {
 private class BarcodeAnalyzer(
 	private val scanner: BarcodeScanner,
 	private val region: ScanRegion,
+	private val previewSize: () -> Size,
 	private val callbackExecutor: Executor,
 	private val onFrameAnalysed: (ranked: List<Barcode>, crop: android.graphics.Rect) -> Unit,
 	private val onDetectionFailed: (Throwable) -> Unit,
@@ -304,7 +306,7 @@ private class BarcodeAnalyzer(
 		val width = if (upright) imageProxy.height else imageProxy.width
 		val height = if (upright) imageProxy.width else imageProxy.height
 		val crop = imageProxy.cropRect.rotatedInto(rotation, imageProxy.width, imageProxy.height)
-		val imageRegion = ScanRegionResolver.inImage(region, crop, width, height)
+		val imageRegion = ScanRegionResolver.inImage(region, crop, previewSize(), width, height)
 
 		val inputImage = InputImage.fromMediaImage(mediaImage, rotation)
 		scanner.process(inputImage)

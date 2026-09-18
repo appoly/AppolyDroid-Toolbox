@@ -170,4 +170,91 @@ class ScanRegionResolverTest {
 		assertEquals(0f, mapped.x, 0.01f)
 		assertEquals(0f, mapped.y, 0.01f)
 	}
+
+	@Test
+	fun `a crop taller than the preview overflows it rather than being squashed`() {
+		// The landscape bug. The viewfinder fills its bounds at one scale and lets the rest run off
+		// the edges; stretching the crop onto the bounds instead keeps x right and makes y wrong by
+		// the ratio of the aspect ratios — here 0.5625, which is what "the right width and half the
+		// height" looks like on a phone.
+		val crop = Rect(0, 0, 300, 400)
+		val preview = Size(400f, 300f)
+
+		val centre = mapToPreview(x = 150, y = 200, crop = crop, previewSize = preview)
+		val rightEdge = mapToPreview(x = 300, y = 200, crop = crop, previewSize = preview)
+		val cropBottom = mapToPreview(x = 150, y = 400, crop = crop, previewSize = preview)
+
+		assertEquals(200f, centre.x, 0.01f)
+		assertEquals(150f, centre.y, 0.01f)
+		assertEquals("the wider axis fills the preview exactly", 400f, rightEdge.x, 0.01f)
+		assertEquals(
+			"the crop's bottom edge is off-screen, not on the preview's bottom edge",
+			416.67f,
+			cropBottom.y,
+			0.01f,
+		)
+	}
+
+	@Test
+	fun `a crop wider than the preview overflows sideways`() {
+		val crop = Rect(0, 0, 400, 300)
+		val preview = Size(300f, 400f)
+
+		val cropRight = mapToPreview(x = 400, y = 150, crop = crop, previewSize = preview)
+		val bottom = mapToPreview(x = 200, y = 300, crop = crop, previewSize = preview)
+
+		assertEquals(416.67f, cropRight.x, 0.01f)
+		assertEquals("the taller axis fills the preview exactly", 400f, bottom.y, 0.01f)
+	}
+
+	@Test
+	fun `the visible region trims what the viewfinder crops away`() {
+		val crop = Rect(0, 0, 300, 400)
+		val preview = Size(400f, 300f)
+
+		val visible = visibleInImage(crop, preview)
+
+		assertEquals("nothing is lost across the filled axis", 300, visible.width())
+		assertEquals(225, visible.height())
+		assertEquals("it stays centred on the crop", 200, visible.centerY())
+	}
+
+	@Test
+	fun `the visible region is the whole crop when the aspects match`() {
+		val crop = Rect(20, 40, 320, 440)
+		val preview = Size(150f, 200f)
+
+		assertEquals(crop, visibleInImage(crop, preview))
+	}
+
+	@Test
+	fun `the visible region falls back to the crop before the preview is measured`() {
+		// A frame or two arrive before the first layout pass. Returning an empty region there would
+		// stop the scanner dead rather than merely be imprecise.
+		val crop = Rect(0, 0, 300, 400)
+
+		assertEquals(crop, visibleInImage(crop, Size.Zero))
+	}
+
+	@Test
+	fun `the reticle the analyser filters on is the reticle the overlay draws`() {
+		// The invariant the whole two-rectangle design exists to hold: a scanner that shows one box
+		// and accepts codes in a different one is worse than one that draws no box at all. Both are
+		// derived from the visible region, so a mismatched preview aspect must not pull them apart.
+		val crop = Rect(0, 0, 300, 400)
+		val preview = Size(400f, 300f)
+		val reticle = ScanRegion.Reticle(widthFraction = 0.7f, aspectRatio = 1f)
+
+		val inImage = ScanRegionResolver.inImage(reticle, crop, preview, imageWidth = 300, imageHeight = 400)
+		val drawn = ScanRegionResolver.inPreview(reticle, preview)
+
+		val mappedTopLeft = mapToPreview(inImage.left, inImage.top, crop, preview)
+		val mappedBottomRight = mapToPreview(inImage.right, inImage.bottom, crop, preview)
+
+		// A pixel or so of slack: the image region is integer-rounded and the drawn one is not.
+		assertEquals(drawn.left, mappedTopLeft.x, 2f)
+		assertEquals(drawn.top, mappedTopLeft.y, 2f)
+		assertEquals(drawn.right, mappedBottomRight.x, 2f)
+		assertEquals(drawn.bottom, mappedBottomRight.y, 2f)
+	}
 }

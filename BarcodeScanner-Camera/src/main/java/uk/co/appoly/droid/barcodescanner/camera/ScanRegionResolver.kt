@@ -1,11 +1,12 @@
 package uk.co.appoly.droid.barcodescanner.camera
 
 import android.graphics.Rect as AndroidRect
-import androidx.camera.core.ImageProxy
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
 import com.google.mlkit.vision.barcode.common.Barcode
 import kotlin.math.hypot
+import kotlin.math.max
 import kotlin.math.roundToInt
 
 /**
@@ -13,28 +14,34 @@ import kotlin.math.roundToInt
  * coordinates for deciding what counts, and one in preview pixels for drawing.
  *
  * The two are kept consistent by binding preview and analysis through a single `ViewPort`, which
- * makes `ImageProxy.cropRect` the region the user can actually see. Without that the analyser's
- * field of view is wider than the preview and the two rectangles describe different parts of the
- * world — which is exactly how a scanner ends up reading a barcode that is not on screen.
+ * makes `ImageProxy.cropRect` the region the camera is sharing between them, and then by taking
+ * account of how the viewfinder fits that region into its bounds — see [visibleInImage]. Without
+ * the `ViewPort` the analyser's field of view is wider than the preview and the two rectangles
+ * describe different parts of the world, which is exactly how a scanner ends up reading a barcode
+ * that is not on screen.
  */
 internal object ScanRegionResolver {
 
 	/**
 	 * The acceptance region in the analysed image's coordinate space.
 	 *
-	 * @param cropRect what the preview shows, as reported by CameraX for a view-ported binding.
+	 * @param cropRect what the camera shares between preview and analysis, as reported by CameraX
+	 * for a view-ported binding.
+	 * @param previewSize the viewfinder's bounds in pixels, needed because it centre-crops
+	 * [cropRect] rather than stretching it.
 	 * @param imageWidth the full analysed width, after rotation correction.
 	 * @param imageHeight the full analysed height, after rotation correction.
 	 */
 	fun inImage(
 		region: ScanRegion,
 		cropRect: AndroidRect,
+		previewSize: Size,
 		imageWidth: Int,
 		imageHeight: Int,
 	): AndroidRect = when (region) {
 		ScanRegion.Full -> AndroidRect(0, 0, imageWidth, imageHeight)
-		ScanRegion.Visible -> cropRect
-		is ScanRegion.Reticle -> cropRect.centredSubRect(region)
+		ScanRegion.Visible -> visibleInImage(cropRect, previewSize)
+		is ScanRegion.Reticle -> visibleInImage(cropRect, previewSize).centredSubRect(region)
 	}
 
 	/** The same region in preview pixels, for an overlay to draw. */
@@ -47,7 +54,7 @@ internal object ScanRegionResolver {
 			val width = previewSize.width * region.widthFraction
 			val height = (width / region.aspectRatio).coerceAtMost(previewSize.height)
 			Rect(
-				offset = androidx.compose.ui.geometry.Offset(
+				offset = Offset(
 					x = (previewSize.width - width) / 2f,
 					y = (previewSize.height - height) / 2f,
 				),
@@ -113,15 +120,56 @@ internal fun AndroidRect.rotatedInto(
 }
 
 /**
+ * The single scale factor the viewfinder applies to the camera's crop rectangle.
+ *
+ * The viewfinder **fills** its bounds and centre-crops the overflow, so the scale is the larger of
+ * the two ratios and the same on both axes. Scaling each axis independently — stretching the crop
+ * onto the bounds — is only equivalent while the crop and the bounds share an aspect ratio, which
+ * is why treating them as interchangeable survives a portrait phone and falls apart the moment the
+ * preview is any other shape.
+ */
+private fun fillCentreScale(crop: AndroidRect, previewSize: Size): Float =
+	max(previewSize.width / crop.width(), previewSize.height / crop.height())
+
+/**
+ * The part of [crop] the viewfinder actually puts on screen, in image coordinates.
+ *
+ * The camera shares one crop rectangle between preview and analysis, but the viewfinder only shows
+ * the part of it that fits its bounds — everything beyond is scaled off the edges. That remainder
+ * is analysed and invisible at once, so accepting a barcode there means accepting one the user
+ * cannot see. This is the rectangle [ScanRegion.Visible] means, and the one a reticle is measured
+ * against.
+ *
+ * Falls back to the whole crop when the preview has not been laid out yet, so scanning still works
+ * for the frame or two before the first measurement arrives.
+ */
+internal fun visibleInImage(crop: AndroidRect, previewSize: Size): AndroidRect {
+	if (crop.width() <= 0 || crop.height() <= 0) return AndroidRect(crop)
+	if (previewSize.width <= 0f || previewSize.height <= 0f) return AndroidRect(crop)
+	val scale = fillCentreScale(crop, previewSize)
+	val halfWidth = previewSize.width / (2f * scale)
+	val halfHeight = previewSize.height / (2f * scale)
+	val centreX = crop.exactCenterX()
+	val centreY = crop.exactCenterY()
+	return AndroidRect(
+		(centreX - halfWidth).roundToInt(),
+		(centreY - halfHeight).roundToInt(),
+		(centreX + halfWidth).roundToInt(),
+		(centreY + halfHeight).roundToInt(),
+	)
+}
+
+/**
  * Maps a point from the rotation-corrected analyser space into preview pixels.
  *
  * [mirrored] handles the front camera, whose preview is flipped for display while the analysed
  * buffer is not.
  *
- * Everything hangs off [crop] rather than the full image: with a `ViewPort` the preview shows
- * exactly the cropped region, so scaling by the whole image makes every box too small and
- * forgetting the crop's origin shifts them all toward the top-left. Both at once is what a barcode
- * outline that is undersized *and* offset looks like.
+ * Everything is measured from the centre of [crop] outwards at a single [fillCentreScale], because
+ * that is what the viewfinder does: the crop's centre lands on the preview's centre and both axes
+ * share one scale. Stretching the crop onto the preview instead makes every box wrong by the ratio
+ * of the two aspect ratios — invisible while they match, and a barcode outline that is the right
+ * width and half the height the moment they do not.
  */
 internal fun mapToPreview(
 	x: Int,
@@ -129,15 +177,17 @@ internal fun mapToPreview(
 	crop: AndroidRect,
 	previewSize: Size,
 	mirrored: Boolean = false,
-): androidx.compose.ui.geometry.Offset {
-	if (crop.width() <= 0 || crop.height() <= 0) return androidx.compose.ui.geometry.Offset.Zero
-	val mappedX = (x - crop.left) * previewSize.width / crop.width()
-	return androidx.compose.ui.geometry.Offset(
+): Offset {
+	if (crop.width() <= 0 || crop.height() <= 0) return Offset.Zero
+	val scale = fillCentreScale(crop, previewSize)
+	val fromCentreX = (x - crop.exactCenterX()) * scale
+	val fromCentreY = (y - crop.exactCenterY()) * scale
+	return Offset(
 		// The front camera's preview is mirrored for display — you expect to move left and see
 		// yourself move left — but the analyser receives the unmirrored buffer, so ML Kit's
 		// coordinates are in the frame the user is NOT looking at. Without this every overlay on
 		// the front lens is drawn on the wrong side of the screen.
-		x = if (mirrored) previewSize.width - mappedX else mappedX,
-		y = (y - crop.top) * previewSize.height / crop.height(),
+		x = previewSize.width / 2f + if (mirrored) -fromCentreX else fromCentreX,
+		y = previewSize.height / 2f + fromCentreY,
 	)
 }
