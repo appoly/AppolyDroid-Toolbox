@@ -51,6 +51,14 @@ import uk.co.appoly.droid.barcodescanner.camera.ScanMode
 import uk.co.appoly.droid.barcodescanner.camera.ScanPolicy
 import uk.co.appoly.droid.barcodescanner.camera.ScanRegion
 import uk.co.appoly.droid.ui.segmentedcontrol.SegmentedControl
+import androidx.compose.foundation.Canvas
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.drawscope.Stroke
+import uk.co.appoly.droid.barcodescanner.camera.AnimatedScanFrame
+import uk.co.appoly.droid.barcodescanner.camera.DefaultScanFrame
+import uk.co.appoly.droid.barcodescanner.camera.ScannerOverlayScope
 import uk.co.appoly.droid.barcodescanner.camera.BarcodeScannerCamera
 import uk.co.appoly.droid.nav3.Nav3Screen
 
@@ -242,6 +250,7 @@ data object BarcodeScannerDemoScreen : Nav3Screen {
 					var regionChoice by remember { mutableStateOf("Reticle") }
 					var dwellMs by remember { mutableIntStateOf(500) }
 					var paused by remember { mutableStateOf(false) }
+					var overlayStyle by remember { mutableStateOf("Animated") }
 					var lastScan by remember { mutableStateOf<String?>(null) }
 
 					val policy = remember(mode, regionChoice, dwellMs) {
@@ -266,6 +275,11 @@ data object BarcodeScannerDemoScreen : Nav3Screen {
 						segments = listOf("Full", "Visible", "Reticle"),
 						selectedSegment = regionChoice,
 						onSegmentSelected = { regionChoice = it },
+					)
+					SegmentedControl(
+						segments = listOf("Frame", "Animated", "Custom"),
+						selectedSegment = overlayStyle,
+						onSegmentSelected = { overlayStyle = it },
 					)
 					SegmentedControl(
 						segments = listOf(0, 250, 500, 1000),
@@ -296,6 +310,15 @@ data object BarcodeScannerDemoScreen : Nav3Screen {
 							torchEnabled = torchEnabled,
 							scanningEnabled = !paused,
 							policy = policy,
+							overlay = {
+								when (overlayStyle) {
+									"Frame" -> DefaultScanFrame()
+									"Animated" -> AnimatedScanFrame()
+									// Written here rather than in the library, to show the scope
+									// gives a consumer everything needed to draw their own.
+									else -> BullseyeOverlay()
+								}
+							},
 							onError = { cameraError = it.message ?: it.toString() },
 							onBarcodeScanned = { barcode ->
 								lastScan = "${barcode.format}: ${barcode.rawValue}"
@@ -345,5 +368,52 @@ private fun TorchToggleRow(
 			checked = checked,
 			onCheckedChange = onCheckedChange,
 		)
+	}
+}
+
+/**
+ * A hand-rolled overlay, built only from [ScannerOverlayScope]'s public surface.
+ *
+ * Exists to prove the point: a consumer needs nothing from the library beyond [regionRect] and
+ * [detections] to draw something completely different — here, crosshairs on the acceptance region
+ * and a filling ring on whatever the scanner is about to accept.
+ */
+@Composable
+private fun ScannerOverlayScope.BullseyeOverlay() {
+	Canvas(modifier = Modifier.fillMaxSize()) {
+		val region = regionRect
+		if (region.width <= 0f) return@Canvas
+
+		// Crosshairs marking where the scanner is looking.
+		val centre = region.center
+		val arm = 24.dp.toPx()
+		listOf(
+			Offset(centre.x - arm, centre.y) to Offset(centre.x + arm, centre.y),
+			Offset(centre.x, centre.y - arm) to Offset(centre.x, centre.y + arm),
+		).forEach { (from, to) ->
+			drawLine(Color.White.copy(alpha = 0.7f), from, to, strokeWidth = 2.dp.toPx())
+		}
+
+		detections.forEach { detection ->
+			val box = detection.bounds
+			val radius = maxOf(box.width, box.height) / 2f + 16.dp.toPx()
+			drawCircle(
+				color = Color.Cyan.copy(alpha = 0.35f),
+				radius = radius,
+                center = box.center,
+				style = Stroke(width = 2.dp.toPx()),
+			)
+			// The ring fills as the code dwells — the same signal AnimatedScanFrame draws, just
+			// shaped differently.
+			drawArc(
+				color = Color.Cyan,
+				startAngle = -90f,
+				sweepAngle = 360f * detection.dwellProgress,
+				useCenter = false,
+				topLeft = Offset(box.center.x - radius, box.center.y - radius),
+				size = Size(radius * 2, radius * 2),
+				style = Stroke(width = 4.dp.toPx()),
+			)
+		}
 	}
 }
