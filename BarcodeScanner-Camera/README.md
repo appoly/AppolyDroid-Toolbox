@@ -110,15 +110,20 @@ Preview and analysis are bound through one CameraX `ViewPort`, which is what mak
 of view agree — and what lets `DefaultScanFrame` draw the exact rectangle the analyser filters
 against, so the box on screen and the region that accepts codes cannot drift apart.
 
-That shared region is still not quite what you see. The viewfinder scales it to **fill** the bounds
-you give the composable and centre-crops whatever overflows, so on a preview that is not the same
-shape as the region, part of it is analysed and off-screen at once. `Visible` and `Reticle` are
-measured against what is genuinely displayed rather than against the shared region, which is what
-makes the first row of the table above literally true.
+**The `ViewPort` takes the preview's own shape**, measured from the bounds you give the composable
+rather than assumed. That matters because the shared region is cropped twice on its way to the
+screen — the camera crops to the `ViewPort`, and the viewfinder then scales that to *fill* the
+bounds and centre-crops whatever overflows. Asking for a shape the layout does not have pays that
+toll twice: a fixed 4:3 against a landscape preview left under a third of the frame on screen.
+Matching the two means a preview of any shape gets the whole field of view the camera can give it.
 
-**A note on sizing.** The examples here fill the screen; a preview laid out narrow or short is
-centre-cropped to fit, so it shows a zoomed-in slice of the camera rather than a letterboxed whole.
-Give it as close to a 4:3 box as the layout allows if you want the full field of view.
+What the camera offers is not infinitely divisible, so a little can still be cropped away.
+`Visible` and `Reticle` are therefore measured against what is genuinely displayed rather than
+against the shared region, which is what makes the first row of the table above literally true.
+
+**Changing the preview's shape rebinds the camera**, which is briefly visible. Rotations and pane
+resizes are meant to do that; a preview whose size is *animated* is not, so give it its final size
+and animate something else, or accept a rebind each time the shape moves more than about 2%.
 
 ### Feedback on a scan
 

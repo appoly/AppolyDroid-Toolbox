@@ -1,5 +1,7 @@
 package uk.co.appoly.droid.barcodescanner.camera
 
+import android.util.Rational
+import android.view.Surface
 import androidx.annotation.OptIn
 import androidx.camera.compose.CameraXViewfinder
 import androidx.camera.viewfinder.core.ImplementationMode
@@ -30,6 +32,7 @@ import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.window.DialogWindowProvider
@@ -50,8 +53,15 @@ import uk.co.appoly.droid.barcodescanner.ScannedBarcode
 import uk.co.appoly.droid.barcodescanner.toScannedBarcode
 import java.util.concurrent.Executor
 import java.util.concurrent.Executors
+import kotlin.math.abs
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
+
+/**
+ * How far the preview's shape may drift before the camera is rebound to match it. Two percent is
+ * comfortably below a rotation or a pane resize and comfortably above layout noise.
+ */
+private const val ASPECT_TOLERANCE = 0.02f
 
 /** Which camera the scanner binds to. */
 enum class LensFacing(internal val selector: CameraSelector) {
@@ -75,9 +85,11 @@ enum class LensFacing(internal val selector: CameraSelector) {
  * second, and one presentation produces one result however long it is held. A scanner that fires
  * at whatever drifts through the frame reads as broken to the person holding it.
  *
- * The preview **fills** the bounds it is given and centre-crops the overflow, so a box that is not
- * roughly 4:3 shows a zoomed-in slice of the camera rather than a letterboxed whole. What counts as
- * a scan follows what is displayed, not what is analysed, so the two cannot disagree.
+ * The camera is asked for the shape of the bounds it is given, so a preview of any shape gets the
+ * whole field of view rather than a centre-cropped slice of a fixed one. Changing that shape
+ * rebinds the camera and is briefly visible, which is what a rotation or a pane resize should cost
+ * and an animated size should not. What counts as a scan follows what is displayed, not what is
+ * analysed, so the two cannot disagree.
  *
  * **This composable does not request the `CAMERA` permission.** Check it before composing this;
  * every app's permission flow differs, so the module deliberately owns none of it. Composing
@@ -132,7 +144,18 @@ fun BarcodeScannerCamera(
 	var surfaceRequest by remember { mutableStateOf<SurfaceRequest?>(null) }
 	var camera by remember { mutableStateOf<Camera?>(null) }
 
+	// The rotation previewSize is measured in. Preview.targetRotation is NOT this -- its builder
+	// leaves it unset, so it reads back as ROTATION_0 on a landscape display, and a ViewPort built
+	// against it has its aspect ratio interpreted in portrait and silently inverted.
+	val configuration = LocalConfiguration.current
+	val view = LocalView.current
+	val displayRotation = remember(configuration) { view.display?.rotation ?: Surface.ROTATION_0 }
+
 	var previewSize by remember { mutableStateOf(Size.Zero) }
+	// The shape to ask the camera for, measured rather than assumed. Separate from previewSize
+	// because it keys the camera binding: it must change only when the preview genuinely changes
+	// shape, while previewSize tracks every pixel for the overlay's sake.
+	var viewPortAspect by remember { mutableStateOf<Rational?>(null) }
 	var detections by remember { mutableStateOf<List<DetectedBarcode>>(emptyList()) }
 	val currentScanningEnabled by rememberUpdatedState(scanningEnabled)
 
@@ -141,7 +164,11 @@ fun BarcodeScannerCamera(
 	// every recomposition and nothing would ever scan.
 	val tracker = remember(policy) { BarcodeTracker(policy) }
 
-	LaunchedEffect(lifecycleOwner, formats, lensFacing, policy) {
+	LaunchedEffect(lifecycleOwner, formats, lensFacing, policy, viewPortAspect, displayRotation) {
+		// Nothing to bind until the preview has been measured. Binding to a guessed shape first
+		// and correcting later would mean a visible rebind every time the scanner opens, which is
+		// a worse trade than the frame or two of delay this costs.
+		val aspect = viewPortAspect ?: return@LaunchedEffect
 		surfaceRequest = null
 		camera = null
 		val scanner = BarcodeScanning.getClient(formats.toScannerOptions())
@@ -150,12 +177,14 @@ fun BarcodeScannerCamera(
 		val analysisExecutor = Executors.newSingleThreadExecutor()
 		try {
 			val preview = Preview.Builder()
+				.setTargetRotation(displayRotation)
 				.build()
 				.apply {
 					setSurfaceProvider { request -> surfaceRequest = request }
 				}
 			val analysis = ImageAnalysis.Builder()
 				.setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
+				.setTargetRotation(displayRotation)
 				.build()
 				.apply {
 					setAnalyzer(
@@ -207,8 +236,13 @@ fun BarcodeScannerCamera(
 						// of view. Without it the analyser sees a wider image than the preview
 						// shows, ImageProxy.cropRect means nothing, and the scanner can read a
 						// barcode that is not on screen at all.
+						//
+						// The ViewPort takes the preview's own shape. A fixed 4:3 costs field of
+						// view twice over on any other shape: the camera crops to 4:3, and then the
+						// viewfinder crops that again to fill the bounds. On a landscape preview
+						// that left under a third of the frame on screen.
 						val group = UseCaseGroup.Builder()
-							.setViewPort(ViewPort.Builder(android.util.Rational(4, 3), preview.targetRotation).build())
+							.setViewPort(ViewPort.Builder(aspect, displayRotation).build())
 							.addUseCase(preview)
 							.addUseCase(analysis)
 							.build()
@@ -248,8 +282,18 @@ fun BarcodeScannerCamera(
 	}
 
 	Box(
-		modifier = modifier.onSizeChanged {
-			previewSize = Size(it.width.toFloat(), it.height.toFloat())
+		modifier = modifier.onSizeChanged { size ->
+			previewSize = Size(size.width.toFloat(), size.height.toFloat())
+			if (size.width > 0 && size.height > 0) {
+				val ratio = size.width.toFloat() / size.height.toFloat()
+				val current = viewPortAspect
+				// Rebinding the camera is visible, so only a real change of shape counts — an
+				// orientation change, a pane resize — and not the pixel or two a layout pass or an
+				// animating inset can wobble by.
+				if (current == null || abs(current.toFloat() - ratio) > ratio * ASPECT_TOLERANCE) {
+					viewPortAspect = Rational(size.width, size.height)
+				}
+			}
 		},
 	) {
 		surfaceRequest?.let { request ->
