@@ -22,6 +22,10 @@ For continuous in-app scanning with your own UI around it, add
 implementation("uk.co.appoly.droid:barcodescanner:1.10.0")
 ```
 
+**Requirements**
+
+- `minSdk` **24** (play-services-base requirement)
+
 ## Usage
 
 ### A single scan

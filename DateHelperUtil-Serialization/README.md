@@ -24,6 +24,10 @@ implementation("org.jetbrains.kotlinx:kotlinx-serialization-core:1.11.0")
 implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.11.0")
 ```
 
+**Requirements**
+
+- `minSdk` **26** (Java 8 time APIs)
+
 ## Usage
 
 ### 1. Enable Kotlin Serialization Plugin

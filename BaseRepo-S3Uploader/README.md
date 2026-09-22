@@ -23,6 +23,10 @@ implementation("uk.co.appoly.droid:s3uploader:1.10.0")
 implementation("uk.co.appoly.droid:baserepo-s3uploader:1.10.0")
 ```
 
+**Requirements**
+
+- `minSdk` **21**
+
 ## How it Works
 
 This module acts as a bridge between:

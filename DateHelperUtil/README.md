@@ -17,6 +17,10 @@ A utility module for standardized date and time operations in Android applicatio
 implementation("uk.co.appoly.droid:datehelperutil:1.10.0")
 ```
 
+**Requirements**
+
+- `minSdk` **26** (Java 8 time APIs)
+
 ## 1.4.1 patch note
 
 `parseServerInstant` and `parseServerZoneDateTime` (and therefore the

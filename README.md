@@ -274,6 +274,22 @@ dependencies {
 }
 ```
 
+## Minimum SDK
+
+Each module declares the lowest `minSdk` it can actually support, so your app's `minSdk` must be at
+least as high as that of every module you depend on. A module whose floor is higher than your app's
+fails the manifest merge at build time rather than at runtime.
+
+| `minSdk` | Modules | Why |
+|---|---|---|
+| **21** | BaseRepo (and all `BaseRepo-*` extensions), UiState, AppSnackBar, AppSnackBar-UiState, ComposeExtensions, SegmentedControl, PagingExtensions, LazyListPagingExtensions, LazyGridPagingExtensions, S3Uploader, S3Uploader-Multipart | — |
+| **23** | Nav3Navigation | `androidx.navigation3` requirement |
+| **24** | ConnectivityMonitor | Newer network APIs |
+| **24** | BarcodeScanner, BarcodeScanner-Camera | `play-services-base` requirement |
+| **26** | DateHelperUtil, DateHelperUtil-Room, DateHelperUtil-Serialization | Java 8 time APIs |
+
+The four `MockInterceptor` modules are pure Kotlin/JVM and have no `minSdk` of their own.
+
 ## Modules
 ### BaseRepo
 Foundation for repository pattern implementation with API call handling.
@@ -456,26 +472,9 @@ minified consuming app, including a parameterised `NavKey` round-tripping its ar
 
 ## License
 
-```text
-MIT License
+AppolyDroid Toolbox is released under the **GNU General Public License v3.0**. See
+[LICENSE](LICENSE) for the full text.
 
-Copyright (c) 2025 Appoly Ltd
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-```
+This is the licence recorded in every published POM, so it is what a consumer resolving these
+artifacts from Maven Central agrees to. Do not restate the terms here — a second copy is a second
+thing to drift.

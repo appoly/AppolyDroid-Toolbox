@@ -25,6 +25,10 @@ implementation("androidx.room:room-ktx:2.8.5")
 ksp("androidx.room:room-compiler:2.8.5")
 ```
 
+**Requirements**
+
+- `minSdk` **26** (Java 8 time APIs)
+
 ## Usage
 
 ### Setting Up Room Type Converters

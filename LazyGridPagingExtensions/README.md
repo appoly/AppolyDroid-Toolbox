@@ -22,6 +22,10 @@ implementation("uk.co.appoly.droid:lazygridpagingextensions:1.10.0")
 implementation("androidx.paging:paging-compose:3.5.1")
 ```
 
+**Requirements**
+
+- `minSdk` **21**
+
 ## Usage
 
 ### Basic Implementation

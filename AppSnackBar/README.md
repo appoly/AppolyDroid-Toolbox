@@ -16,6 +16,10 @@ A customizable Jetpack Compose Snackbar implementation with support for differen
 implementation("uk.co.appoly.droid:appsnackbar:1.10.0")
 ```
 
+**Requirements**
+
+- `minSdk` **21**
+
 ## Usage
 
 ### Basic Setup

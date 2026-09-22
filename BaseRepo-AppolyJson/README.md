@@ -18,6 +18,10 @@ implementation("uk.co.appoly.droid:baserepo:1.10.0")
 implementation("uk.co.appoly.droid:baserepo-appolyjson:1.10.0")
 ```
 
+**Requirements**
+
+- `minSdk` **21**
+
 ## API Response Structure
 
 This module expects all API responses to follow Appoly's specific JSON structure. The API handling code requires all responses to use this structure as the root level of the JSON response, with the

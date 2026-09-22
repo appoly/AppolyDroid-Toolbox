@@ -12,6 +12,10 @@ Add the following dependency to your project's `build.gradle` file:
 implementation("uk.co.appoly.droid:connectivitymonitor:1.10.0")
 ```
 
+**Requirements**
+
+- `minSdk` **24** (newer network APIs)
+
 ## Usage
 
 ### Option 1: Use provided Application class
@@ -50,4 +54,5 @@ Don't forget to update your `AndroidManifest.xml` to use your custom application
 
 ## License
 
-`ConnectivityMonitor` is released under the MIT License. See the [LICENSE](LICENSE) file for details.
+`ConnectivityMonitor` is released under the GNU General Public License v3.0, like the rest of the
+toolbox. See the [LICENSE](../LICENSE) file for details.

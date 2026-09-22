@@ -18,6 +18,10 @@ implementation("uk.co.appoly.droid:appsnackbar:1.10.0")
 implementation("uk.co.appoly.droid:appsnackbar-uistate:1.10.0")
 ```
 
+**Requirements**
+
+- `minSdk` **21**
+
 ## Usage
 
 ### Basic Integration

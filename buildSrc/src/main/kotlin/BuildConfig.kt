@@ -55,7 +55,7 @@ object BuildConfig {
         const val NAV3_NAVIGATION = 23
 
         /** BarcodeScanner and BarcodeScanner-Camera modules */
-        const val BARCODE_SCANNER = 21
+        const val BARCODE_SCANNER = 24
 
 		/**
 		 * Returns the highest minSdk version among all modules.
