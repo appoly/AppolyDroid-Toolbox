@@ -94,7 +94,11 @@ it was last reported, which is a different and worse rule that re-fires a code y
 the case that matters on a label carrying both a 1D tracking code and a QR: picking whichever the
 detector happened to list first gets it wrong about half the time.
 
-`ScanPolicy.Immediate` restores the old fire-on-sight behaviour if you want to do your own filtering.
+**`ScanPolicy.Immediate` is one result per presentation, with no dwell and no region.** It is not a
+fire-every-frame firehose — it keeps the default `debounceWindow`, so a code held in shot reports
+once and then stays quiet until it has been absent that long. Lowering `debounceWindow` shortens
+that wait but cannot remove it — re-arming is floored at `missTolerance` — so no policy reports the
+same held code every frame, and there is nothing left for downstream dedup to do.
 
 ### Where a barcode has to be
 

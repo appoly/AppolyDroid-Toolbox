@@ -136,7 +136,16 @@ class ScanPolicy(
 		/** Sensible behaviour for aiming at one code at a time. */
 		val Default = ScanPolicy()
 
-		/** Reports every code in the region as soon as it is decoded, with no dwell or region. */
+		/**
+		 * One result per presentation, with no dwell and no region — every code in frame reports
+		 * the moment it is decoded.
+		 *
+		 * This is not a fire-every-frame firehose: [debounceWindow] keeps its default, so a code
+		 * that stays in shot reports once and then stays quiet until it has been absent for that
+		 * long. Lowering [debounceWindow] shortens that wait but cannot remove it — [rearm] is
+		 * floored at [missTolerance], and a held code is never absent — so there is no policy that
+		 * reports the same code every frame. Dedup downstream of this is unnecessary.
+		 */
 		val Immediate = ScanPolicy(
 			mode = ScanMode.Multi,
 			dwell = null,

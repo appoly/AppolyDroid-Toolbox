@@ -227,4 +227,40 @@ class BarcodeTrackerTest {
 			ScanPolicy(region = ScanRegion.Reticle(0.5f)),
 		)
 	}
+
+	@Test
+	fun `the same code twice in one frame reports once`() {
+		// ML Kit hands back one Barcode per decode, so a code physically in shot twice — a case
+		// on a warehouse pallet, a label repeated down a box — arrives as two entries sharing a
+		// rawValue. Both must collapse to one report, or "at most once per track" is a lie.
+		val time = TestTimeSource()
+		val tracker = tracker(time, mode = ScanMode.Multi, dwell = null)
+
+		val reported = tracker.accept(listOf(a, a.copy()))
+
+		assertEquals(listOf(a), reported)
+	}
+
+	@Test
+	fun `the same code twice in one frame reports once after a dwell too`() {
+		// The dwell path is the one the defaults take, so pin it separately: the duplicate must
+		// not slip through on the frame the dwell completes.
+		val time = TestTimeSource()
+		val tracker = tracker(time, mode = ScanMode.Multi)
+
+		assertTrue(tracker.accept(listOf(a, a.copy())).isEmpty())
+		time += 500.milliseconds
+
+		assertEquals(listOf(a), tracker.accept(listOf(a, a.copy())))
+	}
+
+	@Test
+	fun `dwell progress is zero for a code with no track yet`() {
+		// In Single mode a code held off while another holds the lock has no track, and must not
+		// draw a full ring — the overlay would promise a scan that is not coming.
+		val time = TestTimeSource()
+		val tracker = tracker(time)
+
+		assertEquals(0f, tracker.dwellProgress("never-seen"), 0f)
+	}
 }

@@ -58,8 +58,9 @@ internal class BarcodeTracker(
 	/**
 	 * How far through its dwell [rawValue] is, from 0f to 1f, for an overlay to draw.
 	 *
-	 * 1f for a code with no track yet (nothing to wait for), for one already reported, and when
-	 * the policy has no dwell — in every one of those cases there is no progress left to show.
+	 * 1f for a code already reported and when the policy has no dwell — in both cases there is no
+	 * progress left to show. 0f for a code with no track yet: in [ScanMode.Single] that is a code
+	 * being held off while another holds the lock, which must not draw a full ring.
 	 */
 	fun dwellProgress(rawValue: String): Float {
 		val dwell = policy.dwell ?: return 1f
@@ -103,7 +104,10 @@ internal class BarcodeTracker(
 
 		// 4. Report anything present that has now dwelled long enough.
 		val dwell = policy.dwell ?: Duration.ZERO
-		return visible.filter { barcode ->
+		//    distinctBy matters: filter on a List is eager, so without it two decodes sharing a
+		//    rawValue both pass !reported before onEach flips it, and one code reports twice. It
+		//    keeps the first occurrence, which is the one nearest the region centre.
+		return visible.distinctBy { it.rawValue }.filter { barcode ->
 			val track = tracks[barcode.rawValue] ?: return@filter false
 			!track.reported && track.firstSeen.elapsedNow() >= dwell
 		}.onEach { tracks.getValue(it.rawValue).reported = true }
