@@ -67,7 +67,8 @@ class ScanRegionResolverTest {
 	@Test
 	fun `an off-centre crop is not merely transposed`() {
 		// The case the old transpose got wrong. A crop hugging the buffer's left edge must end up
-		// against the *bottom* of a 90-degree-rotated frame, not against its left edge.
+		// against the *top* of a 90-degree-rotated frame, not against its left edge — a clockwise
+		// turn carries the left edge to the top.
 		val leftEdge = Rect(0, 100, 40, 300)
 
 		val rotated = leftEdge.rotatedInto(90, bufferWidth = 640, bufferHeight = 480)
