@@ -12,6 +12,10 @@ Add the following dependency to your project's `build.gradle` file:
 implementation("uk.co.appoly.droid:connectivitymonitor:1.10.0")
 ```
 
+**Requirements**
+
+- `minSdk` **24** (newer network APIs)
+
 ## Usage
 
 ### Option 1: Use provided Application class

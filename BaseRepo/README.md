@@ -17,6 +17,10 @@ Foundation module for implementing the repository pattern with standardized API 
 implementation("uk.co.appoly.droid:baserepo:1.10.0")
 ```
 
+**Requirements**
+
+- `minSdk` **21**
+
 ## Extensions
 
 For specific JSON response formats, use the following extension modules:

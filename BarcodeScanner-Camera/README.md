@@ -25,6 +25,10 @@ module gives you the one-shot scanner for free.
 implementation("uk.co.appoly.droid:barcodescanner-camera:1.10.0")
 ```
 
+**Requirements**
+
+- `minSdk` **24** (play-services-base requirement)
+
 ## Usage
 
 ```kotlin

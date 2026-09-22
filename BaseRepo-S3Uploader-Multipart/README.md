@@ -20,6 +20,10 @@ implementation("uk.co.appoly.droid:s3uploader-multipart:1.10.0")
 implementation("uk.co.appoly.droid:baserepo-s3uploader-multipart:1.10.0")
 ```
 
+**Requirements**
+
+- `minSdk` **21**
+
 ## Usage
 
 ### 1. Initialize S3Uploader

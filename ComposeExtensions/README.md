@@ -16,6 +16,10 @@ Compose utilities for insets/IME padding, padding arithmetic, serialization-safe
 implementation("uk.co.appoly.droid:composeextensions:1.10.0")
 ```
 
+**Requirements**
+
+- `minSdk` **21**
+
 ## Usage
 
 ### Insets and IME padding

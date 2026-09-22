@@ -274,6 +274,22 @@ dependencies {
 }
 ```
 
+## Minimum SDK
+
+Each module declares the lowest `minSdk` it can actually support, so your app's `minSdk` must be at
+least as high as that of every module you depend on. A module whose floor is higher than your app's
+fails the manifest merge at build time rather than at runtime.
+
+| `minSdk` | Modules | Why |
+|---|---|---|
+| **21** | BaseRepo (and all `BaseRepo-*` extensions), UiState, AppSnackBar, AppSnackBar-UiState, ComposeExtensions, SegmentedControl, PagingExtensions, LazyListPagingExtensions, LazyGridPagingExtensions, S3Uploader, S3Uploader-Multipart | — |
+| **23** | Nav3Navigation | `androidx.navigation3` requirement |
+| **24** | ConnectivityMonitor | Newer network APIs |
+| **24** | BarcodeScanner, BarcodeScanner-Camera | `play-services-base` requirement |
+| **26** | DateHelperUtil, DateHelperUtil-Room, DateHelperUtil-Serialization | Java 8 time APIs |
+
+The four `MockInterceptor` modules are pure Kotlin/JVM and have no `minSdk` of their own.
+
 ## Modules
 ### BaseRepo
 Foundation for repository pattern implementation with API call handling.

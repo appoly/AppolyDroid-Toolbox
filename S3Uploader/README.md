@@ -19,6 +19,10 @@ Standalone module for Amazon S3 file uploading with progress tracking and error 
 implementation("uk.co.appoly.droid:s3uploader:1.10.0")
 ```
 
+**Requirements**
+
+- `minSdk` **21**
+
 ## Usage
 
 ### Initializing the S3Uploader

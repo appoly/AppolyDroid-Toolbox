@@ -21,6 +21,10 @@ implementation("uk.co.appoly.droid:s3uploader-multipart:1.10.0")
 
 This module depends on `S3Uploader` and includes it transitively.
 
+**Requirements**
+
+- `minSdk` **21**
+
 ## Backend API Specification
 
 Your backend must implement four endpoints that proxy requests to AWS S3's Multipart Upload API. This section provides the complete specification for external developers to implement these endpoints.

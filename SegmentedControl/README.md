@@ -22,6 +22,10 @@ A highly customizable iOS-style segmented control for Jetpack Compose with smoot
 implementation("uk.co.appoly.droid:segmentedcontrol:1.10.0")
 ```
 
+**Requirements**
+
+- `minSdk` **21**
+
 ## Usage
 
 ### Basic Usage with Strings

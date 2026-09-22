@@ -24,6 +24,10 @@ implementation("uk.co.appoly.droid:lazylistpagingextensions:1.10.0") // For Lazy
 implementation("uk.co.appoly.droid:lazygridpagingextensions:1.10.0") // For LazyGrid
 ```
 
+**Requirements**
+
+- `minSdk` **21**
+
 ## API Response Format
 
 This module requires your paginated API responses to follow Appoly's specific nested structure as shown below:
