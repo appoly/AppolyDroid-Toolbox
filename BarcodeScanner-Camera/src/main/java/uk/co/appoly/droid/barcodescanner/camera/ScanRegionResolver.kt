@@ -191,3 +191,19 @@ internal fun mapToPreview(
 		y = previewSize.height / 2f + fromCentreY,
 	)
 }
+
+
+/**
+ * Restores clockwise winding to corners that have been through a mirrored [mapToPreview].
+ *
+ * [mapToPreview] negates x for the front lens but leaves the list order alone, so a clockwise set
+ * of corners comes out counter-clockwise. That matters because [AnimatedScanFrame] springs each
+ * corner to the corresponding index of its next target, and its fallbacks are always clockwise: an
+ * outline crossing from a clockwise rect to a counter-clockwise detection swaps two corners and
+ * visibly bow-ties mid-animation.
+ *
+ * Reversing all but the first entry flips the winding back while keeping index 0 on the same
+ * physical corner, so the starting corner stays the one the detector reported.
+ */
+internal fun List<Offset>.clockwiseAfterMirror(mirrored: Boolean): List<Offset> =
+	if (!mirrored || size < 3) this else listOf(first()) + drop(1).reversed()

@@ -1,8 +1,10 @@
 package uk.co.appoly.droid.barcodescanner.camera
 
 import android.graphics.Rect
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -257,5 +259,61 @@ class ScanRegionResolverTest {
 		assertEquals(drawn.top, mappedTopLeft.y, 2f)
 		assertEquals(drawn.right, mappedBottomRight.x, 2f)
 		assertEquals(drawn.bottom, mappedBottomRight.y, 2f)
+	}
+
+	/**
+	 * Twice the signed area. Positive is clockwise in screen space: the shoelace sign is the
+	 * usual counter-clockwise-positive one, and y growing downward flips it. Zero would mean the
+	 * quad is degenerate or self-intersecting.
+	 */
+	private fun List<Offset>.windingSign(): Float =
+		indices.sumOf { i ->
+			val p = this[i]
+			val q = this[(i + 1) % size]
+			(p.x * q.y - q.x * p.y).toDouble()
+		}.toFloat()
+
+	@Test
+	fun `mirroring reverses corner winding`() {
+		// Pins the premise of the fix rather than the fix itself: if mapToPreview ever stops
+		// flipping the winding, clockwiseAfterMirror becomes the thing that breaks it.
+		val crop = Rect(0, 0, 640, 480)
+		val preview = Size(640f, 480f)
+		val corners = listOf(100 to 100, 300 to 100, 300 to 200, 100 to 200)
+
+		val front = corners.map { (x, y) -> mapToPreview(x, y, crop, preview, mirrored = true) }
+		val back = corners.map { (x, y) -> mapToPreview(x, y, crop, preview, mirrored = false) }
+
+		assertTrue("back lens should stay clockwise", back.windingSign() > 0f)
+		assertTrue("mirroring should reverse it", front.windingSign() < 0f)
+	}
+
+	@Test
+	fun `clockwiseAfterMirror restores winding without moving the first corner`() {
+		// The bow-tie: AnimatedScanFrame springs corner i to corner i of the next target, and its
+		// fallbacks are always clockwise. A counter-clockwise detection swaps two corners on the
+		// way, and the outline crosses itself mid-spring.
+		val crop = Rect(0, 0, 640, 480)
+		val preview = Size(640f, 480f)
+		val corners = listOf(100 to 100, 300 to 100, 300 to 200, 100 to 200)
+
+		val front = corners.map { (x, y) -> mapToPreview(x, y, crop, preview, mirrored = true) }
+		val fixed = front.clockwiseAfterMirror(mirrored = true)
+
+		assertTrue("winding should be clockwise again", fixed.windingSign() > 0f)
+		assertEquals("index 0 must stay the detector's first corner", front[0], fixed[0])
+		assertEquals(front.toSet(), fixed.toSet())
+	}
+
+	@Test
+	fun `clockwiseAfterMirror leaves the back lens alone`() {
+		val corners = listOf(
+			Offset(0f, 0f),
+			Offset(10f, 0f),
+			Offset(10f, 10f),
+			Offset(0f, 10f),
+		)
+
+		assertEquals(corners, corners.clockwiseAfterMirror(mirrored = false))
 	}
 }

@@ -424,6 +424,7 @@ private fun List<Barcode>.toDetections(
 			// axis-aligned — they are the only way an overlay can outline a tilted barcode.
 			corners = barcode.cornerPoints
 				?.map { mapToPreview(it.x, it.y, crop, previewSize, mirrored) }
+				?.clockwiseAfterMirror(mirrored)
 				.orEmpty(),
 			dwellProgress = tracker.dwellProgress(scanned.rawValue),
 		)

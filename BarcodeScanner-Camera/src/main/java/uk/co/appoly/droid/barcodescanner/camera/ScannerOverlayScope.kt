@@ -21,9 +21,10 @@ import uk.co.appoly.droid.barcodescanner.ScannedBarcode
  * @property barcode the decoded barcode.
  * @property bounds its axis-aligned bounding box, in preview pixels. Simple to draw, but for a
  * barcode held at an angle it is the box *around* the code rather than the code's own outline.
- * @property corners the code's four corners in its own orientation, in preview pixels, clockwise
- * from the code's top-left. Use these to draw an outline that follows a rotated barcode. Empty if
- * the detector did not report them.
+ * @property corners the code's four corners in its own orientation, in preview pixels, wound
+ * clockwise on either lens. Use these to draw an outline that follows a rotated barcode. Index 0 is
+ * the corner the detector reported first — the code's top-left as the analyser sees it, which on
+ * the mirrored front camera is drawn on the right. Empty if the detector did not report them.
  * @property dwellProgress how far through [ScanPolicy.dwell] this code is, from 0f to 1f. Already
  * 1f when the policy has no dwell. Useful for drawing a progress ring that fills as the user holds
  * steady.
