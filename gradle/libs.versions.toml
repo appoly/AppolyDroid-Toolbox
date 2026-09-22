@@ -35,7 +35,7 @@ cameraX = "1.6.2"                 # BarcodeScanner-Camera
 mlkitBarcodeCommon = "17.0.0"     # exposed as `api` from BarcodeScanner (Barcode.FORMAT_* constants)
 mlkitBarcodeScanning = "18.3.1"   # unbundled ML Kit detector, model served by Play services
 playServicesCodeScanner = "16.1.0"
-playServicesBase = "18.10.1"      # ModuleInstallClient, for warmUp()
+playServicesBase = "18.11.0"      # ModuleInstallClient, for warmUp()
 
 # --- BUILD/TEST: toolchain + test-only, never published ----------------------
 agp = "9.4.1"
