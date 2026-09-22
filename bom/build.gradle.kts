@@ -54,6 +54,10 @@ dependencies {
 		// Navigation modules
 		api("uk.co.appoly.droid:nav3navigation:${BuildConfig.TOOLBOX_VERSION}")
 
+		// Barcode scanning modules
+		api("uk.co.appoly.droid:barcodescanner:${BuildConfig.TOOLBOX_VERSION}")
+		api("uk.co.appoly.droid:barcodescanner-camera:${BuildConfig.TOOLBOX_VERSION}")
+
 		// Mock Interceptor modules
 		api("uk.co.appoly.droid:mockinterceptor:${BuildConfig.TOOLBOX_VERSION}")
 		api("uk.co.appoly.droid:mockinterceptor-serialization:${BuildConfig.TOOLBOX_VERSION}")

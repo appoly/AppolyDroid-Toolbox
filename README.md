@@ -16,6 +16,7 @@ AppolyDroid Toolbox is a comprehensive collection of Android utility modules tha
 - Segmented controls
 - Jetpack Compose pagination utilities
 - Voyager-style Navigation 3 screens (`Nav3Navigation`)
+- Barcode scanning, one-shot or continuous (`BarcodeScanner`)
 - And more!
 
 ## Installation
@@ -54,7 +55,7 @@ In your `libs.versions.toml` file:
 
 ```toml
 [versions]
-appolydroidToolbox = "1.9.0" # Replace with the latest version
+appolydroidToolbox = "1.10.0" # Replace with the latest version
 
 [libraries]
 appolydroid-toolbox-bom = { group = "uk.co.appoly.droid", name = "bom", version.ref = "appolydroidToolbox" }
@@ -73,6 +74,8 @@ appolydroid-toolbox-dateHelper-room = { group = "uk.co.appoly.droid", name = "da
 appolydroid-toolbox-dateHelper-serialization = { group = "uk.co.appoly.droid", name = "datehelperutil-serialization" }
 appolydroid-toolbox-compose-extensions = { group = "uk.co.appoly.droid", name = "composeextensions" }
 appolydroid-toolbox-segmentedControl = { group = "uk.co.appoly.droid", name = "segmentedcontrol" }
+appolydroid-toolbox-barcodeScanner = { group = "uk.co.appoly.droid", name = "barcodescanner" }
+appolydroid-toolbox-barcodeScanner-camera = { group = "uk.co.appoly.droid", name = "barcodescanner-camera" }
 appolydroid-toolbox-lazyListPagingExtensions = { group = "uk.co.appoly.droid", name = "lazylistpagingextensions" }
 appolydroid-toolbox-lazyGridPagingExtensions = { group = "uk.co.appoly.droid", name = "lazygridpagingextensions" }
 appolydroid-toolbox-pagingExtensions = { group = "uk.co.appoly.droid", name = "pagingextensions" }
@@ -115,6 +118,8 @@ dependencies {
     implementation(libs.appolydroid.toolbox.s3Uploader.multipart)
     implementation(libs.appolydroid.toolbox.connectivityMonitor)
     implementation(libs.appolydroid.toolbox.nav3Navigation)
+    implementation(libs.appolydroid.toolbox.barcodeScanner)
+    implementation(libs.appolydroid.toolbox.barcodeScanner.camera)
     implementation(libs.appolydroid.toolbox.mockInterceptor)
     implementation(libs.appolydroid.toolbox.mockInterceptor.serialization)
     implementation(libs.appolydroid.toolbox.mockInterceptor.appolyjson)
@@ -129,7 +134,7 @@ In your module's `build.gradle.kts`:
 ```gradle.kts
 dependencies {
     // Import the BOM
-    implementation(platform("uk.co.appoly.droid:bom:1.9.0"))
+    implementation(platform("uk.co.appoly.droid:bom:1.10.0"))
 
     // Now you can use AppolyDroid modules without specifying versions
     implementation("uk.co.appoly.droid:baserepo")
@@ -166,7 +171,7 @@ In your `libs.versions.toml` file:
 
 ```toml
 [versions]
-appolydroidToolbox = "1.9.0" # Replace with the latest version
+appolydroidToolbox = "1.10.0" # Replace with the latest version
 
 [libraries]
 #AppolyDroid-Toolbox
@@ -190,6 +195,8 @@ appolydroid-toolbox-s3Uploader = { group = "uk.co.appoly.droid", name = "s3uploa
 appolydroid-toolbox-s3Uploader-multipart = { group = "uk.co.appoly.droid", name = "s3uploader-multipart", version.ref = "appolydroidToolbox" }
 appolydroid-toolbox-connectivityMonitor = { group = "uk.co.appoly.droid", name = "connectivitymonitor", version.ref = "appolydroidToolbox" }
 appolydroid-toolbox-nav3Navigation = { group = "uk.co.appoly.droid", name = "nav3navigation", version.ref = "appolydroidToolbox" }
+appolydroid-toolbox-barcodeScanner = { group = "uk.co.appoly.droid", name = "barcodescanner", version.ref = "appolydroidToolbox" }
+appolydroid-toolbox-barcodeScanner-camera = { group = "uk.co.appoly.droid", name = "barcodescanner-camera", version.ref = "appolydroidToolbox" }
 appolydroid-toolbox-mockInterceptor = { group = "uk.co.appoly.droid", name = "mockinterceptor", version.ref = "appolydroidToolbox" }
 appolydroid-toolbox-mockInterceptor-serialization = { group = "uk.co.appoly.droid", name = "mockinterceptor-serialization", version.ref = "appolydroidToolbox" }
 appolydroid-toolbox-mockInterceptor-appolyjson = { group = "uk.co.appoly.droid", name = "mockinterceptor-appolyjson", version.ref = "appolydroidToolbox" }
@@ -221,6 +228,8 @@ dependencies {
     implementation(libs.appolydroid.toolbox.s3Uploader.multipart)
     implementation(libs.appolydroid.toolbox.connectivityMonitor)
     implementation(libs.appolydroid.toolbox.nav3Navigation)
+    implementation(libs.appolydroid.toolbox.barcodeScanner)
+    implementation(libs.appolydroid.toolbox.barcodeScanner.camera)
     implementation(libs.appolydroid.toolbox.mockInterceptor)
     implementation(libs.appolydroid.toolbox.mockInterceptor.serialization)
     implementation(libs.appolydroid.toolbox.mockInterceptor.appolyjson)
@@ -234,7 +243,7 @@ In your module's `build.gradle.kts`:
 
 ```gradle.kts
 dependencies {
-    val appolydroidToolbox = "1.9.0" // Replace with the latest version
+    val appolydroidToolbox = "1.10.0" // Replace with the latest version
     // Add only the modules you need
     implementation("uk.co.appoly.droid:baserepo:$appolydroidToolbox")
     implementation("uk.co.appoly.droid:baserepo-appolyjson:$appolydroidToolbox")
@@ -256,12 +265,30 @@ dependencies {
     implementation("uk.co.appoly.droid:s3uploader-multipart:$appolydroidToolbox")
     implementation("uk.co.appoly.droid:connectivitymonitor:$appolydroidToolbox")
     implementation("uk.co.appoly.droid:nav3navigation:$appolydroidToolbox")
+    implementation("uk.co.appoly.droid:barcodescanner:$appolydroidToolbox")
+    implementation("uk.co.appoly.droid:barcodescanner-camera:$appolydroidToolbox")
     implementation("uk.co.appoly.droid:mockinterceptor:$appolydroidToolbox")
     implementation("uk.co.appoly.droid:mockinterceptor-serialization:$appolydroidToolbox")
     implementation("uk.co.appoly.droid:mockinterceptor-appolyjson:$appolydroidToolbox")
     implementation("uk.co.appoly.droid:mockinterceptor-retrofit:$appolydroidToolbox")
 }
 ```
+
+## Minimum SDK
+
+Each module declares the lowest `minSdk` it can actually support, so your app's `minSdk` must be at
+least as high as that of every module you depend on. A module whose floor is higher than your app's
+fails the manifest merge at build time rather than at runtime.
+
+| `minSdk` | Modules | Why |
+|---|---|---|
+| **21** | BaseRepo (and all `BaseRepo-*` extensions), UiState, AppSnackBar, AppSnackBar-UiState, ComposeExtensions, SegmentedControl, PagingExtensions, LazyListPagingExtensions, LazyGridPagingExtensions, S3Uploader, S3Uploader-Multipart | — |
+| **23** | Nav3Navigation | `androidx.navigation3` requirement |
+| **24** | ConnectivityMonitor | Newer network APIs |
+| **24** | BarcodeScanner, BarcodeScanner-Camera | `play-services-base` requirement |
+| **26** | DateHelperUtil, DateHelperUtil-Room, DateHelperUtil-Serialization | Java 8 time APIs |
+
+The four `MockInterceptor` modules are pure Kotlin/JVM and have no `minSdk` of their own.
 
 ## Modules
 ### BaseRepo
@@ -337,6 +364,16 @@ Voyager-style screens on androidx Navigation 3: fused key+UI (`Nav3Screen`), amb
 `LocalNav3Navigator` push/pop, and a `Nav3ScreenHost` that preserves native predictive back
 and per-entry ViewModel/saveable/result decorators.
 [Learn more](Nav3Navigation/README.md)
+
+### BarcodeScanner
+Shared barcode model plus a one-shot scanner backed by the Google Play services code scanner —
+no camera permission, no CameraX, no bundled model.
+[Learn more](BarcodeScanner/README.md)
+
+### BarcodeScanner-Camera
+Continuous in-app scanning for Compose: a CameraX preview and ML Kit analyzer wired so that 1D
+formats decode as reliably as QR codes.
+[Learn more](BarcodeScanner-Camera/README.md)
 
 ### MockInterceptor
 OkHttp interceptor with a route-matching DSL for mocking API responses during development and testing.
@@ -435,26 +472,9 @@ minified consuming app, including a parameterised `NavKey` round-tripping its ar
 
 ## License
 
-```text
-MIT License
+AppolyDroid Toolbox is released under the **GNU General Public License v3.0**. See
+[LICENSE](LICENSE) for the full text.
 
-Copyright (c) 2025 Appoly Ltd
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-```
+This is the licence recorded in every published POM, so it is what a consumer resolving these
+artifacts from Maven Central agrees to. Do not restate the terms here — a second copy is a second
+thing to drift.

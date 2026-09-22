@@ -14,7 +14,7 @@ without giving up the fused-screen / ambient-navigator convenience that Voyager 
 |--------------------------------------------|------------------------------------------------------------------------------------------------------|
 | `Nav3Screen`                               | Fused key + UI: implement `Content()` on the key class itself                                        |
 | `Nav3Navigator` + `LocalNav3Navigator`     | Ambient navigation: `push` / `pop` / `replace` / … + optional `parent` / `root()` / `currentOrThrow` |
-| Stack peek                                 | `canPop`, `lastItem`, `previousItem`, `items` — bottom bar, BackHandler, deep-link reconcile         |
+| Stack peek                                 | `canPop`, `lastItem`, `previousItem`, `items` — bottom bar, back-enablement, deep-link reconcile         |
 | `popWithResult` / `Nav3ResultReceiver`     | Voyager-style screen-to-screen results (stable; preferred over the alpha result bus)                 |
 | `BackStackNav3Navigator`                   | Default navigator — navigation is list mutation on your `NavBackStack`                               |
 | `Nav3ScreenHost`                           | Full `NavDisplay` surface for `Nav3Screen` stacks + ambient navigator + default entry decorators     |
@@ -32,20 +32,29 @@ without giving up the fused-screen / ambient-navigator convenience that Voyager 
 ## Installation
 
 ```gradle.kts
-implementation("uk.co.appoly.droid:nav3navigation:1.9.0")
+implementation("uk.co.appoly.droid:nav3navigation:1.10.0")
 ```
 
 Or via the AppolyDroid BOM (version managed by the platform):
 
 ```gradle.kts
-implementation(platform("uk.co.appoly.droid:bom:1.9.0"))
+implementation(platform("uk.co.appoly.droid:bom:1.10.0"))
 implementation("uk.co.appoly.droid:nav3navigation")
 ```
 
 **Requirements**
 
 - `minSdk` **23** (androidx.navigation3 requirement)
-- Depends on `androidx.navigation3` **1.2.0-alpha07** (alpha result bus is optional; see [Results](#results))
+- Depends on `androidx.navigation3` **1.2.0-rc01** (alpha result bus is optional; see [Results](#results))
+- **Predictive back needs the manifest opt-in below API 36.** It defaults to `true` on API 36+,
+  but on API 33–35 the host app must set it explicitly, or pops commit with no gesture animation:
+
+  ```xml
+  <application android:enableOnBackInvokedCallback="true">
+  ```
+
+  Never set it to `"false"` — that disables predictive back for the whole app, this module
+  included.
 - Screen classes need `kotlinx-serialization` (`@Serializable` + the serialization plugin)
 
 ## Usage
@@ -138,12 +147,48 @@ navigator.popUntilRoot()
 
 // Bottom bar from top screen
 val showBottomBar = (navigator.lastItem as? ShowsBottomBar)?.showBottomBar != false
+```
 
-// System back: pop tab stack, else switch tab / finish
-BackHandler(enabled = navigator.canPop || currentTab != HomeTab) {
-    if (navigator.canPop) navigator.pop() else selectTab(HomeTab)
+#### System back
+
+**Don't register a `BackHandler` for ordinary back.** `Nav3ScreenHost` forwards `onBack` to
+`NavDisplay` (defaulting to `navigator.pop()`), and `Nav3TabsHost` defaults it to
+`TabsNav3Navigator.pop()` — which already pops in-tab and falls back to exit-through-home at a
+tab root. Registering a `BackHandler` above the host duplicates that logic *and* intercepts the
+gesture before `NavDisplay` sees it, so `predictivePopTransitionSpec` never scrubs and you lose
+the native predictive back this module exists to provide.
+
+Nor do you need one to exit the app: at the start-tab root `canPop` is `false` and Nav3 disables
+its back callback, so back falls through to the Activity and finishes it as usual — even though
+retained tabs keep `backStack.size > 1`. `Nav3PredictiveBackDeviceTest` asserts exactly this
+(callback disabled at the start-tab root, enabled at any non-start tab root).
+
+To genuinely intercept back on one screen — an unsaved-changes prompt, say — use
+`NavigationBackHandler` from `androidx.navigationevent:navigationevent-compose`, which is already
+on your classpath transitively via `navigation3-ui`. It registers with the same dispatcher
+`NavDisplay` uses and, being added later, is invoked first (handlers run last-in-first-out within
+a priority); unlike `BackHandler` it also exposes the gesture's progress and cancellation:
+
+```kotlin
+@Composable
+override fun Content() {
+    val backState = rememberNavigationEventState(currentInfo = NavigationEventInfo.None)
+    NavigationBackHandler(
+        state = backState,
+        isBackEnabled = hasUnsavedChanges,
+        onBackCompleted = { showDiscardDialog() },
+    )
+    // ...screen content
 }
 ```
+
+Bind one `NavigationEventState` to exactly one `NavigationBackHandler` — a second handler sharing
+a state throws `IllegalArgumentException`. Branch inside `onBackCompleted` rather than registering
+two conditional handlers.
+
+Wanting to hand a **result** back on system back is not a reason to register one — an always-enabled
+handler costs you the predictive-back scrub for no interception. See
+[Delivering a result on system back](#delivering-a-result-on-system-back).
 
 ### Deep links
 
@@ -175,11 +220,17 @@ semantics this module exists to provide. Nav3 only tears down per-entry state wh
 leaves the back stack; `TabsNav3Navigator` keeps every **visited** tab in `backStack`, and
 `Nav3TabsHost` defaults to `TabsSceneStrategy` so only the current tab’s top entry is rendered.
 
+**Each tab really does own its own back stack.** Those per-tab stacks are the source of truth —
+every `push` / `pop` / `replace` mutates exactly one of them. The single `backStack` you can read
+is a *derived projection* of them, rebuilt on each mutation, because `NavDisplay` renders from one
+list. The projection is a rendering adapter, not the data model — see
+[Why one `NavDisplay`](#why-one-navdisplay) for what that buys.
+
 Bottom-bar chrome stays **app-owned**. The library provides a navigator that:
 
-- keeps **one stack per tab** and flattens **all visited tabs** into a single `backStack` for one
-  `NavDisplay` (`[other visited in tabOrder] + startTabStack + currentTabStack`), with the
-  current tab always the suffix
+- keeps **one stack per tab** as the source of truth, and projects **all visited tabs** into a
+  single derived `backStack` for one `NavDisplay`
+  (`[other visited in tabOrder] + startTabStack + currentTabStack`), current tab always the suffix
 - pairs with **`TabsSceneStrategy`** (default on `Nav3TabsHost`) so inactive tabs stay in the
   stack without being composed — that is the retention mechanism
 - implements `Nav3Navigator` so in-tab `LocalNav3Navigator.push/pop` stay tab-local
@@ -188,13 +239,13 @@ Bottom-bar chrome stays **app-owned**. The library provides a navigator that:
 - records **`pendingTabSlide`** so tab switches can animate directionally (see [Transitions](#transitions))
 - exposes **`currentTabDepth`** (depth of the current tab only) for in-tab transition z-index —
   not `backStack.size`, which grows as tabs are visited
-- **`items`** returns the **current tab’s** stack only (Voyager-equivalent), not the full multi-tab
-  flatten — use `stackFor(tab)` or `backStack` when you need another tab or the display list
+- **`items`** returns the **current tab’s** stack only (Voyager-equivalent), not the full
+  multi-tab projection — use `stackFor(tab)` or `backStack` for another tab or the display list
 - separates **display order** (`tabOrder`) from the **launch / exit-through-home tab** (`startTab`)
 
 `tabOrder` is the strip order (bottom-bar left→right, and the indices used for
 `TabSlide.Forward` / `Backward`). `startTab` is the launch tab, the exit-through-home target,
-and the stack always flattened underneath the current tab — it defaults to `tabOrder.first()` so
+and the stack always projected underneath the current tab — it defaults to `tabOrder.first()` so
 existing call sites stay source-compatible, but can be any entry of `tabOrder` (e.g. a centre Home).
 
 ```kotlin
@@ -348,7 +399,7 @@ same reflection-based `NavKey` serialization as `rememberNavBackStack`). Screens
 restore (not read from the saved bundle). If `KEY_CURRENT` is missing, restore falls back to
 the start tab's index — not `0`.
 
-**Equal keys across tabs:** visited tabs share one flattened `backStack`. The same equal key on
+**Equal keys across tabs:** visited tabs share one projected `backStack`. The same equal key on
 Home and on Rooms shares saveable state / ViewModelStore — use distinguishing constructor args
 when a destination can appear under more than one tab.
 
@@ -360,11 +411,31 @@ composed, so no ViewModel is created until the tab is selected.
 `CompositionLocalProvider(LocalTabsNavigator provides tabs) { Nav3ScreenHost(...) }` yourself
 if you need a custom layout; pass `TabsSceneStrategy(tabs)` (or equivalent) if you want retention.
 
-#### Multi-stack alternative
+#### Why one `NavDisplay`
 
-If you prefer independent `rememberNavBackStack` per tab (no flatten / no built-in tab-slide),
-swap which stack you pass to `Nav3ScreenHost` and re-provide `LocalNav3Navigator` — same idea as
-nested Voyager navigators. Cross-tab then means mutating the target tab's list yourself.
+Per-tab stacks are the model, but they are deliberately projected into **one** `NavDisplay`
+rather than given a display each. Nav3 ties all per-entry state to back-stack membership —
+`NavEntryDecorator`'s `onPop` fires when a key leaves the stack, and that is what clears an
+entry's `rememberSaveable` state and `ViewModelStore`. There is no "retained but off-stack"
+concept in the runtime. So one display is what makes retention possible at all, and it also:
+
+- **keeps predictive back working across a tab boundary.** Predictive back is per-`NavDisplay`,
+  so exit-through-home can only animate while both tabs' entries live in the same display's
+  stack (`Nav3PredictiveBackDeviceTest` covers this).
+- **avoids competing back dispatchers.** One display means one `NavigationEvent` dispatcher.
+  A display per tab would need a child dispatcher owner scoped per tab, enabled only for the
+  selected one.
+- **keeps inactive tabs out of composition** — retained, not composed, via `TabsSceneStrategy`.
+
+The cost is that stable tab-root keys never leave the stack, which is why retention needs an
+explicit end — see [Retention and teardown](#retention-and-teardown) and call
+`Nav3RetentionScope.clear()` on sign-out.
+
+**Independent-stack alternative.** If you want a stack per tab with *no* cross-tab retention
+(and no built-in tab-slide), swap which `rememberNavBackStack` you pass to `Nav3ScreenHost` and
+re-provide `LocalNav3Navigator` — same idea as nested Voyager navigators. Cross-tab then means
+mutating the target tab's list yourself, and switching tabs tears down the previous tab's
+saveable state and ViewModels, since its keys leave the back stack.
 
 ### Transitions
 
@@ -465,6 +536,73 @@ Default decorators include the result-bus decorator. A picker can `sendResult(..
 caller observes via `ResultEffect<T>`. **Treat as alpha** — event vs state variants differ on
 process-death behaviour. Prefer (A) or a shared ViewModel until this hits beta/stable.
 
+#### Delivering a result on system back
+
+`popWithResult` is **child-initiated**: the screen being popped chooses to deliver. System back
+does not go through it — `Nav3ScreenHost` forwards `onBack` to `NavDisplay`, which defaults to
+plain `navigator.pop()`. So a screen that hands a value back from its own back arrow delivers
+nothing when the user swipes or presses back instead. Nothing fails; the result is simply dropped,
+and a "something changed, refresh the list" signal goes missing on the most common exit path.
+
+**Don't fix this with an always-enabled `NavigationBackHandler`.** It works, and it costs you the
+predictive-back animation: the handler intercepts ahead of `NavDisplay`, so `predictivePopTransitionSpec`
+never scrubs and the screen no longer animates out under the gesture. See [System back](#system-back) —
+that API is for genuinely *conditional* interception, not for "pop, but carry a payload".
+
+Dispatch from the host's `onBack` instead, on an app-side interface:
+
+```kotlin
+interface PopsWithResult {
+    fun popResult(): Any?
+}
+
+@Serializable
+data class PostDetailScreen(val id: Long) : Nav3Screen, PopsWithResult {
+    override fun popResult() = true // "something changed, refresh"
+
+    @Composable
+    override fun Content() { /* back arrow still calls navigator.popWithResult(true) */ }
+}
+```
+
+```kotlin
+val backStack = rememberNavBackStack(ListScreen)
+// Hoisted: `onBack` is built at the call site, where LocalNav3Navigator is still the *outer*
+// navigator (null at the top level) — not the one this host provides to its screens.
+val navigator = rememberBackStackNav3Navigator(backStack)
+
+Nav3ScreenHost(
+    modifier = Modifier.fillMaxSize(),
+    backStack = backStack,
+    navigator = navigator,
+    onBack = {
+        when (val top = navigator.lastItem) {
+            is PopsWithResult -> navigator.popWithResult(top.popResult())
+            else -> navigator.pop()
+        }
+    },
+)
+```
+
+Predictive back is untouched — `NavDisplay` still owns the gesture and runs the pop transition; only
+what happens on completion changed. Both exits now route through `popWithResult`, so the back arrow
+and system back cannot drift apart.
+
+Three things worth knowing:
+
+- **`popWithResult` no-ops entirely when `canPop` is `false`** — nothing pops and the result is
+  dropped. Harmless here, because Nav3 disables its back callback at the root and `onBack` is never
+  invoked; but don't reuse the helper somewhere a pop at depth 1 is required.
+- **Delivery is "pop first, deliver to the revealed top"**, gated on that screen implementing
+  `Nav3ResultReceiver`. A detail screen reachable from two different lists needs *both* to implement
+  it — otherwise the pop proceeds and the result is silently dropped.
+- **Keep `popResult()` a constant on `@Serializable` keys.** Don't accumulate state on the key to
+  build a richer result; put the real payload in a screen-scoped ViewModel, same rule as `metadata`.
+
+This is deliberately app-side. A host default that always called `popWithResult(null)` would hand
+`null` to receivers that only wanted results from explicit pops, and a `Nav3Screen.onPopResult` hook
+would be this interface with the library guessing the contract instead of the app declaring it.
+
 ### Screen-scoped ViewModels (ScreenModel → ViewModel)
 
 Voyager `ScreenModel` + `koinScreenModel()` maps cleanly onto real `ViewModel`s:
@@ -540,10 +678,10 @@ Drop `uniqueScreenKey` — multi-instance identity is the constructor args (and 
 | `Nav3ResultReceiver`                    | interface        | `onResult` target for `popWithResult`                                |
 | `popWithResult` / `popUntilWithResult`  | extensions       | Deliver result + pop                                                 |
 | `Nav3ScreenHost`                        | composable       | Full `NavDisplay` host + ambient navigator                           |
-| `TabsNav3Navigator`                     | class            | Per-tab stacks retained in flatten + `startTab` + `navigateToTab`    |
+| `TabsNav3Navigator`                     | class            | Per-tab stacks + derived projection + `navigateToTab`                |
 | `TabsNav3Navigator.startTab`             | property         | Launch / exit-through-home tab (may sit mid-strip)                   |
 | `TabsNav3Navigator.currentTabDepth`     | property         | Depth of the current tab only (in-tab transition z-index)            |
-| `TabsNav3Navigator.items`               | property         | **Current tab’s** stack only (not the multi-tab flatten)             |
+| `TabsNav3Navigator.items`               | property         | **Current tab’s** stack only (not the multi-tab projection)          |
 | `TabsNav3Navigator.exitToStartTabSlide` | property         | Slide direction a committed exit-through-home `pop` would use        |
 | `TabsSceneStrategy`                     | class            | Renders current tab top; retains inactive tab state in back stack    |
 | `LocalTabsNavigator`                    | CompositionLocal | Ambient tabs API (`null` outside a tab host)                         |

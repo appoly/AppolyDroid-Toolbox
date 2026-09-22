@@ -25,6 +25,8 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.Stable
+import androidx.compose.animation.core.Animatable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
@@ -54,6 +56,7 @@ import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.onClick
+import androidx.compose.ui.semantics.disabled
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
@@ -168,6 +171,15 @@ data class SegmentedControlTextStyle(
 )
 
 object SegmentedControlDefaults {
+    /**
+     * Opacity applied to the whole control when `enabled = false`.
+     *
+     * Matches Material 3's disabled-content token. The thumb keeps its position and stays
+     * visible, so a locked form still shows the answer it holds — disabled means "you cannot
+     * change this", not "this has no value".
+     */
+    const val DisabledAlpha = 0.38f
+
     /**
      * Creates Default [SegmentedControlColors] with solid colors.
      */
@@ -398,9 +410,17 @@ private const val NO_SEGMENT_INDEX = -1
  * This is the simplest overload for when your segments are already strings.
  *
  * @param segments The list of string segments to display.
- * @param selectedSegment The segment that should be selected.
+ * @param selectedSegment The segment that should be selected, or null for none — use it for a
+ * form question the user has not answered yet, rather than defaulting to the first segment and
+ * showing an unanswered field as though it had been answered. A value that is not in [segments]
+ * is treated the same way. The thumb is hidden while nothing is selected and appears under the
+ * segment the user picks.
  * @param onSegmentSelected A callback that will be called when the user selects a segment.
  * @param modifier A modifier to apply to the control.
+ * @param enabled Whether the control responds to input. When false, taps and drag-to-switch are
+ * both ignored, the segments report themselves as disabled to accessibility services, and the
+ * whole control is dimmed to [SegmentedControlDefaults.DisabledAlpha]. Use it for a form that has
+ * been submitted or locked — the current selection stays visible, it simply cannot be changed.
  * @param trackShape The shape of the track that the segments are placed on.
  * @param trackPadding The padding around the track.
  * @param trackPressedPadding The padding around the track when a segment is pressed.
@@ -415,9 +435,10 @@ private const val NO_SEGMENT_INDEX = -1
 @Composable
 fun SegmentedControl(
     segments: List<String>,
-    selectedSegment: String,
+    selectedSegment: String?,
     onSegmentSelected: (String) -> Unit,
     modifier: Modifier = Modifier,
+    enabled: Boolean = true,
     trackShape: Shape = RoundedCornerShape(8.dp),
     trackPadding: Dp = 2.dp,
     trackPressedPadding: Dp = 1.dp,
@@ -434,6 +455,7 @@ fun SegmentedControl(
         selectedSegment = selectedSegment,
         onSegmentSelected = onSegmentSelected,
         modifier = modifier,
+        enabled = enabled,
         trackShape = trackShape,
         trackPadding = trackPadding,
         trackPressedPadding = trackPressedPadding,
@@ -455,9 +477,17 @@ fun SegmentedControl(
  * content, use the overload that accepts a `content` composable lambda.
  *
  * @param segments The list of segments to display.
- * @param selectedSegment The segment that should be selected.
+ * @param selectedSegment The segment that should be selected, or null for none — use it for a
+ * form question the user has not answered yet, rather than defaulting to the first segment and
+ * showing an unanswered field as though it had been answered. A value that is not in [segments]
+ * is treated the same way. The thumb is hidden while nothing is selected and appears under the
+ * segment the user picks.
  * @param onSegmentSelected A callback that will be called when the user selects a segment.
  * @param modifier A modifier to apply to the control.
+ * @param enabled Whether the control responds to input. When false, taps and drag-to-switch are
+ * both ignored, the segments report themselves as disabled to accessibility services, and the
+ * whole control is dimmed to [SegmentedControlDefaults.DisabledAlpha]. Use it for a form that has
+ * been submitted or locked — the current selection stays visible, it simply cannot be changed.
  * @param trackShape The shape of the track that the segments are placed on.
  * @param trackPadding The padding around the track.
  * @param trackPressedPadding The padding around the track when a segment is pressed.
@@ -473,9 +503,10 @@ fun SegmentedControl(
 @Composable
 fun <T : Any> SegmentedControl(
     segments: List<T>,
-    selectedSegment: T,
+    selectedSegment: T?,
     onSegmentSelected: (T) -> Unit,
     modifier: Modifier = Modifier,
+    enabled: Boolean = true,
     trackShape: Shape = RoundedCornerShape(8.dp),
     trackPadding: Dp = 2.dp,
     trackPressedPadding: Dp = 1.dp,
@@ -493,6 +524,7 @@ fun <T : Any> SegmentedControl(
         selectedSegment = selectedSegment,
         onSegmentSelected = onSegmentSelected,
         modifier = modifier,
+        enabled = enabled,
         trackShape = trackShape,
         trackPadding = trackPadding,
         trackPressedPadding = trackPressedPadding,
@@ -513,9 +545,17 @@ fun <T : Any> SegmentedControl(
  * represented by a piece of content that is passed in as a lambda.
  *
  * @param segments The list of segments to display.
- * @param selectedSegment The segment that should be selected.
+ * @param selectedSegment The segment that should be selected, or null for none — use it for a
+ * form question the user has not answered yet, rather than defaulting to the first segment and
+ * showing an unanswered field as though it had been answered. A value that is not in [segments]
+ * is treated the same way. The thumb is hidden while nothing is selected and appears under the
+ * segment the user picks.
  * @param onSegmentSelected A callback that will be called when the user selects a segment.
  * @param modifier A modifier to apply to the control.
+ * @param enabled Whether the control responds to input. When false, taps and drag-to-switch are
+ * both ignored, the segments report themselves as disabled to accessibility services, and the
+ * whole control is dimmed to [SegmentedControlDefaults.DisabledAlpha]. Use it for a form that has
+ * been submitted or locked — the current selection stays visible, it simply cannot be changed.
  * @param trackShape The shape of the track that the segments are placed on.
  * @param trackPadding The padding around the track.
  * @param trackPressedPadding The padding around the track when a segment is pressed.
@@ -532,9 +572,10 @@ fun <T : Any> SegmentedControl(
 @Composable
 fun <T : Any> SegmentedControl(
     segments: List<T>,
-    selectedSegment: T,
+    selectedSegment: T?,
     onSegmentSelected: (T) -> Unit,
     modifier: Modifier = Modifier,
+    enabled: Boolean = true,
     trackShape: Shape = RoundedCornerShape(8.dp),
     trackPadding: Dp = 2.dp,
     trackPressedPadding: Dp = 1.dp,
@@ -549,13 +590,37 @@ fun <T : Any> SegmentedControl(
 ) {
     val state = remember { SegmentedControlState(trackPressedPadding = trackPressedPadding) }
     state.segmentCount = segments.size
-    state.selectedSegment = segments.indexOf(selectedSegment)
+    // indexOf already yields -1 for a value that is not in the list, which is the same
+    // NO_SEGMENT_INDEX sentinel a null selection produces — both mean "draw nothing selected".
+    state.selectedSegment = selectedSegment
+        ?.let { segments.indexOf(it) }
+        ?: NO_SEGMENT_INDEX
     state.onSegmentSelected = { onSegmentSelected(segments[it]) }
 
+    val hasSelection = state.selectedSegment != NO_SEGMENT_INDEX
+
     // Animate between whole-number indices so we don't need to do pixel calculations.
-    val selectedIndexOffset by animateFloatAsState(
-        state.selectedSegment.toFloat(),
-        label = "selectedIndexOffset_animatedFloatAsState"
+    //
+    // The thumb keeps its last real position while nothing is selected, rather than tracking the
+    // -1 sentinel: animating to -1 would slide it off the left edge, and the first selection would
+    // then fly in from outside the control. Instead it fades out in place, and the first selection
+    // after an empty state snaps the position before fading back in — so the thumb appears under
+    // the segment the user actually tapped rather than travelling there.
+    val thumbIndex = remember { Animatable(state.selectedSegment.coerceAtLeast(0).toFloat()) }
+    val thumbTracker = remember { ThumbSelectionTracker(hasSelection) }
+    LaunchedEffect(state.selectedSegment) {
+        val target = state.selectedSegment.toFloat()
+        when {
+            thumbTracker.onSelectionChanged(hasSelection) -> thumbIndex.snapTo(target)
+            hasSelection -> thumbIndex.animateTo(target)
+            // Nothing selected: hold position and let the alpha fade handle it.
+        }
+    }
+    val selectedIndexOffset = thumbIndex.value
+
+    val thumbAlpha by animateFloatAsState(
+        targetValue = if (hasSelection) 1f else 0f,
+        label = "thumbAlpha"
     )
 
     // Use a custom layout so that we can measure the thumb using the height of the segments. The thumb
@@ -567,7 +632,8 @@ fun <T : Any> SegmentedControl(
             Thumb(
                 state = state,
                 thumbShape = thumbShape,
-                colors = colors
+                colors = colors,
+                alpha = thumbAlpha
             )
             Dividers(
                 state = state,
@@ -579,6 +645,7 @@ fun <T : Any> SegmentedControl(
             Segments(
                 state = state,
                 segments = segments,
+                enabled = enabled,
                 trackPadding = trackPadding,
                 segmentsPadding = segmentsPadding,
                 content = content,
@@ -590,7 +657,11 @@ fun <T : Any> SegmentedControl(
         },
         modifier = modifier
             .fillMaxWidth()
-            .then(state.inputModifier)
+            // Dropping the pointer input entirely, rather than checking `enabled` inside the
+            // gesture, also kills the press animations for free — a disabled control that still
+            // scaled and faded under the finger would read as interactive.
+            .then(if (enabled) state.inputModifier else Modifier)
+            .alpha(if (enabled) 1f else SegmentedControlDefaults.DisabledAlpha)
             .background(colors.trackBrush, trackShape)
             .padding(trackPadding)
     ) { (thumbMeasurable, dividersMeasurable, segmentsMeasurable), constraints ->
@@ -656,10 +727,15 @@ fun SegmentText(
 private fun Thumb(
     state: SegmentedControlState,
     thumbShape: Shape,
-    colors: SegmentedControlColors
+    colors: SegmentedControlColors,
+    alpha: Float
 ) {
     val density = LocalDensity.current
-    val pressed = state.pressedSegment == state.selectedSegment
+    // The NO_SEGMENT_INDEX guard is load-bearing: pressedSegment and selectedSegment are both -1
+    // when nothing is pressed and nothing is selected, so a bare equality check would report the
+    // thumb as pressed for every unanswered control.
+    val pressed = state.selectedSegment != NO_SEGMENT_INDEX &&
+        state.pressedSegment == state.selectedSegment
     val scale by animateFloatAsState(
         targetValue = if (pressed) state.pressedSelectedScale else 1f,
         label = "thumbScale"
@@ -671,10 +747,11 @@ private fun Thumb(
 
     Box(
         Modifier
+            .graphicsLayer { this.alpha = alpha }
             .segmentScale(
                 scale = scale,
                 xOffset = with(density) { xOffset.toPx() },
-                segment = state.selectedSegment,
+                segment = state.selectedSegment.coerceAtLeast(0),
                 segmentCount = state.segmentCount
             )
             .shadow(4.dp, thumbShape)
@@ -725,6 +802,7 @@ private fun Dividers(
 private fun <T> Segments(
     state: SegmentedControlState,
     segments: List<T>,
+    enabled: Boolean,
     trackPadding: Dp,
     segmentsPadding: Dp,
     colors: SegmentedControlColors,
@@ -770,8 +848,21 @@ private fun <T> Segments(
             val semanticsModifier = Modifier.semantics(mergeDescendants = true) {
                 selected = isSelected
                 role = Role.Button
-                onClick { state.onSegmentSelected(i); true }
                 stateDescription = if (isSelected) "Selected" else "Not selected"
+                if (enabled) {
+                    onClick { state.onSegmentSelected(i); true }
+                } else {
+                    // disabled() is what assistive tech and assertIsNotEnabled() read, and it is
+                    // on its own enough to stop activation — verified by leaving the onClick
+                    // action in place and watching the tests still pass.
+                    //
+                    // The action is withheld anyway so the node does not advertise a capability
+                    // it will not honour: an accessibility service reading the tree should see no
+                    // click action on a locked control rather than one that silently does
+                    // nothing. That property is pinned by a test, since nothing else would catch
+                    // its loss.
+                    disabled()
+                }
             }
 
             Box(
@@ -807,6 +898,33 @@ private fun <T> Segments(
                 }
             }
         }
+    }
+}
+
+/**
+ * Decides whether the thumb should snap to a new selection or animate to it.
+ *
+ * Snapping is right when the control is coming *out of* an empty state: the thumb is invisible and
+ * parked wherever it last was, so animating would slide it across the control from a stale
+ * position while it fades in. Animating is right when moving between two real selections, which is
+ * the ordinary sliding behaviour.
+ *
+ * Extracted and internal because the state is a latch and latches are easy to get wrong in exactly
+ * one direction — [hadSelection] must go back to false when the selection is cleared, or only the
+ * very first selection ever snaps and every later empty→selection travels. That bug shipped in
+ * review and nothing in a UI test would have caught it, so it is pinned by unit tests instead.
+ */
+internal class ThumbSelectionTracker(initialHasSelection: Boolean) {
+
+    /** Whether there was a selection immediately before the most recent change. */
+    var hadSelection: Boolean = initialHasSelection
+        private set
+
+    /** Records a selection change and returns true if the thumb should snap rather than animate. */
+    fun onSelectionChanged(hasSelection: Boolean): Boolean {
+        val shouldSnap = hasSelection && !hadSelection
+        hadSelection = hasSelection
+        return shouldSnap
     }
 }
 

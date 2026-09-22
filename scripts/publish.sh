@@ -13,6 +13,9 @@
 #   ./scripts/publish.sh --dry-run    every gate, no publish and no tag
 #   ./scripts/publish.sh --local      signed install to ~/.m2, for testing a branch
 #
+# For the everyday local-testing loop use scripts/publish-local.sh instead — it installs unsigned
+# and needs no credentials — and scripts/clear-local-publish.sh to remove the install again.
+#
 # CREDENTIALS — two supported paths, checked in this order:
 #
 #   1. Already in the environment. If the ORG_GRADLE_PROJECT_* variables below are exported,
@@ -76,6 +79,8 @@ Usage: ./scripts/publish.sh [--local|--dry-run]
   (no flags)      Publish every module to Maven Central, then tag the commit.
   --local, -l     Publish signed artifacts to ~/.m2 instead. Needs no upload
                   credentials. Use this to test a branch in a consuming app.
+                  For the everyday loop prefer ./scripts/publish-local.sh,
+                  which installs unsigned and needs no credentials at all.
   --dry-run, -n   Run every gate — clean, tests, coverage, keep rules, metadata
                   check — but do not publish or tag.
 
@@ -221,6 +226,7 @@ if [[ "$MODE" == "local" ]]; then
     warn "Add mavenLocal() to the consuming project — and take it out again afterwards."
     warn "A local install carries the same version string as the real release, so leaving it in"
     warn "means resolving your own artifacts while believing you are testing the published one."
+    warn "Remove the install again with ./scripts/clear-local-publish.sh"
     exit 0
 fi
 

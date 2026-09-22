@@ -141,6 +141,12 @@ data object HomeScreen : Nav3Screen {
 				)
 
 				FeatureButton(
+					title = "Barcode Scanner",
+					description = "One-shot Play services scan, and a continuous CameraX + ML Kit preview in a sheet",
+					onClick = { navigator?.push(BarcodeScannerDemoScreen) }
+				)
+
+				FeatureButton(
 					title = "Compose Extensions",
 					description = "Serialization-safe MutableState holders and the clipboard copier",
 					onClick = { navigator?.push(ComposeExtensionsDemoScreen) }

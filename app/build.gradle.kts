@@ -94,6 +94,8 @@ dependencies {
 	implementation(project(":S3Uploader-Multipart"))
 	implementation(project(":ConnectivityMonitor"))
 	implementation(project(":Nav3Navigation"))
+	implementation(project(":BarcodeScanner"))
+	implementation(project(":BarcodeScanner-Camera"))
 	implementation(project(":MockInterceptor"))
 	implementation(project(":MockInterceptor-Serialization"))
 	implementation(project(":MockInterceptor-AppolyJson"))
