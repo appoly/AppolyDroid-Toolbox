@@ -17,7 +17,7 @@
 [versions]
 # --- PUBLISHED: these versions reach consumers -------------------------------
 kotlin = "2.4.20"                 # also the language/stdlib version consumers compile against
-coreKtx = "1.19.0"
+coreKtx = "1.19.1"
 appcompat = "1.8.0"
 lifecycleRuntime = "2.11.0"
 compose = "1.12.1"                # what composeBom resolves androidx.compose.ui/foundation to - bump together
@@ -30,8 +30,8 @@ sandwichVersion = "2.4.0"         # exposed as `api` from BaseRepo
 kotlinxSerialization = "1.11.0"
 paging = "3.5.1"
 roomVersion = "2.8.5"
-nav3 = "1.2.0-rc01"               # exposed as `api` from Nav3Navigation
-workManager = "2.11.2"
+nav3 = "1.2.0"                    # exposed as `api` from Nav3Navigation
+workManager = "2.12.0"
 cameraX = "1.6.2"                 # BarcodeScanner-Camera
 mlkitBarcodeCommon = "17.0.0"     # exposed as `api` from BarcodeScanner (Barcode.FORMAT_* constants)
 mlkitBarcodeScanning = "18.3.1"   # unbundled ML Kit detector, model served by Play services

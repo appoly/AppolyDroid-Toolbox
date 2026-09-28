@@ -115,7 +115,7 @@ flow.collect { state ->
 - OkHttp 5.5.0, Retrofit 3.0.0
 - Sandwich 2.4.0 (API response handling)
 - Jetpack Paging 3.5.1, Room 2.8.5
-- androidx Navigation 3 1.2.0-rc01 (Nav3Navigation module)
+- androidx Navigation 3 1.2.0 (Nav3Navigation module)
 - kotlinx-serialization 1.11.0
 
 ## Publishing
