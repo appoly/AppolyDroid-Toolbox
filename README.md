@@ -282,8 +282,9 @@ fails the manifest merge at build time rather than at runtime.
 
 | `minSdk` | Modules | Why |
 |---|---|---|
-| **21** | BaseRepo (and all `BaseRepo-*` extensions), UiState, AppSnackBar, AppSnackBar-UiState, ComposeExtensions, SegmentedControl, PagingExtensions, LazyListPagingExtensions, LazyGridPagingExtensions, S3Uploader, S3Uploader-Multipart | — |
-| **23** | Nav3Navigation | `androidx.navigation3` requirement |
+| **23** | BaseRepo, BaseRepo-AppolyJson, BaseRepo-Paging, BaseRepo-Paging-AppolyJson, BaseRepo-S3Uploader, UiState, AppSnackBar, AppSnackBar-UiState, ComposeExtensions, SegmentedControl, PagingExtensions, LazyListPagingExtensions, LazyGridPagingExtensions, S3Uploader | androidx core/appcompat requirement |
+| **24** | S3Uploader-Multipart, BaseRepo-S3Uploader-Multipart | `androidx.work` requirement |
+| **24** | Nav3Navigation | `androidx.navigation3` requirement |
 | **24** | ConnectivityMonitor | Newer network APIs |
 | **24** | BarcodeScanner, BarcodeScanner-Camera | `play-services-base` requirement |
 | **26** | DateHelperUtil, DateHelperUtil-Room, DateHelperUtil-Serialization | Java 8 time APIs |

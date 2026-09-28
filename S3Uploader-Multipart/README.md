@@ -23,7 +23,7 @@ This module depends on `S3Uploader` and includes it transitively.
 
 **Requirements**
 
-- `minSdk` **21**
+- `minSdk` **24** (androidx.work requirement)
 
 ## Backend API Specification
 

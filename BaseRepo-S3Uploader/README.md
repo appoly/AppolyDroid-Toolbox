@@ -25,7 +25,7 @@ implementation("uk.co.appoly.droid:baserepo-s3uploader:1.10.0")
 
 **Requirements**
 
-- `minSdk` **21**
+- `minSdk` **23** (androidx core/appcompat requirement)
 
 ## How it Works
 
