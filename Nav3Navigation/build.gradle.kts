@@ -48,8 +48,8 @@ dependencies {
 	implementation(libs.androidx.core.ktx)
 
 	//Compose
-	implementation(platform(libs.androidx.compose.bom))
 	implementation(libs.androidx.ui)
+	implementation(libs.androidx.compose.animation)
 
 	//Navigation 3 — api: NavKey/NavEntry/NavBackStack/Scene appear in this module's public API
 	api(libs.androidx.navigation3.runtime)

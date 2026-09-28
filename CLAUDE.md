@@ -109,7 +109,9 @@ flow.collect { state ->
 
 - Kotlin 2.4.20, AGP 9.4.0, Gradle 9.7.1
 - Target/Compile SDK 37, Java 11
-- Jetpack Compose BOM 2026.09.00
+- Jetpack Compose 1.12.1, Material3 1.4.0 — explicit versions in library modules; the Compose BOM
+  (2026.09.00) is imported only by the demo app and tests, because Gradle publishes even an
+  `implementation(platform(...))` into the POM and .module and would force it onto consumers
 - OkHttp 5.5.0, Retrofit 3.0.0
 - Sandwich 2.4.0 (API response handling)
 - Jetpack Paging 3.5.1, Room 2.8.5

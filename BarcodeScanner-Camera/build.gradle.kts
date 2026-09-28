@@ -51,7 +51,6 @@ dependencies {
 	api(project(":BarcodeScanner"))
 
 	//Compose
-	implementation(platform(libs.androidx.compose.bom))
 	implementation(libs.androidx.ui)
 	implementation(libs.androidx.compose.foundation)
 	// LocalLifecycleOwner — the lifecycle the camera use cases bind to
