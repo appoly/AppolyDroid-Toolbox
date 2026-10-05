@@ -54,7 +54,8 @@ abstract class AppolyBaseRepo(
 		}
 		return when (val response = call()) {
 			is ApiResponse.Success -> {
-				val result = response.data
+				val result = bodyOrNull(response)
+					?: return handleEmptyBody(response.statusCode.code, logDescription)
 				if (result.success) {
 					APIResult.Success(result)
 				} else {

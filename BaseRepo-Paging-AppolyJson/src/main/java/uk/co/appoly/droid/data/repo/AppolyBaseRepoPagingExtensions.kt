@@ -33,7 +33,8 @@ inline fun <T : Any> AppolyBaseRepo.doNestedPagedAPICall(
 ): APIResult<PageData<T>> {
 	return when (val response = call()) {
 		is ApiResponse.Success -> {
-			val result = response.data
+			val result = bodyOrNull(response)
+				?: return handleEmptyBody(response.statusCode.code, logDescription)
 			if (result.success && result.pageData != null) {
 				APIResult.Success(result.asPageData())
 			} else {
