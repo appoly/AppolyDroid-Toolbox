@@ -6,8 +6,10 @@ import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.animation.SizeTransform
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.currentCompositeKeyHashCode
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.ViewModelStoreOwner
@@ -188,14 +190,17 @@ fun Nav3ScreenHost(
 	entryProvider: (key: NavKey) -> NavEntry<NavKey> = ::nav3ScreenEntry,
 ) {
 	val ambientParent = LocalNav3Navigator.current
-	val resolvedNavigator = navigator
-		?: remember(backStack, ambientParent) {
-			BackStackNav3Navigator(backStack, parent = ambientParent)
-		}
+	val resolvedNavigator = navigator ?: rememberBackStackNav3Navigator(backStack, parent = ambientParent)
 	val resolvedOnBack = onBack ?: { resolvedNavigator.pop() }
 	// Captured pre-decorator: inside entries the ViewModelStore decorator shadows
 	// LocalViewModelStoreOwner, so this is the only route back to the host's owner.
 	val hostViewModelStoreOwner = LocalViewModelStoreOwner.current
+
+	// The navigators prune continuations on their own operations; this also covers a caller that
+	// mutates the back stack list directly, so a popped entry can never leave a request behind.
+	LaunchedEffect(backStack, resolvedNavigator) {
+		snapshotFlow { backStack.toList() }.collect { resolvedNavigator.continuations.retainOnly(it) }
+	}
 
 	CompositionLocalProvider(
 		LocalNav3Navigator provides resolvedNavigator,

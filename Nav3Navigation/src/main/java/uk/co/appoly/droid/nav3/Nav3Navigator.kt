@@ -3,6 +3,7 @@ package uk.co.appoly.droid.nav3
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.ProvidableCompositionLocal
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.navigation3.runtime.NavBackStack
 import androidx.navigation3.runtime.NavKey
@@ -175,6 +176,50 @@ interface Nav3Navigator {
 	 * target stack.
 	 */
 	val items: List<Nav3Screen>
+
+	// --- deep links ---
+
+	/**
+	 * The [Nav3Continuation]s pending for entries on this navigator's stack. Delivered by
+	 * [navigateToDeepLink] and [push] with a `continuation`; read with [rememberNav3Continuation]
+	 * or [Nav3Continuations.consume].
+	 *
+	 * A custom navigator that wraps another should return the wrapped navigator's store. One that
+	 * owns its stack should keep a [Nav3Continuations] in `rememberSaveable` (see
+	 * [Nav3Continuations.saver]); hosting it in a [Nav3ScreenHost] drops continuations whose
+	 * entry leaves the stack.
+	 */
+	val continuations: Nav3Continuations
+
+	/**
+	 * Lands [link] on this navigator's stack according to [Nav3DeepLink.mode]
+	 * ([Nav3DeepLinkMode.Append] keeps the user's place, [Nav3DeepLinkMode.Reconcile] makes the
+	 * stack exactly the link's). An equal key never ends up on the stack twice.
+	 *
+	 * [BackStackNav3Navigator] and [TabsNav3Navigator] override this; a [TabsNav3Navigator] also
+	 * selects the tab the link starts in. The default implementation works through this
+	 * interface's own [items], [pop], [push] and [replaceAll], so a custom navigator (an analytics
+	 * wrapper, say) gets correct behaviour without overriding it. A wrapper around a
+	 * [TabsNav3Navigator] should forward this call so the tab is selected too.
+	 *
+	 * A [Nav3DeepLink.continuation] is addressed to the link's top screen once it has landed.
+	 */
+	fun navigateToDeepLink(link: Nav3DeepLink) {
+		val current = items
+		val target = planDeepLinkStack(current, link.stack, link.mode).map { it as Nav3Screen }
+		val common = commonPrefixLength(current, target)
+		if (common == 0) {
+			replaceAll(*target.toTypedArray())
+		} else {
+			while (items.size > common) {
+				val before = items.size
+				pop()
+				if (items.size == before) break // pop() refused (e.g. at a root); never spin
+			}
+			push(target.subList(common, target.size))
+		}
+		link.continuation?.let { continuations.put(link.stack.last(), it) }
+	}
 }
 
 /**
@@ -218,45 +263,56 @@ val ProvidableCompositionLocal<Nav3Navigator?>.currentOrThrow: Nav3Navigator
  * @param parent the navigator that nested this one, or `null` at the app root. Nested hosts
  *   should pass [LocalNav3Navigator.current] from the outer composition (the default
  *   [Nav3ScreenHost] navigator does this automatically).
+ * @param continuations the store for [Nav3Continuation]s pending on this stack. Pass one kept in
+ *   `rememberSaveable` (as [rememberBackStackNav3Navigator] does) so pending continuations survive
+ *   process death.
  */
 class BackStackNav3Navigator(
 	private val backStack: NavBackStack<NavKey>,
 	override val parent: Nav3Navigator? = null,
+	override val continuations: Nav3Continuations = Nav3Continuations(),
 ) : Nav3Navigator {
 
 	override fun push(screen: Nav3Screen) {
 		backStack.add(screen)
+		prune()
 	}
 
 	override fun push(vararg screens: Nav3Screen) {
 		backStack.addAll(screens)
+		prune()
 	}
 
 	override fun push(screens: Iterable<Nav3Screen>) {
 		backStack.addAll(screens)
+		prune()
 	}
 
 	override fun pop() {
 		// Never empty the stack — NavDisplay requires a non-empty back stack.
 		if (backStack.size <= 1) return
 		backStack.removeLastOrNull()
+		prune()
 	}
 
 	override fun replace(screen: Nav3Screen) {
 		if (backStack.isEmpty()) return
 		backStack.removeLastOrNull()
 		backStack.add(screen)
+		prune()
 	}
 
 	override fun replaceAll(screen: Nav3Screen) {
 		backStack.clear()
 		backStack.add(screen)
+		prune()
 	}
 
 	override fun replaceAll(vararg screens: Nav3Screen) {
 		if (screens.isEmpty()) return
 		backStack.clear()
 		backStack.addAll(screens)
+		prune()
 	}
 
 	override fun popUpTo(screen: Nav3Screen, inclusive: Boolean): Boolean =
@@ -274,6 +330,7 @@ class BackStackNav3Navigator(
 		while (backStack.size > targetSize) {
 			backStack.removeLastOrNull()
 		}
+		prune()
 		return true
 	}
 
@@ -281,6 +338,7 @@ class BackStackNav3Navigator(
 		while (backStack.size > 1) {
 			backStack.removeLastOrNull()
 		}
+		prune()
 	}
 
 	override val canPop: Boolean
@@ -294,15 +352,33 @@ class BackStackNav3Navigator(
 
 	override val items: List<Nav3Screen>
 		get() = backStack.mapNotNull { it as? Nav3Screen }
+
+	override fun navigateToDeepLink(link: Nav3DeepLink) {
+		backStack.morphInto(planDeepLinkStack(backStack.toList(), link.stack, link.mode))
+		prune()
+		link.continuation?.let { continuations.put(link.stack.last(), it) }
+	}
+
+	/** Drops continuations whose entry just left the stack, before anything can deliver them. */
+	private fun prune() {
+		continuations.retainOnly(backStack)
+	}
 }
 
 /**
  * Remembers a [BackStackNav3Navigator] for [backStack], wiring [BackStackNav3Navigator.parent]
- * from the current [LocalNav3Navigator] so nested hosts get a parent chain automatically.
+ * from the current [LocalNav3Navigator] so nested hosts get a parent chain automatically, and
+ * keeping its [Nav3Continuations] across process death.
  */
 @Composable
 fun rememberBackStackNav3Navigator(
 	backStack: NavBackStack<NavKey>,
 	parent: Nav3Navigator? = LocalNav3Navigator.current,
-): BackStackNav3Navigator =
-	remember(backStack, parent) { BackStackNav3Navigator(backStack, parent = parent) }
+): BackStackNav3Navigator {
+	// Saved separately from the back stack (which the caller owns), so pending continuations
+	// survive process death alongside it.
+	val continuations = rememberSaveable(saver = Nav3Continuations.saver()) { Nav3Continuations() }
+	return remember(backStack, parent, continuations) {
+		BackStackNav3Navigator(backStack, parent = parent, continuations = continuations)
+	}
+}

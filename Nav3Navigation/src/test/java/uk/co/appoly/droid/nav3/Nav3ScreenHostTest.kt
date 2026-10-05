@@ -174,5 +174,6 @@ class Nav3ScreenHostTest {
 		override val lastItem: Nav3Screen? = null
 		override val previousItem: Nav3Screen? = null
 		override val items: List<Nav3Screen> = emptyList()
+		override val continuations: Nav3Continuations = Nav3Continuations()
 	}
 }

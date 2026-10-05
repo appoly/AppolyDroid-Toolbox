@@ -143,6 +143,12 @@ class TabsNav3Navigator(
 	 */
 	val backStack: NavBackStack<NavKey> = NavBackStack(this.startTab)
 
+	/**
+	 * [Nav3Continuation]s pending for entries of any visited tab. Saved with the navigator by
+	 * [rememberTabsNav3Navigator], and pruned whenever an entry leaves its tab's stack.
+	 */
+	override val continuations: Nav3Continuations = Nav3Continuations()
+
 	/** Currently selected tab root. Always one of [tabOrder]. */
 	var currentTab: Nav3Screen by mutableStateOf(this.startTab)
 		private set
@@ -204,8 +210,13 @@ class TabsNav3Navigator(
 	}
 
 	/**
-	 * Cross-tab navigation: select [tab] and push [screens] onto **that** tab's stack
-	 * (skipping a push when the screen is already on top, to avoid equal-key duplicates).
+	 * Cross-tab navigation: select [tab] and open [screens] in **that** tab's stack, in one step.
+	 *
+	 * Lands `[tab] + screens` with [Nav3DeepLinkMode.Append]: if any of [screens] is already
+	 * anywhere in the tab's stack, the stack is popped back to the last such screen and only the
+	 * screens after it are pushed; otherwise all of [screens] are pushed on top. An equal key
+	 * therefore never appears twice in a tab, which would make the two entries silently share
+	 * saved state and ViewModels. With no [screens] this just selects [tab], keeping its stack.
 	 *
 	 * Example: from Home, open Bedroom detail inside the Rooms tab:
 	 * `navigateToTab(RoomsTab, RoomDetailScreen("Bedroom"))`.
@@ -213,15 +224,35 @@ class TabsNav3Navigator(
 	 * @throws IllegalArgumentException if [tab] is not in [tabOrder]
 	 */
 	fun navigateToTab(tab: Nav3Screen, vararg screens: Nav3Screen) {
-		val targetStack = requireTab(tab)
-		screens.forEach { screen ->
-			if (targetStack.lastOrNull() != screen) {
-				targetStack.add(screen)
-			}
+		land(tab, listOf(tab) + screens, Nav3DeepLinkMode.Append)
+	}
+
+	/**
+	 * Lands [link] on the tab it belongs to, switching tab and updating the stack in one step (so
+	 * the tab switch and the push can't race each other).
+	 *
+	 * - If the link's first screen is a tab root, that tab is selected and the link is landed on
+	 *   its stack.
+	 * - Otherwise the link targets the **current** tab, with its root implied underneath.
+	 *
+	 * See [Nav3DeepLinkMode] for how the link combines with what the tab already holds. A tab root
+	 * is never popped.
+	 *
+	 * A [Nav3DeepLink.continuation] is addressed to the link's top screen once it has landed.
+	 *
+	 * @throws IllegalArgumentException if a tab root appears anywhere but first in the link: tab
+	 *   roots can't live inside another tab's stack.
+	 */
+	override fun navigateToDeepLink(link: Nav3DeepLink) {
+		val first = link.stack.first()
+		val tab = if (first in tabOrder) first else currentTab
+		val target = if (first in tabOrder) link.stack else listOf(currentTab) + link.stack
+		val misplaced = target.drop(1).filter { it in tabOrder }
+		require(misplaced.isEmpty()) {
+			"Tab roots $misplaced can only start a deep-link stack, not appear inside one: $target"
 		}
-		pendingTabSlide = if (tab == currentTab) null else slideDirectionTo(tab)
-		currentTab = tab
-		rebuild()
+		land(tab, target, link.mode)
+		link.continuation?.let { continuations.put(target.last(), it) }
 	}
 
 	// --- Nav3Navigator (tab-local, with exit-through-home on pop) ---
@@ -409,6 +440,15 @@ class TabsNav3Navigator(
 	internal fun currentTabIndex(): Int =
 		tabOrder.indexOfFirst { it == currentTab }.coerceAtLeast(0)
 
+	/** Lands [target] (rooted at [tab]) on [tab]'s stack and selects [tab], with one rebuild. */
+	private fun land(tab: Nav3Screen, target: List<Nav3Screen>, mode: Nav3DeepLinkMode) {
+		val targetStack = requireTab(tab)
+		targetStack.morphInto(planDeepLinkStack(targetStack.toList(), target, mode))
+		pendingTabSlide = if (tab == currentTab) null else slideDirectionTo(tab)
+		currentTab = tab
+		rebuild()
+	}
+
 	private fun requireTab(tab: Nav3Screen): MutableList<NavKey> {
 		require(tab in tabOrder) {
 			"Tab $tab is not in tabOrder. Known tabs: $tabOrder"
@@ -444,17 +484,22 @@ class TabsNav3Navigator(
 		if (currentTab != startTab) {
 			backStack.addAll(tabStacks.getValue(currentTab))
 		}
+		// Every visited tab's entries are in the projection, so this drops exactly the
+		// continuations whose entry has left its tab's stack.
+		continuations.retainOnly(backStack)
 	}
 
 	companion object {
 		private const val KEY_CURRENT = "tabs_nav3_current"
 		private const val KEY_STACK_COUNT = "tabs_nav3_stack_count"
 		private const val KEY_STACK_PREFIX = "tabs_nav3_stack_"
+		private const val KEY_CONTINUATIONS = "tabs_nav3_continuations"
 
 		/**
 		 * [Saver] for [rememberSaveable] / [rememberTabsNav3Navigator].
 		 *
-		 * Persists [currentTab] and each tab's stack via the same reflection-based
+		 * Persists [currentTab], each tab's stack and the pending [continuations], via the same
+		 * reflection-based
 		 * [NavKeySerializer] that [androidx.navigation3.runtime.rememberNavBackStack] uses.
 		 * [parent] is not saved — pass it again on restore. [startTab] is not saved either;
 		 * pass the same [startTab] on restore so missing-[KEY_CURRENT] fallback and construction
@@ -490,6 +535,7 @@ class TabsNav3Navigator(
 							}
 							putBundle("$KEY_STACK_PREFIX$index", stackBundle)
 						}
+						putBundle(KEY_CONTINUATIONS, nav.continuations.toBundle())
 					}
 				},
 				restore = { bundle ->
@@ -512,6 +558,8 @@ class TabsNav3Navigator(
 							currentTabIndex = bundle.getInt(KEY_CURRENT, startTabIndex),
 							stacksByTabIndex = stacks,
 						)
+						// After the stacks, so restoring them can't prune what was saved.
+						bundle.getBundle(KEY_CONTINUATIONS)?.let(nav.continuations::restoreFrom)
 					}
 				},
 			)
