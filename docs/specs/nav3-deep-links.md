@@ -1,15 +1,27 @@
 # Nav3Navigation: deep-link support (plan)
 
-Status: **in progress** (2026-10-05). Steps 1–3 of the work order are done: `navigateToTab`'s
-whole-stack dedup, `Nav3DeepLink` / `navigateToDeepLink` (Append and Reconcile), and
-`Nav3DeepLinkRouter`. The branch is up to date with `develop`.
+Status: **in progress** (2026-10-05). Steps 1–4 of the work order are done: `navigateToTab`'s
+whole-stack dedup, `Nav3DeepLink` / `navigateToDeepLink` (Append and Reconcile),
+`Nav3DeepLinkRouter`, and entry-scoped continuations. The branch is up to date with `develop`.
 
-Notes from implementing steps 1–3:
+Notes from implementing steps 1–4:
 
 - `navigateToDeepLink` is a `Nav3Navigator` member **with a default body** (built on `items`,
   `pop`, `push` and `replaceAll`), so adding it breaks no custom navigator.
   `BackStackNav3Navigator` and `TabsNav3Navigator` override it.
-- `Nav3DeepLink` has no `continuation` yet; step 4 adds it.
+- **Continuations (step 4).** Compatibility option (a) was taken: `continuations` is a required
+  `Nav3Navigator` member, since an interface can't hold state and a no-op default would silently
+  drop continuations. Call it out in the release notes. Other choices:
+  - Payloads implement a marker interface, `Nav3Continuation`, rather than being `Any`. That
+    makes the consumer R8 rules scopable (mirroring the `Nav3Screen` block) and `put` type-safe.
+  - `Nav3DeepLink(stack, mode, continuation)`: the continuation goes **last**, so a positional
+    `mode` can't be mistaken for it.
+  - Writes go only through `navigateToDeepLink` and `push(screen, continuation)`; `put` is
+    internal, so nothing can address a key that isn't being navigated to.
+  - A payload that isn't `@Serializable` is rejected where it is sent, not at save time. An
+    entry that can't be decoded on restore is dropped rather than crashing the restore.
+  - **Step 6 must add `verifyConsumerKeepRules` sentinels** for a demo-app `Nav3Continuation`;
+    until the demo uses one, the new keep rules are checked only for R8 syntax.
 - A tab root inside a link (anywhere but first) throws in `navigateToDeepLink`. `navigateToTab`
   stays permissive about that, since it is released API.
 - Nav3's `MatchResult.compareTo` isn't antisymmetric across result types (a URI result beats a

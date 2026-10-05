@@ -143,6 +143,12 @@ class TabsNav3Navigator(
 	 */
 	val backStack: NavBackStack<NavKey> = NavBackStack(this.startTab)
 
+	/**
+	 * [Nav3Continuation]s pending for entries of any visited tab. Saved with the navigator by
+	 * [rememberTabsNav3Navigator], and pruned whenever an entry leaves its tab's stack.
+	 */
+	override val continuations: Nav3Continuations = Nav3Continuations()
+
 	/** Currently selected tab root. Always one of [tabOrder]. */
 	var currentTab: Nav3Screen by mutableStateOf(this.startTab)
 		private set
@@ -232,6 +238,8 @@ class TabsNav3Navigator(
 	 * See [Nav3DeepLinkMode] for how the link combines with what the tab already holds. A tab root
 	 * is never popped.
 	 *
+	 * A [Nav3DeepLink.continuation] is addressed to the link's top screen once it has landed.
+	 *
 	 * @throws IllegalArgumentException if a tab root appears anywhere but first in the link: tab
 	 *   roots can't live inside another tab's stack.
 	 */
@@ -244,6 +252,7 @@ class TabsNav3Navigator(
 			"Tab roots $misplaced can only start a deep-link stack, not appear inside one: $target"
 		}
 		land(tab, target, link.mode)
+		link.continuation?.let { continuations.put(target.last(), it) }
 	}
 
 	// --- Nav3Navigator (tab-local, with exit-through-home on pop) ---
@@ -475,17 +484,22 @@ class TabsNav3Navigator(
 		if (currentTab != startTab) {
 			backStack.addAll(tabStacks.getValue(currentTab))
 		}
+		// Every visited tab's entries are in the projection, so this drops exactly the
+		// continuations whose entry has left its tab's stack.
+		continuations.retainOnly(backStack)
 	}
 
 	companion object {
 		private const val KEY_CURRENT = "tabs_nav3_current"
 		private const val KEY_STACK_COUNT = "tabs_nav3_stack_count"
 		private const val KEY_STACK_PREFIX = "tabs_nav3_stack_"
+		private const val KEY_CONTINUATIONS = "tabs_nav3_continuations"
 
 		/**
 		 * [Saver] for [rememberSaveable] / [rememberTabsNav3Navigator].
 		 *
-		 * Persists [currentTab] and each tab's stack via the same reflection-based
+		 * Persists [currentTab], each tab's stack and the pending [continuations], via the same
+		 * reflection-based
 		 * [NavKeySerializer] that [androidx.navigation3.runtime.rememberNavBackStack] uses.
 		 * [parent] is not saved — pass it again on restore. [startTab] is not saved either;
 		 * pass the same [startTab] on restore so missing-[KEY_CURRENT] fallback and construction
@@ -521,6 +535,7 @@ class TabsNav3Navigator(
 							}
 							putBundle("$KEY_STACK_PREFIX$index", stackBundle)
 						}
+						putBundle(KEY_CONTINUATIONS, nav.continuations.toBundle())
 					}
 				},
 				restore = { bundle ->
@@ -543,6 +558,8 @@ class TabsNav3Navigator(
 							currentTabIndex = bundle.getInt(KEY_CURRENT, startTabIndex),
 							stacksByTabIndex = stacks,
 						)
+						// After the stacks, so restoring them can't prune what was saved.
+						bundle.getBundle(KEY_CONTINUATIONS)?.let(nav.continuations::restoreFrom)
 					}
 				},
 			)

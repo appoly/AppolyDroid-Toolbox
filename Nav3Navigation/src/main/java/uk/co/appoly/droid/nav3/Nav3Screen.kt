@@ -1,6 +1,7 @@
 package uk.co.appoly.droid.nav3
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.navigation3.runtime.NavEntry
 import androidx.navigation3.runtime.NavKey
 
@@ -69,7 +70,7 @@ interface Nav3Screen : NavKey {
  * [Nav3ScreenHost], which wires this plus [LocalNav3Navigator] and default entry decorators.
  *
  * @param key the back-stack key; **must** be a [Nav3Screen].
- * @return a [NavEntry] whose content invokes [Nav3Screen.Content].
+ * @return a [NavEntry] whose content invokes [Nav3Screen.Content], with [LocalNav3Screen] provided.
  * @throws IllegalStateException if [key] is not a [Nav3Screen].
  */
 fun nav3ScreenEntry(key: NavKey): NavEntry<NavKey> {
@@ -79,6 +80,9 @@ fun nav3ScreenEntry(key: NavKey): NavEntry<NavKey> {
 		key = key,
 		metadata = screen.metadata,
 	) {
-		screen.Content()
+		// Tells entry-scoped APIs (rememberNav3Continuation) which entry they are composed in.
+		CompositionLocalProvider(LocalNav3Screen provides screen) {
+			screen.Content()
+		}
 	}
 }

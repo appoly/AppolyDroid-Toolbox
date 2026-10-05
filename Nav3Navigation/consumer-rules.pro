@@ -41,3 +41,33 @@
     public static ** INSTANCE;
     kotlinx.serialization.KSerializer serializer(...);
 }
+
+# --- Nav3Continuation restore ---------------------------------------------------------
+# Pending continuations are saved with their navigator and restored the same reflective way
+# (class name + that class's KSerializer), so every Nav3Continuation implementor needs the
+# same keeps as a Nav3Screen. Scoped to Nav3Continuation implementors only.
+-keep class * implements uk.co.appoly.droid.nav3.Nav3Continuation
+
+-if class * implements uk.co.appoly.droid.nav3.Nav3Continuation
+-keepclassmembers class <1> {
+    *** Companion;
+}
+
+-if class * implements uk.co.appoly.droid.nav3.Nav3Continuation {
+    static **$* *;
+}
+-keepclassmembers class <2>$<3> {
+    kotlinx.serialization.KSerializer serializer(...);
+}
+
+-if class * implements uk.co.appoly.droid.nav3.Nav3Continuation
+-keep,includedescriptorclasses class <1>$$serializer {
+    *** INSTANCE;
+    <methods>;
+}
+
+-if class * implements uk.co.appoly.droid.nav3.Nav3Continuation
+-keepclassmembers class <1> {
+    public static ** INSTANCE;
+    kotlinx.serialization.KSerializer serializer(...);
+}

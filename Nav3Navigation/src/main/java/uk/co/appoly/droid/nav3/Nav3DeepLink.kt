@@ -32,7 +32,8 @@ enum class Nav3DeepLinkMode {
 }
 
 /**
- * A resolved deep-link destination: the stack to show, and how to land it.
+ * A resolved deep-link destination: the stack to show, how to land it, and optionally the first
+ * step of a multi-step flow for the top screen to perform.
  *
  * Produced by [Nav3DeepLinkRouter.resolve] and consumed by [Nav3Navigator.navigateToDeepLink].
  *
@@ -43,25 +44,33 @@ enum class Nav3DeepLinkMode {
  *   empty, and should not contain equal keys twice.
  * @param mode how to combine [stack] with what is already on the navigator. Defaults to
  *   [Nav3DeepLinkMode.Append].
+ * @param continuation a [Nav3Continuation] addressed to the last screen of [stack]. If that
+ *   screen is already open, the existing entry receives it (the "already open, focus this clip"
+ *   case). See [Nav3Continuation].
  */
 class Nav3DeepLink(
 	val stack: List<Nav3Screen>,
 	val mode: Nav3DeepLinkMode = Nav3DeepLinkMode.Append,
+	val continuation: Nav3Continuation? = null,
 ) {
 	init {
 		require(stack.isNotEmpty()) { "A Nav3DeepLink stack must not be empty" }
 	}
 
 	/** Convenience for a link to a single [screen] (the navigator supplies anything beneath it). */
-	constructor(screen: Nav3Screen, mode: Nav3DeepLinkMode = Nav3DeepLinkMode.Append) :
-		this(listOf(screen), mode)
+	constructor(
+		screen: Nav3Screen,
+		mode: Nav3DeepLinkMode = Nav3DeepLinkMode.Append,
+		continuation: Nav3Continuation? = null,
+	) : this(listOf(screen), mode, continuation)
 
 	override fun equals(other: Any?): Boolean =
-		other is Nav3DeepLink && stack == other.stack && mode == other.mode
+		other is Nav3DeepLink && stack == other.stack && mode == other.mode &&
+			continuation == other.continuation
 
-	override fun hashCode(): Int = 31 * stack.hashCode() + mode.hashCode()
+	override fun hashCode(): Int = (31 * stack.hashCode() + mode.hashCode()) * 31 + continuation.hashCode()
 
-	override fun toString(): String = "Nav3DeepLink(stack=$stack, mode=$mode)"
+	override fun toString(): String = "Nav3DeepLink(stack=$stack, mode=$mode, continuation=$continuation)"
 }
 
 /**

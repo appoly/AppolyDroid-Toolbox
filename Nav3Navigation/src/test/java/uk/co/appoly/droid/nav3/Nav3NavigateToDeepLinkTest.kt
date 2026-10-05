@@ -161,6 +161,7 @@ class Nav3NavigateToDeepLinkTest {
 	/** Delegates everything except [navigateToDeepLink], so the interface default runs. */
 	private class WrappingNavigator(private val inner: BackStackNav3Navigator) : Nav3Navigator {
 		override val parent: Nav3Navigator? get() = null
+		override val continuations get() = inner.continuations
 		override fun push(screen: Nav3Screen) = inner.push(screen)
 		override fun push(vararg screens: Nav3Screen) = inner.push(*screens)
 		override fun push(screens: Iterable<Nav3Screen>) = inner.push(screens)
