@@ -8,6 +8,8 @@ import okhttp3.mockwebserver.MockWebServer
 import uk.co.appoly.droid.s3upload.interfaces.HeaderProvider
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -85,6 +87,94 @@ class S3UploaderTest {
 		)
 
 		assertTrue(result is UploadResult.Error)
+	}
+
+	@Test
+	fun `uploadFile returns Error instead of a ClassCastException when presign has no body`() = runTest {
+		// Sandwich substitutes Unit for a bodyless 2xx, so Success.data is not the declared type.
+		server.enqueue(MockResponse().setResponseCode(204))
+
+		val result = S3Uploader.uploadFile(
+			file = tempFile(),
+			mediaType = "text/plain".toMediaType(),
+			getPresignedUrlAPI = server.url("/presign").toString()
+		)
+
+		result as UploadResult.Error
+		assertFalse(
+			"Expected a no-data error, got ${result.throwable}",
+			result.throwable is ClassCastException
+		)
+	}
+
+	// ==================== Header scoping ====================
+
+	@Test
+	fun `uploadFile passes the presign url to the header provider`() = runTest {
+		val seen = mutableListOf<String>()
+		S3Uploader.initS3Uploader(
+			headerProvider = HeaderProvider { url ->
+				seen += url
+				emptyMap()
+			},
+			loggingLevel = LoggingLevel.NONE
+		)
+		enqueueHappyPath()
+		val presignUrl = server.url("/presign").toString()
+
+		S3Uploader.uploadFile(
+			file = tempFile(),
+			mediaType = "text/plain".toMediaType(),
+			getPresignedUrlAPI = presignUrl
+		)
+
+		assertEquals(listOf(presignUrl), seen)
+	}
+
+	@Test
+	fun `bearerForHosts sends the token to an allowed presign host but never to the S3 PUT`() = runTest {
+		S3Uploader.initS3Uploader(
+			headerProvider = HeaderProvider.bearerForHosts({ setOf(server.hostName) }) { "t0k3n" },
+			loggingLevel = LoggingLevel.NONE
+		)
+		enqueueHappyPath()
+
+		val result = S3Uploader.uploadFile(
+			file = tempFile(),
+			mediaType = "text/plain".toMediaType(),
+			getPresignedUrlAPI = server.url("/presign").toString()
+		)
+
+		assertTrue("Expected Success but was $result", result is UploadResult.Success)
+		assertEquals("Bearer t0k3n", server.takeRequest().getHeader("Authorization"))
+		assertNull("S3 PUT must not carry the provider's token", server.takeRequest().getHeader("Authorization"))
+	}
+
+	@Test
+	fun `bearerForHosts omits the token when the presign url points at another host`() = runTest {
+		S3Uploader.initS3Uploader(
+			headerProvider = HeaderProvider.bearerForHosts({ setOf("api.example.com") }) { "t0k3n" },
+			loggingLevel = LoggingLevel.NONE
+		)
+		enqueueHappyPath()
+
+		S3Uploader.uploadFile(
+			file = tempFile(),
+			mediaType = "text/plain".toMediaType(),
+			getPresignedUrlAPI = server.url("/presign").toString()
+		)
+
+		assertNull(server.takeRequest().getHeader("Authorization"))
+	}
+
+	private fun enqueueHappyPath() {
+		val s3Url = server.url("/s3-put").toString()
+		server.enqueue(
+			MockResponse().setResponseCode(200).setBody(
+				"""{"success":true,"data":{"file_path":"images/a.txt","presigned_url":"$s3Url","headers":{}}}"""
+			)
+		)
+		server.enqueue(MockResponse().setResponseCode(200))
 	}
 
 	@Test

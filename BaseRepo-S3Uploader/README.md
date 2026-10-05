@@ -70,10 +70,11 @@ class MyApp: Application() {
 
         // Initialize S3Uploader with your header provider
         S3Uploader.initS3Uploader(
-            headerProvider = HeaderProvider.bearer {
-                // Return your authentication token
-                authManager.getToken()
-            },
+            // Sends the token only to your own API host
+            headerProvider = HeaderProvider.bearerForHosts(
+                allowedHosts = { setOf(BuildConfig.API_HOST) },
+                tokenProvider = { authManager.getToken() },
+            ),
             logger = YourFlexiLogImplementation,
             loggingLevel = if (BuildConfig.DEBUG) LoggingLevel.D else LoggingLevel.NONE
         )

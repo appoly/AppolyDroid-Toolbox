@@ -46,7 +46,7 @@ The library includes configurable HTTP headers on every API request, controlled 
 
 | Pattern | Example Header | Factory |
 |---------|---------------|---------|
-| Bearer token | `Authorization: Bearer <token>` | `HeaderProvider.bearer { getToken() }` |
+| Bearer token | `Authorization: Bearer <token>` | `HeaderProvider.bearerForHosts({ setOf(apiHost) }) { getToken() }` |
 | Custom auth header | `User-Api-Token: <token>` | `HeaderProvider.custom("User-Api-Token") { getToken() }` |
 | Multiple headers | Auth + app metadata | `HeaderProvider { buildMap { ... } }` |
 
@@ -468,7 +468,10 @@ class MyApp : Application() {
         super.onCreate()
 
         S3Uploader.initS3Uploader(
-            headerProvider = HeaderProvider.bearer { authManager.getToken() },
+            headerProvider = HeaderProvider.bearerForHosts(
+                allowedHosts = { setOf(BuildConfig.API_HOST) },
+                tokenProvider = { authManager.getToken() },
+            ),
             loggingLevel = if (BuildConfig.DEBUG) LoggingLevel.D else LoggingLevel.NONE
         )
     }
@@ -883,7 +886,10 @@ class MyApplication : Application() {
 
         // Initialize S3Uploader as usual
         S3Uploader.initS3Uploader(
-            headerProvider = HeaderProvider.bearer { authManager.getToken() }
+            headerProvider = HeaderProvider.bearerForHosts(
+                allowedHosts = { setOf(BuildConfig.API_HOST) },
+                tokenProvider = { authManager.getToken() },
+            )
         )
     }
 }

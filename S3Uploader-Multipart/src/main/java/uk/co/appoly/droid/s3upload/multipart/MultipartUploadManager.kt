@@ -43,6 +43,7 @@ import uk.co.appoly.droid.s3upload.multipart.result.TransferRateTracker
 import uk.co.appoly.droid.s3upload.multipart.result.MultipartUploadResult
 import uk.co.appoly.droid.s3upload.multipart.utils.MultipartUploadLog
 import uk.co.appoly.droid.s3upload.multipart.utils.MultipartUploadLogger
+import uk.co.appoly.droid.s3upload.multipart.utils.bodyOrNull
 import uk.co.appoly.droid.s3upload.multipart.worker.S3UploadWorkManager
 import java.io.File
 import java.net.ConnectException
@@ -77,7 +78,7 @@ class MultipartUploadManager internal constructor(
 
 	private val apiService = MultipartApiService(
 		api = MultipartRetrofitClient.multipartApis,
-		headerProvider = { S3Uploader.getHeaderProvider().provideHeaders() }
+		headerProvider = { url -> S3Uploader.getHeaderProvider().provideHeaders(url) }
 	)
 
 	private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -709,7 +710,7 @@ class MultipartUploadManager internal constructor(
 
 			when (response) {
 				is ApiResponse.Success -> {
-					val data = response.data.data
+					val data = response.bodyOrNull()?.data
 						?: return@withContext Result.failure(IllegalStateException("No data in initiate response"))
 
 					val now = System.currentTimeMillis()
@@ -949,7 +950,7 @@ class MultipartUploadManager internal constructor(
 				)
 
 				val presignData = when (presignResponse) {
-					is ApiResponse.Success -> presignResponse.data.data
+					is ApiResponse.Success -> presignResponse.bodyOrNull()?.data
 						?: return SinglePartResult.Failed("No data in presign response", null, false, false)
 
 					is ApiResponse.Failure.Error -> {
@@ -1095,7 +1096,8 @@ class MultipartUploadManager internal constructor(
 
 		return when (response) {
 			is ApiResponse.Success -> {
-				val data = response.data.data
+				// A bodyless 2xx still means S3 assembled the object, so fall back to the session's path.
+				val data = response.bodyOrNull()?.data
 				dao.updateSessionStatus(session.sessionId, UploadSessionStatus.COMPLETED, System.currentTimeMillis())
 				MultipartUploadLog.d(this@MultipartUploadManager, "Completed upload: ${session.sessionId}")
 				MultipartUploadResult.Success(
