@@ -66,6 +66,18 @@ class DoPagedAPICallTest {
 	}
 
 	@Test
+	fun `bodyless 204 maps to error instead of throwing ClassCastException`() {
+		// Sandwich substitutes Unit for a missing body, so Success.data is not a RootJsonPage.
+		@Suppress("UNCHECKED_CAST")
+		val noBody = ApiResponse.Success(data = Unit, tag = retrofit2.Response.success(204, Unit))
+			as ApiResponse<RootJsonPage<String>>
+		val result = repo.call { noBody }
+		result as APIResult.Error
+		assertEquals(204, result.responseCode)
+		assertEquals(GenericBaseRepo.EMPTY_BODY_MESSAGE, result.message)
+	}
+
+	@Test
 	fun `failure error maps to error with extracted message`() {
 		val result = repo.call<String> {
 			ApiResponse.Failure.Error(

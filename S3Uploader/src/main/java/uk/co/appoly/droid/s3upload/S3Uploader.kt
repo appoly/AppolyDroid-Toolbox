@@ -26,6 +26,7 @@ import uk.co.appoly.droid.s3upload.network.ProgressRequestBody
 import uk.co.appoly.droid.s3upload.network.requireReadableForUpload
 import uk.co.appoly.droid.s3upload.network.RetrofitClient
 import uk.co.appoly.droid.s3upload.utils.S3UploadLog
+import uk.co.appoly.droid.s3upload.utils.bodyOrNull
 import uk.co.appoly.droid.s3upload.utils.S3UploadLogger
 import uk.co.appoly.droid.s3upload.utils.firstNotNullOrBlank
 import uk.co.appoly.droid.s3upload.utils.parseBody
@@ -213,14 +214,15 @@ object S3Uploader {
 		S3UploadLog.v(this, "Getting Pre-Signed URL for file: ${file.name}, from API:\"$getPresignedUrlAPI\"")
 		return try {
 			val response: ApiResponse<GetPreSignedUrlResponse> = RetrofitClient.apiService.getPreSignedURL(
-				headers = headerProvider.provideHeaders(),
+				headers = headerProvider.provideHeaders(getPresignedUrlAPI),
 				url = getPresignedUrlAPI,
 				file.name
 			)
 			when(response) {
 				is ApiResponse.Success -> {
-					val body = response.data
-					val preSignedUrlData = body.data
+					// Null for a bodyless 2xx, which then reports the same no-data error as data:null.
+					val body = response.bodyOrNull()
+					val preSignedUrlData = body?.data
 					if (preSignedUrlData != null) {
 						S3UploadLog.d(this, "Request is successful with response: $body")
 						makeUploadRequestSuspend(file, mediaType, preSignedUrlData, progressFlow)

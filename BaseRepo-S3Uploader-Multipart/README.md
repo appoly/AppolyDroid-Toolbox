@@ -36,7 +36,10 @@ class MyApp : Application() {
         super.onCreate()
 
         S3Uploader.initS3Uploader(
-            headerProvider = HeaderProvider.bearer { authManager.getToken() },
+            headerProvider = HeaderProvider.bearerForHosts(
+                allowedHosts = { setOf(BuildConfig.API_HOST) },
+                tokenProvider = { authManager.getToken() },
+            ),
             loggingLevel = if (BuildConfig.DEBUG) LoggingLevel.D else LoggingLevel.NONE
         )
 

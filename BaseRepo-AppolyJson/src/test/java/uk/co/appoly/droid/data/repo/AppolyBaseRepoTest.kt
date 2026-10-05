@@ -68,6 +68,19 @@ class AppolyBaseRepoTest {
 	}
 
 	@Test
+	fun `doAPICallWithBaseResponse maps a bodyless 204 to Error instead of throwing`() {
+		// Sandwich substitutes Unit for a missing body, so Success.data is not a BaseResponse.
+		@Suppress("UNCHECKED_CAST")
+		val noBody = ApiResponse.Success(data = Unit, tag = retrofit2.Response.success(204, Unit))
+			as ApiResponse<BaseResponse>
+		val result = repo.callBase { noBody }
+
+		result as APIResult.Error
+		assertEquals(204, result.responseCode)
+		assertEquals(GenericBaseRepo.EMPTY_BODY_MESSAGE, result.message)
+	}
+
+	@Test
 	fun `doAPICallWithBaseResponse maps Failure Error and extracts the ErrorBody message`() {
 		val result = repo.callBase {
 			ApiResponse.Failure.Error(

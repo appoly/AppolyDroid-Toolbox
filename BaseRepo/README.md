@@ -80,13 +80,16 @@ when (val result = repo.fetchItem(id)) {
 
 Library code can't use Android string resources, so the default messages live on the exception types —
 map the exception type (or `isServerUnreachable()` / `isNetworkError()`) to your own localized copy in
-the consuming app rather than matching on the message strings.
+the consuming app rather than matching on the message strings. Where a placeholder message is used,
+compare against the public constants instead of a string literal: `GenericBaseRepo.UNKNOWN_ERROR_MESSAGE`
+(no usable message was available) and `GenericBaseRepo.EMPTY_BODY_MESSAGE` (a 2xx response had no body).
 
 ### `APIResult.Error.responseCode` values
 
 | Code | Meaning |
 |------|---------|
 | HTTP status (`4xx`/`5xx`, or `2xx` for an "HTTP 200 but `success: false`" body) | The real status code of the response |
+| `2xx` with `message == EMPTY_BODY_MESSAGE` | A success response with no body (HTTP 204/205, or a literal JSON `null`). Sandwich substitutes `Unit` for the missing body; the repo reports it as an error rather than crashing. An endpoint that legitimately returns no content should be declared as `ApiResponse<Unit>` and called directly, not through `doAPICall` |
 | `RESPONSE_EXCEPTION_CODE` (`-1`) | The call failed with an exception (connectivity, timeout, parsing, …) — no HTTP response is available |
 | `RESPONSE_NON_HTTP_ERROR_CODE` (`-2`) | The error carries no HTTP response. Produced when Sandwich's `ApiEnvelopeMapper` (registered globally by default since Sandwich 2.4.0) demotes an HTTP 200 business failure reported by a response model implementing `ApiEnvelope`; the envelope's error surfaces as `message` |
 

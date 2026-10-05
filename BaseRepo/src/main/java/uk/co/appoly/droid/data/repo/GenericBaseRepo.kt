@@ -76,6 +76,19 @@ abstract class GenericBaseRepo(
 		 * [ApiResponse.Failure.Error] carrying the envelope's error object as its payload.
 		 */
 		const val RESPONSE_NON_HTTP_ERROR_CODE = -2
+
+		/**
+		 * Fallback message used when a failure carries no usable message of its own.
+		 *
+		 * Exposed so consumers can detect this placeholder without matching a string literal.
+		 */
+		const val UNKNOWN_ERROR_MESSAGE = "Unknown error"
+
+		/**
+		 * Message used when a 2xx response carries no body, e.g. HTTP 204/205 or a literal JSON
+		 * `null`. The [APIResult.Error] keeps the real HTTP status code.
+		 */
+		const val EMPTY_BODY_MESSAGE = "Empty response body"
 	}
 
 	/**
@@ -106,7 +119,8 @@ abstract class GenericBaseRepo(
 		}
 		return when (val response = call()) {
 			is ApiResponse.Success -> {
-				val result = response.data
+				val result = bodyOrNull(response)
+					?: return handleEmptyBody(response.statusCode.code, logDescription)
 				val resultData = result.data
 				if (result.success && resultData != null) {
 					APIResult.Success(resultData)
@@ -154,7 +168,8 @@ abstract class GenericBaseRepo(
 		}
 		return when (val response = call()) {
 			is ApiResponse.Success -> {
-				val result = response.data
+				val result = bodyOrNull(response)
+					?: return handleEmptyBody(response.statusCode.code, logDescription)
 				if (result.success) {
 					APIResult.Success(result)
 				} else {
@@ -218,12 +233,47 @@ abstract class GenericBaseRepo(
 		)
 	}
 
+	/**
+	 * Returns the body of a successful [response], or `null` when the response had none.
+	 *
+	 * When a 2xx response has no body (HTTP 204/205, where Retrofit skips the converter, or a
+	 * literal JSON `null`), Sandwich substitutes [Unit] for it, so [ApiResponse.Success.data] is
+	 * not of type [R] at all. Reading it as [R] at an inlined call site emits a checkcast that
+	 * throws [ClassCastException]; this function is not inline, so [R] is erased here and no cast
+	 * happens until the caller receives a value that really is an [R].
+	 *
+	 * @param response The successful API response
+	 * @return The response body, or `null` if the response carried none
+	 */
+	fun <R : Any> bodyOrNull(response: ApiResponse.Success<R>): R? {
+		val body: Any = response.data
+		return if (body is Unit) null else response.data
+	}
+
+	/**
+	 * Logs and converts a 2xx response that carried no body into an [APIResult.Error].
+	 *
+	 * @param statusCode The HTTP status code of the response
+	 * @param logDescription Description of the API call for logging purposes
+	 * @return An [APIResult.Error] carrying [statusCode] and [EMPTY_BODY_MESSAGE]
+	 */
+	fun handleEmptyBody(
+		statusCode: Int,
+		logDescription: String
+	): APIResult.Error {
+		BaseRepoLog.e(
+			this,
+			"$logDescription failed! code:$statusCode, message:\"$EMPTY_BODY_MESSAGE\""
+		)
+		return APIResult.Error(statusCode, EMPTY_BODY_MESSAGE)
+	}
+
 	fun handleFailure(
 		result: RootJson,
 		statusCode: Int,
 		logDescription: String
 	): APIResult.Error {
-		val message = result.message.ifNullOrBlank { "Unknown error" }
+		val message = result.message.ifNullOrBlank { UNKNOWN_ERROR_MESSAGE }
 		BaseRepoLog.e(
 			this,
 			"$logDescription failed! code:$statusCode, message:\"$message\""
@@ -252,10 +302,10 @@ abstract class GenericBaseRepo(
 			firstNotNullOrBlank(
 				{ extractErrorMessage(response) },
 				{ response.message() },
-				fallback = { "Unknown error" }
+				fallback = { UNKNOWN_ERROR_MESSAGE }
 			)
 		} catch (e: Exception) {
-			"Unknown error"
+			UNKNOWN_ERROR_MESSAGE
 		}
 		BaseRepoLog.e(
 			this,
@@ -310,7 +360,7 @@ abstract class GenericBaseRepo(
 				val message = firstNotNullOrBlank(
 					{ throwable.message },
 					{ response.message() },
-					fallback = { "Unknown error" }
+					fallback = { UNKNOWN_ERROR_MESSAGE }
 				)
 				BaseRepoLog.e(
 					this,
