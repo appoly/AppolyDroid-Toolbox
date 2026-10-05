@@ -152,7 +152,8 @@ class MultipartUploadManagerPipelineTest {
 	@Test
 	fun `bearerForHosts sends the token to the control endpoints but never to the S3 part PUT`() = runTest {
 		S3Uploader.initS3Uploader(
-			HeaderProvider.bearerForHosts({ setOf(server.hostName) }) { "t0k3n" },
+			// MockWebServer speaks plain http, so opt out of the HTTPS requirement here.
+			HeaderProvider.bearerForHosts({ setOf(server.hostName) }, requireHttps = false) { "t0k3n" },
 			LoggingLevel.NONE
 		)
 		val authByPath = ConcurrentHashMap<String, String>()

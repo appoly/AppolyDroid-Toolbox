@@ -65,6 +65,35 @@ class HeaderProviderTest {
 	}
 
 	@Test
+	fun `bearerForHosts never sends the token over plain http by default`() {
+		val provider = HeaderProvider.bearerForHosts({ setOf("api.example.com") }) { "t0k3n" }
+
+		assertTrue(provider.provideHeaders("http://api.example.com/v1/upload/presign").isEmpty())
+	}
+
+	@Test
+	fun `bearerForHosts sends over http only when requireHttps is off`() {
+		val provider = HeaderProvider.bearerForHosts(
+			allowedHosts = { setOf("10.0.2.2") },
+			requireHttps = false,
+		) { "t0k3n" }
+
+		assertEquals(bearer, provider.provideHeaders("http://10.0.2.2:8000/presign"))
+		assertTrue(
+			"requireHttps = false must not relax the host check",
+			provider.provideHeaders("http://attacker.example.net/collect").isEmpty()
+		)
+	}
+
+	@Test
+	fun `restrictedToHosts rejects http for a custom header too`() {
+		val provider = HeaderProvider.custom("User-Api-Token") { "key" }
+			.restrictedToHosts { setOf("api.example.com") }
+
+		assertTrue(provider.provideHeaders("http://api.example.com/x").isEmpty())
+	}
+
+	@Test
 	fun `bearerForHosts sends nothing without a token`() {
 		val provider = HeaderProvider.bearerForHosts({ setOf("api.example.com") }) { null }
 

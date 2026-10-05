@@ -134,7 +134,8 @@ class S3UploaderTest {
 	@Test
 	fun `bearerForHosts sends the token to an allowed presign host but never to the S3 PUT`() = runTest {
 		S3Uploader.initS3Uploader(
-			headerProvider = HeaderProvider.bearerForHosts({ setOf(server.hostName) }) { "t0k3n" },
+			// MockWebServer speaks plain http, so opt out of the HTTPS requirement here.
+			headerProvider = HeaderProvider.bearerForHosts({ setOf(server.hostName) }, requireHttps = false) { "t0k3n" },
 			loggingLevel = LoggingLevel.NONE
 		)
 		enqueueHappyPath()
@@ -148,6 +149,23 @@ class S3UploaderTest {
 		assertTrue("Expected Success but was $result", result is UploadResult.Success)
 		assertEquals("Bearer t0k3n", server.takeRequest().getHeader("Authorization"))
 		assertNull("S3 PUT must not carry the provider's token", server.takeRequest().getHeader("Authorization"))
+	}
+
+	@Test
+	fun `bearerForHosts omits the token from an http presign url on an allowed host`() = runTest {
+		S3Uploader.initS3Uploader(
+			headerProvider = HeaderProvider.bearerForHosts({ setOf(server.hostName) }) { "t0k3n" },
+			loggingLevel = LoggingLevel.NONE
+		)
+		enqueueHappyPath()
+
+		S3Uploader.uploadFile(
+			file = tempFile(),
+			mediaType = "text/plain".toMediaType(),
+			getPresignedUrlAPI = server.url("/presign").toString()
+		)
+
+		assertNull("Token must not go out over cleartext", server.takeRequest().getHeader("Authorization"))
 	}
 
 	@Test

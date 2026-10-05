@@ -73,8 +73,10 @@ HeaderProvider.custom("User-Api-Token") { apiKeyStore.getKey() }
     .restrictedToHosts { setOf("api.example.com") }
 ```
 
-Hosts match exactly and case-insensitively, without subdomains, so list each host. A URL that doesn't
-parse is treated as not allowed. If you wrap a provider, pass the URL through to its
+Hosts match exactly and case-insensitively, without subdomains, so list each host. Only `https` URLs
+get the headers, so a data-supplied `http://` URL on an allowed host can't leak the token in
+cleartext. For a local development backend, pass `requireHttps = false`. A URL that doesn't parse is
+treated as not allowed. If you wrap a provider, pass the URL through to its
 `provideHeaders(url)`.
 
 #### Other patterns

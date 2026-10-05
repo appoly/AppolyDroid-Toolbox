@@ -73,20 +73,24 @@ fun interface HeaderProvider {
 		}
 
 		/**
-		 * Creates a [HeaderProvider] that emits `Authorization: Bearer <token>` only on requests
-		 * whose host is in [allowedHosts]. See [restrictedToHosts] for the matching rules.
+		 * Creates a [HeaderProvider] that emits `Authorization: Bearer <token>` only on HTTPS
+		 * requests whose host is in [allowedHosts]. See [restrictedToHosts] for the matching rules.
 		 *
 		 * When the [tokenProvider] returns null or blank, an empty map is returned
 		 * so the request proceeds without an Authorization header.
 		 *
 		 * @param allowedHosts Lambda returning the hosts the token may be sent to, e.g.
 		 * `setOf("api.example.com")`. Evaluated on every request.
+		 * @param requireHttps When true (the default), the token is never sent over plain `http`,
+		 * even to an allowed host. Set false only for a local development backend.
 		 * @param tokenProvider Lambda that returns the current token, or null if unavailable
 		 */
 		fun bearerForHosts(
 			allowedHosts: () -> Set<String>,
+			requireHttps: Boolean = true,
 			tokenProvider: () -> String?,
-		): HeaderProvider = HeaderProvider { bearerHeader(tokenProvider()) }.restrictedToHosts(allowedHosts)
+		): HeaderProvider = HeaderProvider { bearerHeader(tokenProvider()) }
+			.restrictedToHosts(requireHttps = requireHttps, allowedHosts = allowedHosts)
 
 		/**
 		 * Creates a [HeaderProvider] that emits a single header with a custom name.
@@ -113,20 +117,29 @@ fun interface HeaderProvider {
 }
 
 /**
- * Returns a [HeaderProvider] that delegates to this one only for requests whose host is in
+ * Returns a [HeaderProvider] that delegates to this one only for HTTPS requests whose host is in
  * [allowedHosts], and sends no headers anywhere else.
  *
  * - Hosts match exactly and case-insensitively. Subdomains are not included, so list each host.
+ * - Plain `http` URLs are not allowed unless [requireHttps] is false, so a data-supplied
+ *   `http://` URL on an allowed host can't send the headers in cleartext.
  * - A URL that doesn't parse as an HTTP(S) URL is treated as not allowed.
  *
+ * @param requireHttps When true (the default), plain `http` URLs get no headers. Set false only
+ * for a local development backend.
  * @param allowedHosts Lambda returning the allowed hosts, e.g. `setOf("api.example.com")`.
  * Evaluated on every request, so it can read runtime configuration.
  */
-fun HeaderProvider.restrictedToHosts(allowedHosts: () -> Set<String>): HeaderProvider {
+fun HeaderProvider.restrictedToHosts(
+	requireHttps: Boolean = true,
+	allowedHosts: () -> Set<String>,
+): HeaderProvider {
 	val delegate = this
 	return HeaderProvider { url ->
-		val host = url.toHttpUrlOrNull()?.host
-		if (host == null || allowedHosts().none { it.equals(host, ignoreCase = true) }) emptyMap()
-		else delegate.provideHeaders(url)
+		val httpUrl = url.toHttpUrlOrNull()
+		val allowed = httpUrl != null &&
+			(httpUrl.isHttps || !requireHttps) &&
+			allowedHosts().any { it.equals(httpUrl.host, ignoreCase = true) }
+		if (allowed) delegate.provideHeaders(url) else emptyMap()
 	}
 }
