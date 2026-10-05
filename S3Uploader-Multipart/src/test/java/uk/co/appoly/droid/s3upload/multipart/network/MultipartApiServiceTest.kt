@@ -368,6 +368,24 @@ class MultipartApiServiceTest {
 		assertEquals("abc", recorded.getHeader("X-Trace"))
 	}
 
+	@Test
+	fun `service passes each request's url to the header provider`() = runBlocking {
+		val seen = mutableListOf<String>()
+		val scoped = MultipartApiService(api) { url -> seen += url; providedHeaders }
+		repeat(4) { server.enqueue(MockResponse().setResponseCode(200).setBody("""{"success":true}""")) }
+		val initiate = endpointUrl("api/multipart/initiate")
+		val presign = endpointUrl("api/multipart/presign")
+		val complete = endpointUrl("api/multipart/complete")
+		val abort = endpointUrl("api/multipart/abort")
+
+		scoped.initiateMultipartUpload(url = initiate, fileName = "x.bin")
+		scoped.getPresignedUrlForPart(url = presign, uploadId = "u", filePath = "p", partNumber = 1)
+		scoped.completeMultipartUpload(url = complete, uploadId = "u", filePath = "p", parts = emptyList())
+		scoped.abortMultipartUpload(url = abort, uploadId = "u", filePath = "p")
+
+		assertEquals(listOf(initiate, presign, complete, abort), seen)
+	}
+
 	// ==================== empty / null data mapping ====================
 
 	@Test

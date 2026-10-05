@@ -22,10 +22,13 @@ import java.util.concurrent.TimeUnit
  * Service wrapper for multipart upload API operations.
  *
  * Handles header injection and provides a clean API for the upload manager.
+ *
+ * @param headerProvider Returns the headers for a request to the given URL, so a host-scoped
+ * provider can withhold credentials from URLs it doesn't trust.
  */
 internal class MultipartApiService(
 	private val api: MultipartApis,
-	private val headerProvider: () -> Map<String, String>
+	private val headerProvider: (url: String) -> Map<String, String>
 ) {
 
 	/**
@@ -48,7 +51,7 @@ internal class MultipartApiService(
 
 		return try {
 			api.initiateMultipartUpload(
-				headers = headerProvider(),
+				headers = headerProvider(url),
 				accept = ACCEPT_JSON,
 				url = url,
 				body = body
@@ -81,7 +84,7 @@ internal class MultipartApiService(
 
 		return try {
 			api.getPresignedUrlForPart(
-				headers = headerProvider(),
+				headers = headerProvider(url),
 				accept = ACCEPT_JSON,
 				url = url,
 				body = body
@@ -114,7 +117,7 @@ internal class MultipartApiService(
 
 		return try {
 			api.completeMultipartUpload(
-				headers = headerProvider(),
+				headers = headerProvider(url),
 				accept = ACCEPT_JSON,
 				url = url,
 				body = body
@@ -144,7 +147,7 @@ internal class MultipartApiService(
 
 		return try {
 			api.abortMultipartUpload(
-				headers = headerProvider(),
+				headers = headerProvider(url),
 				accept = ACCEPT_JSON,
 				url = url,
 				body = body

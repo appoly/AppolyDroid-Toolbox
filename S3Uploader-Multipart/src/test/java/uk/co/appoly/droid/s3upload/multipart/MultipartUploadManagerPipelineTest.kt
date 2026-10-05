@@ -26,6 +26,8 @@ import uk.co.appoly.droid.s3upload.multipart.result.MultipartUploadResult
 import org.junit.After
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -113,6 +115,103 @@ class MultipartUploadManagerPipelineTest {
 		assertEquals("remote/file.bin", result.filePath)
 		assertEquals("https://s3/final", result.location)
 		assertEquals(UploadSessionStatus.COMPLETED, manager.getSession(result.sessionId)?.status)
+	}
+
+	@Test
+	fun `startUpload succeeds when complete returns 204 with no body`() = runTest {
+		// A bodyless 2xx from complete still means S3 assembled the object. Sandwich substitutes
+		// Unit for the missing body, which must not be read as a CompleteMultipartResponse.
+		server.dispatcher = singlePartDispatcher(
+			complete = MockResponse().setResponseCode(204),
+		)
+
+		val result = manager.startUpload(tempFile(), apiUrls())
+
+		assertTrue("expected Success but was $result", result is MultipartUploadResult.Success)
+		result as MultipartUploadResult.Success
+		assertEquals("remote/file.bin", result.filePath)
+		assertNull(result.location)
+		assertEquals(UploadSessionStatus.COMPLETED, manager.getSession(result.sessionId)?.status)
+	}
+
+	@Test
+	fun `startUpload returns a no-data Error when initiate returns 204 with no body`() = runTest {
+		server.dispatcher = singlePartDispatcher(
+			initiate = MockResponse().setResponseCode(204),
+		)
+
+		val result = manager.startUpload(tempFile(), apiUrls())
+
+		result as MultipartUploadResult.Error
+		assertFalse(
+			"Expected a no-data error, got ${result.throwable}",
+			result.throwable is ClassCastException
+		)
+	}
+
+	@Test
+	fun `bearerForHosts sends the token to the control endpoints but never to the S3 part PUT`() = runTest {
+		S3Uploader.initS3Uploader(
+			// MockWebServer speaks plain http, so opt out of the HTTPS requirement here.
+			HeaderProvider.bearerForHosts({ setOf(server.hostName) }, requireHttps = false) { "t0k3n" },
+			LoggingLevel.NONE
+		)
+		val authByPath = ConcurrentHashMap<String, String>()
+		val delegate = singlePartDispatcher()
+		server.dispatcher = object : Dispatcher() {
+			override fun dispatch(request: RecordedRequest): MockResponse {
+				authByPath[request.path.orEmpty().substringBefore('?')] = request.getHeader("Authorization") ?: "<none>"
+				return delegate.dispatch(request)
+			}
+		}
+
+		val result = manager.startUpload(tempFile(), apiUrls())
+
+		assertTrue("expected Success but was $result", result is MultipartUploadResult.Success)
+		assertEquals("Bearer t0k3n", authByPath["/initiate"])
+		assertEquals("Bearer t0k3n", authByPath["/presign"])
+		assertEquals("Bearer t0k3n", authByPath["/complete"])
+		assertEquals("<none>", authByPath["/s3put"])
+	}
+
+	@Test
+	fun `bearerForHosts omits the token when the control endpoints are on another host`() = runTest {
+		S3Uploader.initS3Uploader(
+			HeaderProvider.bearerForHosts({ setOf("api.example.com") }) { "t0k3n" },
+			LoggingLevel.NONE
+		)
+		val tokens = ConcurrentHashMap.newKeySet<String>()
+		val delegate = singlePartDispatcher()
+		server.dispatcher = object : Dispatcher() {
+			override fun dispatch(request: RecordedRequest): MockResponse {
+				request.getHeader("Authorization")?.let { tokens += it }
+				return delegate.dispatch(request)
+			}
+		}
+
+		manager.startUpload(tempFile(), apiUrls())
+
+		assertTrue("No request may carry the token, saw $tokens", tokens.isEmpty())
+	}
+
+	/** Happy-path responses for a single-part upload, with any step overridable. */
+	private fun singlePartDispatcher(
+		initiate: MockResponse = MockResponse().setResponseCode(200)
+			.setBody("""{"success":true,"data":{"upload_id":"up-1","file_path":"remote/file.bin"}}"""),
+		complete: MockResponse = MockResponse().setResponseCode(200)
+			.setBody("""{"success":true,"data":{"file_path":"remote/file.bin","location":"https://s3/final"}}"""),
+	) = object : Dispatcher() {
+		override fun dispatch(request: RecordedRequest): MockResponse {
+			val path = request.path.orEmpty()
+			return when {
+				path.startsWith("/initiate") -> initiate
+				path.startsWith("/presign") -> MockResponse().setResponseCode(200)
+					.setBody("""{"success":true,"data":{"presigned_url":"${server.url("/s3put")}","part_number":1,"headers":{}}}""")
+				path.startsWith("/s3put") -> MockResponse().setResponseCode(200).setHeader("ETag", "\"etag-1\"")
+				path.startsWith("/complete") -> complete
+				else -> MockResponse().setResponseCode(404)
+			}
+		}
 	}
 
 	@Test

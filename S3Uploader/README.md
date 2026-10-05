@@ -38,8 +38,11 @@ class MyApp: Application() {
 
     private fun initS3Uploader() {
         S3Uploader.initS3Uploader(
-            // Bearer token auth (most common)
-            headerProvider = HeaderProvider.bearer { authManager.getToken() },
+            // Bearer token, sent only to your own API host
+            headerProvider = HeaderProvider.bearerForHosts(
+                allowedHosts = { setOf(BuildConfig.API_HOST) },
+                tokenProvider = { authManager.getToken() },
+            ),
             loggingLevel =,// Set desired LoggingLevel. e.g: if (isDebug) LoggingLevel.W else LoggingLevel.NONE
             logger = // Your implementation of FlexiLogger
         )
@@ -47,16 +50,42 @@ class MyApp: Application() {
 }
 ```
 
-The `HeaderProvider` controls which HTTP headers are sent with pre-signed URL requests to your backend. Common patterns:
+The `HeaderProvider` controls which HTTP headers are sent with pre-signed URL requests to your backend
+(and, in S3Uploader-Multipart, the initiate/presign/complete/abort requests). They are never sent on the
+S3 upload itself, which only carries the headers your pre-sign response returns.
+
+#### Scope credentials to your API host
+
+S3Uploader calls `provideHeaders(url)` with each request's URL. The URLs come from the caller, and
+sometimes from data, such as a pre-sign URL in a server or form response. A provider that ignores the
+URL sends its token to whatever host that URL names. For anything carrying a credential, use a
+host-scoped provider:
 
 ```kotlin
-// Bearer token (Authorization: Bearer <token>)
-HeaderProvider.bearer { authManager.getToken() }
+// Authorization: Bearer <token>, only for requests to api.example.com
+HeaderProvider.bearerForHosts(
+    allowedHosts = { setOf("api.example.com") },
+    tokenProvider = { authManager.getToken() },
+)
 
+// Any provider can be scoped the same way
+HeaderProvider.custom("User-Api-Token") { apiKeyStore.getKey() }
+    .restrictedToHosts { setOf("api.example.com") }
+```
+
+Hosts match exactly and case-insensitively, without subdomains, so list each host. Only `https` URLs
+get the headers, so a data-supplied `http://` URL on an allowed host can't leak the token in
+cleartext. For a local development backend, pass `requireHttps = false`. A URL that doesn't parse is
+treated as not allowed. If you wrap a provider, pass the URL through to its
+`provideHeaders(url)`.
+
+#### Other patterns
+
+```kotlin
 // Custom header name (e.g. User-Api-Token: <token>)
 HeaderProvider.custom("User-Api-Token") { apiKeyStore.getKey() }
 
-// Multiple headers (auth + metadata)
+// Multiple headers. The lambda receives the request URL as `it`, so it can decide per request.
 HeaderProvider {
     buildMap {
         val token = getToken()
@@ -65,8 +94,19 @@ HeaderProvider {
         }
         put("X-App-Version", BuildConfig.VERSION_NAME)
     }
-}
+}.restrictedToHosts { setOf("api.example.com") } // it carries a token, so scope it
 ```
+
+#### Migrating from 1.10.x
+
+- `HeaderProvider` now has a single method, `provideHeaders(url: String)`. `HeaderProvider { … }`
+  lambdas still compile unchanged (the URL is `it`). Classes that override `provideHeaders()` need
+  the `url` parameter, and code that calls `provideHeaders()` must pass the request URL through.
+- `HeaderProvider.bearer` is deprecated because it sends the token to every URL. Replace it with
+  `HeaderProvider.bearerForHosts(allowedHosts = { setOf(<your API host>) }, tokenProvider = …)`.
+- A library compiled against 1.10.x that implements `HeaderProvider` (FormolyEngine, for example)
+  must be upgraded together with the Toolbox. Running the old build against the new Toolbox fails
+  with `AbstractMethodError` on the first upload.
 
 ### Basic File Upload
 

@@ -8,6 +8,7 @@ import com.skydoves.sandwich.message
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import okhttp3.HttpUrl.Companion.toHttpUrl
 import uk.co.appoly.droid.Log
 import uk.co.appoly.droid.data.remote.BaseRetrofitClient
 import uk.co.appoly.droid.data.remote.BaseService
@@ -298,7 +299,10 @@ class TestBackendRepository(
      */
     private fun initializeS3Uploader() {
         S3Uploader.initS3Uploader(
-            headerProvider = HeaderProvider.bearer { _authToken.value },
+            headerProvider = HeaderProvider.bearerForHosts(
+                allowedHosts = { setOf(TestBackendRetrofitClient.BASE_URL.toHttpUrl().host) },
+                tokenProvider = { _authToken.value },
+            ),
             loggingLevel = LoggingLevel.V,
             logger = uk.co.appoly.droid.Log
         )
