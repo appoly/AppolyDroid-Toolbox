@@ -17,10 +17,11 @@
 [versions]
 # --- PUBLISHED: these versions reach consumers -------------------------------
 kotlin = "2.4.20"                 # also the language/stdlib version consumers compile against
-coreKtx = "1.19.0"
+coreKtx = "1.19.1"
 appcompat = "1.8.0"
 lifecycleRuntime = "2.11.0"
-composeBom = "2026.09.00"
+compose = "1.12.1"                # what composeBom resolves androidx.compose.ui/foundation to - bump together
+composeMaterial3 = "1.4.0"        # what composeBom resolves material3 to - bump together
 coroutines = "1.11.0"             # -android ships; -test is build-only
 flexiLoggerVersion = "2.1.4"      # exposed as `api` - a bump is a consumer-visible change
 okhttp = "5.5.0"
@@ -29,8 +30,8 @@ sandwichVersion = "2.4.0"         # exposed as `api` from BaseRepo
 kotlinxSerialization = "1.11.0"
 paging = "3.5.1"
 roomVersion = "2.8.5"
-nav3 = "1.2.0-rc01"               # exposed as `api` from Nav3Navigation
-workManager = "2.11.2"
+nav3 = "1.2.0"                    # exposed as `api` from Nav3Navigation
+workManager = "2.12.0"
 cameraX = "1.6.2"                 # BarcodeScanner-Camera
 mlkitBarcodeCommon = "17.0.0"     # exposed as `api` from BarcodeScanner (Barcode.FORMAT_* constants)
 mlkitBarcodeScanning = "18.3.1"   # unbundled ML Kit detector, model served by Play services
@@ -39,7 +40,7 @@ playServicesBase = "18.11.0"      # ModuleInstallClient, for warmUp()
 
 # --- BUILD/TEST: toolchain + test-only, never published ----------------------
 agp = "9.4.1"
-ksp = "2.3.11"
+ksp = "2.3.12"
 vanniktechPublish = "0.37.0"      # release tooling only
 junit = "4.13.2"
 junitVersion = "1.3.0"
@@ -48,6 +49,8 @@ androidxTestCore = "1.7.0"
 androidxTestRules = "1.7.0"        # GrantPermissionRule, BarcodeScanner-Camera device suite
 robolectric = "4.16.1"
 activityCompose = "1.13.0"        # demo app + Nav3Navigation androidTest only
+composeBom = "2026.09.00"         # demo app + tests only; library modules must not import it (see androidx-compose-bom)
+composeMaterialIcons = "1.7.8"    # demo app only; what composeBom resolves material-icons-extended to
 
 [libraries]
 # =============================================================================
@@ -68,11 +71,15 @@ kotlinx-coroutines-android = { module = "org.jetbrains.kotlinx:kotlinx-coroutine
 kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json", version.ref = "kotlinxSerialization" }
 kotlinx-serialization-core = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-core", version.ref = "kotlinxSerialization" }
 
-#Compose (BOM is imported by the Compose-facing modules and by the demo app)
+#Compose - explicit versions, NOT the BOM. Gradle publishes even an implementation(platform(...))
+#into the POM (<scope>import</scope>) and the .module, so a library importing the BOM would force
+#its whole Compose set onto every consumer. Only the demo app and test configurations import the
+#BOM. When bumping composeBom, bump compose/composeMaterial3/composeMaterialIcons to match.
 androidx-compose-bom = { group = "androidx.compose", name = "compose-bom", version.ref = "composeBom" }
-androidx-ui = { group = "androidx.compose.ui", name = "ui" }
-androidx-material3 = { group = "androidx.compose.material3", name = "material3" }
-androidx-compose-foundation = { group = "androidx.compose.foundation", name = "foundation" }
+androidx-ui = { group = "androidx.compose.ui", name = "ui", version.ref = "compose" }
+androidx-material3 = { group = "androidx.compose.material3", name = "material3", version.ref = "composeMaterial3" }
+androidx-compose-foundation = { group = "androidx.compose.foundation", name = "foundation", version.ref = "compose" }
+androidx-compose-animation = { group = "androidx.compose.animation", name = "animation", version.ref = "compose" }
 
 #FlexiLogger (Maven Central) - exposed as `api`
 flexiLogger = { group = "io.github.projectdelta6", name = "flexilogger", version.ref = "flexiLoggerVersion" }
@@ -145,18 +152,18 @@ androidx-test-core-ktx = { group = "androidx.test", name = "core-ktx", version.r
 androidx-test-rules = { group = "androidx.test", name = "rules", version.ref = "androidxTestRules" }
 androidx-room-testing = { group = "androidx.room", name = "room-testing", version.ref = "roomVersion" }
 
-#Compose test (versions from the Compose BOM)
-androidx-ui-test-junit4 = { group = "androidx.compose.ui", name = "ui-test-junit4" }
-androidx-ui-test-manifest = { group = "androidx.compose.ui", name = "ui-test-manifest" }
+#Compose test
+androidx-ui-test-junit4 = { group = "androidx.compose.ui", name = "ui-test-junit4", version.ref = "compose" }
+androidx-ui-test-manifest = { group = "androidx.compose.ui", name = "ui-test-manifest", version.ref = "compose" }
 androidx-activity-compose = { group = "androidx.activity", name = "activity-compose", version.ref = "activityCompose" }
 
 # =============================================================================
 # DEMO APP ONLY - never referenced by a published module
 # =============================================================================
-androidx-ui-graphics = { group = "androidx.compose.ui", name = "ui-graphics" }
-androidx-ui-tooling = { group = "androidx.compose.ui", name = "ui-tooling" }
-androidx-ui-tooling-preview = { group = "androidx.compose.ui", name = "ui-tooling-preview" }
-compose-material-icons-extended = { group = "androidx.compose.material", name = "material-icons-extended" }
+androidx-ui-graphics = { group = "androidx.compose.ui", name = "ui-graphics", version.ref = "compose" }
+androidx-ui-tooling = { group = "androidx.compose.ui", name = "ui-tooling", version.ref = "compose" }
+androidx-ui-tooling-preview = { group = "androidx.compose.ui", name = "ui-tooling-preview", version.ref = "compose" }
+compose-material-icons-extended = { group = "androidx.compose.material", name = "material-icons-extended", version.ref = "composeMaterialIcons" }
 
 [plugins]
 # --- Applied by the published library modules --------------------------------

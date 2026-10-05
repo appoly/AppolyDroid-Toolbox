@@ -18,7 +18,7 @@ implementation("uk.co.appoly.droid:appsnackbar:1.10.0")
 
 **Requirements**
 
-- `minSdk` **21**
+- `minSdk` **23** (androidx core/appcompat requirement)
 
 ## Usage
 

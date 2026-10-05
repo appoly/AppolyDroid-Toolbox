@@ -22,7 +22,7 @@ implementation("uk.co.appoly.droid:baserepo-s3uploader-multipart:1.10.0")
 
 **Requirements**
 
-- `minSdk` **21**
+- `minSdk` **24** (androidx.work requirement)
 
 ## Usage
 

@@ -17,7 +17,7 @@ configure<LibraryExtension> {
     }
 
     defaultConfig {
-        minSdk = BuildConfig.MinSdk.S3_UPLOADER
+        minSdk = BuildConfig.MinSdk.S3_UPLOADER_MULTIPART
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         consumerProguardFiles("consumer-rules.pro")
     }

@@ -49,16 +49,15 @@ dependencies {
 	implementation(libs.androidx.appcompat)
 
 	//Compose
-	implementation(platform(libs.androidx.compose.bom))
 	implementation(libs.androidx.ui)
 	implementation(libs.androidx.material3)
+	implementation(libs.androidx.compose.foundation)
 
 	implementation(libs.kotlinx.coroutines.android)
 
 	testImplementation(libs.junit)
 	testImplementation(libs.robolectric)
 	testImplementation(libs.androidx.junit)
-	testImplementation(platform(libs.androidx.compose.bom))
 	testImplementation(libs.androidx.ui.test.junit4)
 	testImplementation(libs.androidx.ui.test.manifest)
 	testImplementation(libs.kotlinx.coroutines.test)

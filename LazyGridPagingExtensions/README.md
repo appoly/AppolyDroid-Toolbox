@@ -24,7 +24,7 @@ implementation("androidx.paging:paging-compose:3.5.1")
 
 **Requirements**
 
-- `minSdk` **21**
+- `minSdk` **23** (androidx core/appcompat requirement)
 
 ## Usage
 

@@ -48,8 +48,8 @@ dependencies {
 	implementation(libs.androidx.core.ktx)
 
 	//Compose
-	implementation(platform(libs.androidx.compose.bom))
 	implementation(libs.androidx.ui)
+	implementation(libs.androidx.compose.animation)
 
 	//Navigation 3 — api: NavKey/NavEntry/NavBackStack/Scene appear in this module's public API
 	api(libs.androidx.navigation3.runtime)
@@ -68,7 +68,6 @@ dependencies {
 	testImplementation(libs.junit)
 	testImplementation(libs.robolectric)
 	testImplementation(libs.androidx.junit)
-	testImplementation(platform(libs.androidx.compose.bom))
 	testImplementation(libs.androidx.ui.test.junit4)
 	testImplementation(libs.androidx.ui.test.manifest)
 	testImplementation(libs.androidx.material3)
@@ -78,7 +77,6 @@ dependencies {
 	androidTestImplementation(libs.androidx.junit)
 	androidTestImplementation(libs.androidx.espresso.core)
 	androidTestImplementation(libs.androidx.test.core.ktx)
-	androidTestImplementation(platform(libs.androidx.compose.bom))
 	androidTestImplementation(libs.androidx.ui.test.junit4)
 	androidTestImplementation(libs.androidx.material3)
 	androidTestImplementation(libs.androidx.activity.compose)

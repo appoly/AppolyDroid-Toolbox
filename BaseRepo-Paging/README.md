@@ -27,7 +27,7 @@ implementation("uk.co.appoly.droid:lazygridpagingextensions:1.10.0") // For Lazy
 
 **Requirements**
 
-- `minSdk` **21**
+- `minSdk` **23** (androidx core/appcompat requirement)
 
 ## Extensions
 
