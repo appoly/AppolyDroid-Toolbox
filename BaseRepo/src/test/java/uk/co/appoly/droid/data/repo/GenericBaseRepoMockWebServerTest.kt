@@ -23,6 +23,7 @@ import retrofit2.converter.kotlinx.serialization.asConverterFactory
 import retrofit2.http.GET
 import uk.co.appoly.droid.data.remote.BaseRetrofitClient
 import uk.co.appoly.droid.data.remote.model.APIResult
+import uk.co.appoly.droid.data.remote.model.response.RootJson
 import uk.co.appoly.droid.data.remote.model.response.RootJsonWithData
 import uk.co.appoly.droid.util.ServerTimeoutException
 import uk.co.appoly.droid.util.ServerUnreachableException
@@ -75,6 +76,12 @@ class GenericBaseRepoMockWebServerTest {
 	}
 
 	@Serializable
+	private data class WireRootJson(
+		override val success: Boolean,
+		override val message: String? = null,
+	) : RootJson
+
+	@Serializable
 	private data class WireErrorBody(
 		val message: String? = null,
 	)
@@ -85,6 +92,9 @@ class GenericBaseRepoMockWebServerTest {
 
 		@GET("enveloped")
 		suspend fun getEnveloped(): ApiResponse<EnvelopeWireResponse<Payload>>
+
+		@GET("root")
+		suspend fun getRoot(): ApiResponse<WireRootJson>
 	}
 
 	// --- Repo under test ------------------------------------------------------
@@ -113,6 +123,9 @@ class GenericBaseRepoMockWebServerTest {
 
 		suspend fun fetchEnveloped(): APIResult<Payload> =
 			doAPICall("fetchEnveloped") { api.getEnveloped() }
+
+		suspend fun fetchRoot(): APIResult<RootJson> =
+			doAPICallWithRootJson("fetchRoot") { api.getRoot() }
 	}
 
 	// --- Fixtures ---------------------------------------------------------------
@@ -189,6 +202,54 @@ class GenericBaseRepoMockWebServerTest {
 		result as APIResult.Error
 		assertEquals(422, result.responseCode)
 		assertEquals("validation failed", result.message)
+	}
+
+	// --- Bodyless 2xx responses ------------------------------------------------
+	// Retrofit skips the converter for 204/205, and Sandwich then substitutes Unit for the
+	// missing body (`response.body() ?: Unit as T`), so ApiResponse.Success.data is not the
+	// declared type at all. These must surface as errors, not a ClassCastException.
+
+	@Test
+	fun `HTTP 204 in doAPICall returns Error instead of throwing ClassCastException`() = runBlocking {
+		server.enqueue(MockResponse().setResponseCode(204))
+
+		val result = repo.fetchData()
+
+		result as APIResult.Error
+		assertEquals(204, result.responseCode)
+		assertEquals(GenericBaseRepo.EMPTY_BODY_MESSAGE, result.message)
+	}
+
+	@Test
+	fun `HTTP 204 in doAPICallWithRootJson returns Error instead of throwing ClassCastException`() = runBlocking {
+		server.enqueue(MockResponse().setResponseCode(204))
+
+		val result = repo.fetchRoot()
+
+		result as APIResult.Error
+		assertEquals(204, result.responseCode)
+		assertEquals(GenericBaseRepo.EMPTY_BODY_MESSAGE, result.message)
+	}
+
+	@Test
+	fun `HTTP 205 in doAPICall returns Error instead of throwing ClassCastException`() = runBlocking {
+		server.enqueue(MockResponse().setResponseCode(205))
+
+		val result = repo.fetchData()
+
+		result as APIResult.Error
+		assertEquals(205, result.responseCode)
+		assertEquals(GenericBaseRepo.EMPTY_BODY_MESSAGE, result.message)
+	}
+
+	@Test
+	fun `doAPICallWithRootJson still returns Success for a 200 RootJson body`() = runBlocking {
+		enqueueJson(200, """{"success":true,"message":"done"}""")
+
+		val result = repo.fetchRoot()
+
+		assertTrue("Expected Success but was $result", result is APIResult.Success)
+		assertEquals("done", (result as APIResult.Success).data.message)
 	}
 
 	// --- The ApiEnvelope consumer scenario -------------------------------------

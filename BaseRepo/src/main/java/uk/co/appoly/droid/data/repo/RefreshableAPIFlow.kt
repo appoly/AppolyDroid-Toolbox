@@ -126,7 +126,7 @@ class RefreshableAPIFlow<T : Any>(
 					}
 				} catch (e: Exception) {
 					BaseRepoLog.w(this@RefreshableAPIFlow, "Exception in refresh", e)
-					internalFlow.emit(APIFlowState.Error(GenericBaseRepo.RESPONSE_EXCEPTION_CODE, e.message ?: "Unknown error"))
+					internalFlow.emit(APIFlowState.Error(GenericBaseRepo.RESPONSE_EXCEPTION_CODE, e.message ?: GenericBaseRepo.UNKNOWN_ERROR_MESSAGE))
 				} finally {
 					isRefreshing.store(false)
 					refreshCompletion.complete(Unit)
