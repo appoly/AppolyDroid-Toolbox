@@ -235,7 +235,9 @@ Bottom-bar chrome stays **app-owned**. The library provides a navigator that:
   stack without being composed — that is the retention mechanism
 - implements `Nav3Navigator` so in-tab `LocalNav3Navigator.push/pop` stay tab-local
 - **exit-through-home**: `pop` at a non-start tab root switches to the start tab
-- **`navigateToTab(tab, vararg screens)`** for cross-tab deep links
+- **`navigateToTab(tab, vararg screens)`** for cross-tab navigation, in one step: if a screen is
+  already anywhere in that tab's stack it is surfaced (popped back to) rather than pushed again,
+  so an equal key never appears twice in a tab
 - records **`pendingTabSlide`** so tab switches can animate directionally (see [Transitions](#transitions))
 - exposes **`currentTabDepth`** (depth of the current tab only) for in-tab transition z-index —
   not `backStack.size`, which grows as tabs are visited

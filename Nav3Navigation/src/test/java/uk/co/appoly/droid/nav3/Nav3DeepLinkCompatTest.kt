@@ -60,18 +60,23 @@ class Nav3DeepLinkCompatTest {
 	}
 
 	/**
-	 * The gap: a synthetic stack whose root is a tab root maps onto navigateToTab, but that
-	 * **appends** to whatever the tab already held instead of landing on the deep link's stack.
+	 * The original gap: navigateToTab could only append to whatever the tab already held.
+	 * navigateToDeepLink now lands the resolved stack exactly when asked to (Reconcile), while
+	 * Append keeps the user's place.
 	 */
 	@Test
-	fun `tabs - navigateToTab appends to the existing tab stack`() {
+	fun `tabs - a resolved stack lands on its tab in either mode`() {
 		val tabs = TabsNav3Navigator(listOf(HomeScreen, ListScreen, SettingsScreen))
 		tabs.navigateToTab(ListScreen, DetailScreen(3))
 		tabs.switchTab(HomeScreen)
 
 		// Deep link resolves to [ListScreen, DetailScreen(7)]: tab root + target.
-		tabs.navigateToTab(ListScreen, DetailScreen(7))
+		tabs.navigateToDeepLink(Nav3DeepLink(listOf(ListScreen, DetailScreen(7)), Nav3DeepLinkMode.Reconcile))
 
-		assertEquals(listOf(ListScreen, DetailScreen(3), DetailScreen(7)), tabs.items)
+		assertEquals(ListScreen, tabs.currentTab)
+		assertEquals(listOf(ListScreen, DetailScreen(7)), tabs.items)
+
+		tabs.navigateToDeepLink(Nav3DeepLink(listOf(ListScreen, DetailScreen(8))))
+		assertEquals(listOf(ListScreen, DetailScreen(7), DetailScreen(8)), tabs.items)
 	}
 }

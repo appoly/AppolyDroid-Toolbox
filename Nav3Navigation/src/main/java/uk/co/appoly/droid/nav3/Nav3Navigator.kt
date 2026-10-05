@@ -175,6 +175,35 @@ interface Nav3Navigator {
 	 * target stack.
 	 */
 	val items: List<Nav3Screen>
+
+	// --- deep links ---
+
+	/**
+	 * Lands [link] on this navigator's stack according to [Nav3DeepLink.mode]
+	 * ([Nav3DeepLinkMode.Append] keeps the user's place, [Nav3DeepLinkMode.Reconcile] makes the
+	 * stack exactly the link's). An equal key never ends up on the stack twice.
+	 *
+	 * [BackStackNav3Navigator] and [TabsNav3Navigator] override this; a [TabsNav3Navigator] also
+	 * selects the tab the link starts in. The default implementation works through this
+	 * interface's own [items], [pop], [push] and [replaceAll], so a custom navigator (an analytics
+	 * wrapper, say) gets correct behaviour without overriding it. A wrapper around a
+	 * [TabsNav3Navigator] should forward this call so the tab is selected too.
+	 */
+	fun navigateToDeepLink(link: Nav3DeepLink) {
+		val current = items
+		val target = planDeepLinkStack(current, link.stack, link.mode).map { it as Nav3Screen }
+		val common = commonPrefixLength(current, target)
+		if (common == 0) {
+			replaceAll(*target.toTypedArray())
+			return
+		}
+		while (items.size > common) {
+			val before = items.size
+			pop()
+			if (items.size == before) break // pop() refused (e.g. at a root); never spin
+		}
+		push(target.subList(common, target.size))
+	}
 }
 
 /**
@@ -294,6 +323,10 @@ class BackStackNav3Navigator(
 
 	override val items: List<Nav3Screen>
 		get() = backStack.mapNotNull { it as? Nav3Screen }
+
+	override fun navigateToDeepLink(link: Nav3DeepLink) {
+		backStack.morphInto(planDeepLinkStack(backStack.toList(), link.stack, link.mode))
+	}
 }
 
 /**

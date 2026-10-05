@@ -1,14 +1,20 @@
 # Nav3Navigation: deep-link support (plan)
 
-Status: **planned, not started** (2026-10-01). Branch `feature/Nav3-Deep-Links` was created from
-`origin/main`; its only change is an untracked probe test,
-`Nav3Navigation/src/test/java/uk/co/appoly/droid/nav3/Nav3DeepLinkCompatTest.kt` (4/4 passing).
+Status: **in progress** (2026-10-05). Steps 1–3 of the work order are done: `navigateToTab`'s
+whole-stack dedup, `Nav3DeepLink` / `navigateToDeepLink` (Append and Reconcile), and
+`Nav3DeepLinkRouter`. The branch is up to date with `develop`.
 
-**Branch base:** the branch is stacked on `bugfix/Compose-Bom-Leak` (PR #120, at `52d9feb`), not
-on `main`. On `origin/main` (as of 2026-10-01) the library modules still declare
-`implementation(platform(libs.androidx.compose.bom))`, which leaks the BOM version into
-consumers' POMs, and nav3 is still on `1.2.0-rc01`. Once #120 merges, rebase onto `main`. Never
-add the BOM to a library module: it belongs only in `app` and in test configurations.
+Notes from implementing steps 1–3:
+
+- `navigateToDeepLink` is a `Nav3Navigator` member **with a default body** (built on `items`,
+  `pop`, `push` and `replaceAll`), so adding it breaks no custom navigator.
+  `BackStackNav3Navigator` and `TabsNav3Navigator` override it.
+- `Nav3DeepLink` has no `continuation` yet; step 4 adds it.
+- A tab root inside a link (anywhere but first) throws in `navigateToDeepLink`. `navigateToTab`
+  stays permissive about that, since it is released API.
+- Nav3's `MatchResult.compareTo` isn't antisymmetric across result types (a URI result beats a
+  plain one, but the plain one calls it a tie), so the router ranks by the difference of both
+  directions and leaves ties in declaration order.
 
 The consumer-app findings behind this plan are in `nav3-deep-links-consumer-survey.md`. That file
 names client apps, and this repo is public, so **do not commit it**.
